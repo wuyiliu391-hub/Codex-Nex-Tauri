@@ -1,5 +1,7 @@
 /* Official Codex CDP-resolved tokens (Electron harness, light + dark).
-   Source: docs/official-ui/cdp-resolved.json — do not invent values. */
+   Source: docs/official-ui/cdp-resolved.json — do not invent values.
+   Hex is allowed ONLY for --official-* definitions in this file.
+   Semantic aliases below must be var() references. */
 
 @font-face {
   font-family: "OpenAI Sans";
@@ -18,7 +20,7 @@
 
 :root,
 html.theme-light {
-  /* CDP light */
+  /* CDP light — values from docs/official-ui/UI_PARITY.md + cdp-resolved.json */
   --official-surface: #ffffff;
   --official-sidebar: #f9f9f9;
   --official-text-emphasis: #1a1c1f;
@@ -38,6 +40,9 @@ html.theme-light {
   --official-gray-1000: #0d0d0d;
   --official-ring: #339cff;
   --official-solid: #1a1c1f;
+  /* Official app-*.css elevation (SEMANTIC_TOKENS.md) */
+  --official-elevation-stroke: 0 0 0 0.5px #00000008;
+  --official-elevation-prominent: 0 0 0 0.5px #00000008, 0 3px 7.5px #0000000a, 0 0 20px #0000000d;
 
   --height-toolbar-sm: 36px;
   --height-toolbar: 46px;
@@ -62,8 +67,8 @@ html.theme-light {
   --border-default: var(--official-gray-200);
   --border-subtle: var(--official-gray-150);
   --accent-ring: var(--official-ring);
-  --accent: #2563eb;
-  --accent-soft: rgba(37, 99, 235, 0.12);
+  --accent: var(--official-ring);
+  --accent-soft: color-mix(in srgb, var(--official-ring) 12%, transparent);
 }
 
 html.theme-dark,
@@ -86,17 +91,18 @@ html.theme-dark,
   --official-gray-950: #f3f3f3;
   --official-gray-1000: #ffffff;
   --official-solid: #dfdfdf;
-  --accent: #0ea5e9;
-  --accent-soft: rgba(14, 165, 233, 0.14);
+  --accent: var(--official-ring);
+  --accent-soft: color-mix(in srgb, var(--official-ring) 14%, transparent);
 
   --bg-canvas: var(--official-surface);
   --bg-sidebar: var(--official-sidebar);
-  --bg-elevated: #1c1c1c;
+  --bg-elevated: var(--official-gray-150);
   --fg-primary: var(--official-text-emphasis);
   --fg-secondary: var(--official-gray-600);
   --fg-muted: var(--official-gray-500);
   --border-default: var(--official-gray-200);
   --border-subtle: var(--official-gray-150);
+  --accent-ring: var(--official-ring);
 }
 
 .app-toolbar {

@@ -1,5 +1,6 @@
 mod codex;
 mod commands;
+mod menu;
 mod state;
 
 use tauri::Manager;
@@ -17,6 +18,8 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_store::Builder::default().build())
+        .menu(|app| menu::build_menu(app))
+        .on_menu_event(menu::on_menu_event)
         .setup(|app| {
             let handle = app.handle().clone();
             let state = state::AppState::load_or_default(&handle)?;

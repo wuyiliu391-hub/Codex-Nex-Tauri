@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="/styles/reset.css" />
   <link rel="stylesheet" href="/styles/shell.css" />
   <link rel="stylesheet" href="/styles/components.css" />
+  <link rel="stylesheet" href="/styles/controls.css" />
   <link rel="stylesheet" href="/styles/home.css" />
   <link rel="stylesheet" href="/styles/discovery.css" />
   <link rel="stylesheet" href="/styles/settings.css" />
@@ -108,7 +109,7 @@
   </div>
   <header class="app-toolbar" id="app-toolbar" data-tauri-drag-region>
     <div class="toolbar-navigation">
-      <button class="toolbar-button" id="titlebar-sidebar" type="button" aria-label="Toggle sidebar">
+      <button class="toolbar-button" id="titlebar-sidebar" type="button" aria-label="Toggle sidebar" data-i18n-aria="menu.toggleSidebar">
         <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 4.5h13v11h-13zM7.5 4.5v11"/></svg>
       </button>
       <button class="toolbar-button" id="titlebar-back" type="button" aria-label="Back">
@@ -118,12 +119,6 @@
         <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m8.5 5.5 4.5 4.5-4.5 4.5"/></svg>
       </button>
     </div>
-    <nav class="desktop-menu-bar" aria-label="Application menu">
-      <button class="desktop-menu-trigger" type="button" data-menu="file" data-i18n="app.menu.file">File</button>
-      <button class="desktop-menu-trigger" type="button" data-menu="edit" data-i18n="app.menu.edit">Edit</button>
-      <button class="desktop-menu-trigger" type="button" data-menu="view" data-i18n="app.menu.view">View</button>
-      <button class="desktop-menu-trigger" type="button" data-menu="help" data-i18n="app.menu.help">Help</button>
-    </nav>
     <div class="toolbar-spacer"></div>
     <div class="window-controls">
       <button class="window-control" id="window-minimise" type="button" aria-label="Minimise"><span class="caption-glyph">&#xE921;</span></button>

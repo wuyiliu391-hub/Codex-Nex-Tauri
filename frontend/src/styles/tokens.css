@@ -66,7 +66,8 @@
   --radius-token-composer-single-line: calc(var(--official-spacing) * 5.5); /* 22px */
   --radius-composer-multiline: calc(1.25rem * 1.25); /* radius-3xl-base * codex-corner-radius-scale */
   --spacing-token-button-composer: calc(var(--official-spacing) * 7); /* 28px */
-  --elevation-prominent-official: 0 0 0 0.5px #00000008, 0 3px 7.5px #0000000a, 0 0 20px #0000000d;
+  --elevation-prominent-official: var(--official-elevation-prominent);
+  --elevation-stroke-official: var(--official-elevation-stroke);
 
   color-scheme: light;
 
@@ -89,7 +90,7 @@
   --font-mono: var(--font-code-family, var(--font-mono-default));
   font-family: var(--font-sans);
   font-weight: var(--font-weight-body);
-  color: var(--fg-primary, #1a1c1f);
+  color: var(--fg-primary);
   -webkit-font-smoothing: antialiased;
 
   --font-weight-light: 300;
@@ -109,6 +110,12 @@
   --space-6: 24px;
   --space-7: 28px;
   --space-8: 32px;
+  --spacing-token-1: var(--space-1);
+  --spacing-token-2: var(--space-2);
+  --spacing-token-3: var(--space-3);
+  --spacing-token-4: var(--space-4);
+  --spacing-token-6: var(--space-6);
+  --spacing-token-8: var(--space-8);
 
   /* Size scale — matched to official UI density */
   --text-2xs: 11px;
@@ -189,52 +196,50 @@
     min(520px, calc(100vw - 320px))
   );
 
-  /* Official elevation (app-*.css --elevation-*) */
-  --elevation-stroke-official: 0 0 0 0.5px #00000008;
-
-  /* Classic theme surfaces (light) */
-  --surface-app-light: #ffffff; /* official surface */
-  --surface-shell-light: #ffffff;
-  --surface-panel-light: #ffffff;
+  /* Classic theme surfaces (light) — consume CDP --official-* where matched */
+  --surface-app-light: var(--official-surface);
+  --surface-shell-light: var(--official-surface);
+  --surface-panel-light: var(--official-surface);
   --surface-panel-muted-light: #f5f5f6;
   --surface-sidebar-light: #f3f3f3; /* ~gray-75 */
   --surface-sidebar-strong-light: #f3f3f3;
   --surface-user-bubble-light: #f2f2f7;
-  --surface-trace-light: #ffffff;
+  --surface-trace-light: var(--official-surface);
   --surface-elevated-light: #e3e3e3;
   --surface-overlay-light: rgba(41, 37, 36, 0.16);
   --surface-code-light: #1c1c1c;
   --surface-code-strong-light: #000000;
 
   /* Text tokens (light) — official Codex theme ink #1A1C1F */
-  --codex-ink-light: #1a1c1f;
-  --codex-surface-light: #ffffff;
-  --codex-accent: #339cff;
+  --codex-ink-light: var(--official-text-emphasis);
+  --codex-surface-light: var(--official-surface);
+  --codex-accent: var(--official-ring);
+  --accent-ring: var(--official-ring);
   --codex-contrast-light: 45;
   --text-primary-light: var(--codex-ink-light);
   /* official: color-mix(foreground 65%/70%, transparent) on white */
   --text-secondary-light: color-mix(in srgb, var(--codex-ink-light) 65%, transparent);
   --text-tertiary-light: color-mix(in srgb, var(--codex-ink-light) 55%, transparent);
   --text-quaternary-light: color-mix(in srgb, var(--codex-ink-light) 42%, transparent);
-  --text-on-dark-light: #ffffff;
+  --text-on-dark-light: var(--official-surface);
 
   /* Border tokens (light) */
   --border-subtle-light: #afafaf;
   --border-default-light: rgba(13, 13, 13, 0.08);
 
-  /* Brand / accent (classic = grayscale) */
-  --brand-primary: #339cff; /* official accent */
-  --brand-primary-hover: #1a8fff;
+  /* Brand / accent (classic = grayscale; ring from CDP) */
+  --brand-primary: var(--official-ring);
+  --brand-primary-hover: color-mix(in srgb, var(--official-ring) 88%, var(--official-text-emphasis));
   --brand-accent-highlight: rgba(199, 199, 199, 0);
   --brand-primary-soft: rgba(0, 0, 0, 0);
   --brand-primary-soft-strong: #000000;
 
   /* Classic dark surfaces */
-  --surface-app-dark: #181818; /* official dark surface */
-  --surface-shell-dark: #181818;
-  --surface-panel-dark: #181818;
-  --surface-panel-muted-dark: #212121;
-  --surface-sidebar-dark: #181818;
+  --surface-app-dark: var(--official-surface);
+  --surface-shell-dark: var(--official-surface);
+  --surface-panel-dark: var(--official-surface);
+  --surface-panel-muted-dark: var(--official-gray-200);
+  --surface-sidebar-dark: var(--official-sidebar);
   --surface-sidebar-strong-dark: #111111;
   --surface-user-bubble-dark: rgba(0, 0, 0, 0.16);
   --surface-trace-dark: #141414;
@@ -244,21 +249,21 @@
   --surface-code-strong-dark: #14100f;
 
   /* Text tokens (dark) */
-  --codex-ink-dark: #ffffff;
-  --codex-surface-dark: #181818;
+  --codex-ink-dark: var(--official-text-emphasis);
+  --codex-surface-dark: var(--official-surface);
   --codex-contrast-dark: 60;
   --text-primary-dark: var(--codex-ink-dark);
-  --text-secondary-dark: color-mix(in srgb, #ffffff 65%, transparent);
-  --text-tertiary-dark: color-mix(in srgb, #ffffff 50%, transparent);
-  --text-on-dark-dark: #ffffff;
+  --text-secondary-dark: color-mix(in srgb, var(--official-text-emphasis) 65%, transparent);
+  --text-tertiary-dark: color-mix(in srgb, var(--official-text-emphasis) 50%, transparent);
+  --text-on-dark-dark: var(--official-gray-1000);
 
   /* Border tokens (dark) */
   --border-subtle-dark: rgba(103, 103, 103, 0.56);
   --border-default-dark: rgba(231, 229, 228, 0.29);
 
   /* Brand (dark) */
-  --brand-primary-dark: #339cff;
-  --brand-primary-hover-dark: #5cb0ff;
+  --brand-primary-dark: var(--official-ring);
+  --brand-primary-hover-dark: color-mix(in srgb, var(--official-ring) 85%, var(--official-gray-1000));
   --brand-accent-highlight-dark: rgba(97, 97, 97, 0);
   --brand-primary-soft-dark: #ffffff;
   --brand-primary-soft-strong-dark: #ffffff;
@@ -488,11 +493,13 @@
   --fg-settings-row: var(--codex-ink-light);
   --fg-settings-desc: color-mix(in srgb, var(--codex-ink-light) 55%, transparent);
   --accent: var(--brand-primary);
+  --accent-ring: var(--official-ring);
   --accent-soft: rgba(0, 0, 0, 0.05);
   --accent-fg: var(--codex-ink-light);
   --border-default: rgba(13, 13, 13, 0.08);
   --border-light: rgba(13, 13, 13, 0.05);
   --border-heavy: rgba(13, 13, 13, 0.12);
+  --divider: var(--border-default);
   --success: #64a805;
   --warning: #b45309;
   --danger: #9f1239;
@@ -524,23 +531,23 @@
   --purple-300: #ad7bf9;
   --purple-400: #924ff7;
   --pink-400:   #ff66ad;
-  --gray-0:   #fff;
-  --gray-50:  #f9f9f9;
+  --gray-0:   var(--official-surface);
+  --gray-50:  var(--official-gray-50);
   --gray-75:  #f3f3f3;
-  --gray-100: #ededed;
-  --gray-150: #dfdfdf; /* official --gray-fixed-150 */
-  --gray-200: #cdcdcd;
-  --gray-300: #afafaf;
-  --gray-400: #8f8f8f;
-  --gray-500: #5d5d5d;
+  --gray-100: var(--official-gray-100);
+  --gray-150: var(--official-gray-150);
+  --gray-200: var(--official-gray-200);
+  --gray-300: var(--official-gray-300);
+  --gray-400: var(--official-gray-400);
+  --gray-500: var(--official-gray-500);
   --gray-550: #4f4f4f;
-  --gray-600: #414141;
-  --gray-700: #303030;
+  --gray-600: var(--official-gray-600);
+  --gray-700: var(--official-gray-700);
   --gray-750: #282828;
-  --gray-800: #212121;
-  --gray-900: #181818;
-  --gray-950: #131313; /* official dark canvas floor */
-  --gray-1000:#0d0d0d;
+  --gray-800: var(--official-gray-800);
+  --gray-900: var(--official-gray-900);
+  --gray-950: var(--official-gray-950);
+  --gray-1000: var(--official-gray-1000);
   --elevation-stroke: 0 0 0 .5px rgba(0,0,0,.08);
   /* Official: var(--elevation-stroke), 0 3px 7.5px #0000000a, 0 0 20px #0000000d */
   --elevation-prominent: 0 0 0 0.5px #00000008, 0 3px 7.5px #0000000a, 0 0 20px #0000000d;
@@ -588,28 +595,29 @@ html.theme-dark {
   --fg-settings-row: #ffffff;
   --fg-settings-desc: #9a9a9a;
   --accent: var(--brand-primary-dark);
+  --accent-ring: var(--official-ring);
   --accent-soft: rgba(255, 255, 255, 0.08);
-  --accent-fg: #ffffff;
+  --accent-fg: var(--official-gray-1000);
   --border-light: rgba(231, 229, 228, 0.06);
   --border-heavy: rgba(231, 229, 228, 0.12);
   --border-default: var(--border-default-dark);
   --success: #65a30d;
   --warning: #b45309;
   --danger: #9f1239;
-  /* Dark dual of light-gray scale (official lightningcss dual) */
-  --gray-0: #0d0d0d;
-  --gray-50: #131313;
+  /* Dark dual of light-gray scale (official lightningcss dual via --official-gray-*) */
+  --gray-0: #0d0d0d; /* dark canvas floor; not present as --official-gray-* in dark block */
+  --gray-50: var(--official-gray-50);
   --gray-75: #161616;
-  --gray-100: #181818;
-  --gray-200: #212121;
-  --gray-300: #303030;
-  --gray-400: #414141;
-  --gray-600: #8f8f8f;
-  --gray-700: #afafaf;
-  --gray-800: #cdcdcd;
-  --gray-900: #ededed;
-  --gray-950: #f3f3f3;
-  --gray-1000: #ffffff;
+  --gray-100: var(--official-gray-100);
+  --gray-200: var(--official-gray-200);
+  --gray-300: var(--official-gray-300);
+  --gray-400: var(--official-gray-400);
+  --gray-600: var(--official-gray-600);
+  --gray-700: var(--official-gray-700);
+  --gray-800: var(--official-gray-800);
+  --gray-900: var(--official-gray-900);
+  --gray-950: var(--official-gray-950);
+  --gray-1000: var(--official-gray-1000);
   /* Theme-resolved composer */
   --semantic-composer-surface: var(--semantic-composer-surface-dark);
   --semantic-composer-border: var(--semantic-composer-border-dark);
