@@ -1,6 +1,7 @@
 // Titlebar navigation, window controls, native menu event bridge, sidebar wiring.
 
 import { navigate } from "./router.js";
+import { iconSvg } from "./icons.js";
 
 // ── Native menu event listener ──────────────────────────────────────────────
 // Listens for `menu` events emitted by Rust (src-tauri/src/menu.rs) and
@@ -71,9 +72,50 @@ function handleAction(action) {
     case "documentation":
       window.runtime?.BrowserOpenURL?.("https://developers.openai.com/codex");
       break;
-    case "find":
-      document.getElementById("settings-search-input")?.focus() ||
-        document.querySelector("input,textarea")?.focus();
+    case "find": {
+      const el = document.getElementById("settings-search-input") || document.querySelector("input,textarea");
+      el?.focus();
+      break;
+    }
+    case "toggle-file-tree":
+      document.body.classList.toggle("file-tree-open");
+      break;
+    case "previous-task":
+    case "next-task": {
+      const rows = [...document.querySelectorAll(".task-row")];
+      if (!rows.length) break;
+      const cur = rows.findIndex((r) => r.classList.contains("is-active"));
+      const dir = action === "next-task" ? 1 : -1;
+      const next = rows[(cur + dir + rows.length) % rows.length];
+      next?.click();
+      break;
+    }
+    case "open-terminal":
+      navigate("home");
+      document.getElementById("composer-input")?.focus();
+      break;
+    case "open-browser-tab":
+    case "focus-browser-address":
+    case "reload-browser":
+      navigate("home");
+      break;
+    case "toggle-bottom-panel":
+      document.body.classList.toggle("bottom-panel-hidden");
+      break;
+    case "whats-new":
+      window.runtime?.BrowserOpenURL?.("https://developers.openai.com/codex/changelog");
+      break;
+    case "troubleshooting":
+      window.runtime?.BrowserOpenURL?.("https://developers.openai.com/codex/troubleshooting");
+      break;
+    case "system-status":
+      window.runtime?.BrowserOpenURL?.("https://status.openai.com");
+      break;
+    case "send-feedback":
+      window.runtime?.BrowserOpenURL?.("https://github.com/openai/codex/issues");
+      break;
+    case "performance-trace":
+      console.info("[shell] performance-trace: use startup log / browser devtools");
       break;
     case "zoom-in":
       document.documentElement.style.zoom = String(
@@ -100,8 +142,12 @@ function handleAction(action) {
 // ── Init ────────────────────────────────────────────────────────────────────
 
 export function initShell() {
-  // Wire titlebar-sidebar button.
-  document.getElementById("titlebar-sidebar")?.addEventListener("click", toggleSidebar);
+  // Wire titlebar-sidebar button and stamp Lucide-style glyphs.
+  const sidebarBtn = document.getElementById("titlebar-sidebar");
+  sidebarBtn?.addEventListener("click", toggleSidebar);
+  if (sidebarBtn && !sidebarBtn.querySelector("svg")) {
+    sidebarBtn.innerHTML = iconSvg("panel-left", 15);
+  }
 
   // Restore sidebar state from persisted settings.
   const api = window.go?.main?.App;

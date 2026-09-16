@@ -331,10 +331,10 @@ function initSelectDropdowns(root) {
       anchor: btn,
       items,
       value: btn.dataset.value,
+      // Dropdown fires change itself; only sync local dataset here.
       onSelect: (val) => {
         btn.value = val;
         btn.dataset.value = val;
-        btn.dispatchEvent(new Event("change", { bubbles: true }));
       },
     });
   });
@@ -795,10 +795,10 @@ function renderAppearance(root) {
       anchor: btn,
       items,
       value: btn.dataset.value,
+      // Dropdown fires change itself; only sync local dataset here.
       onSelect: (val) => {
         btn.value = val;
         btn.dataset.value = val;
-        btn.dispatchEvent(new Event("change", { bubbles: true }));
       },
     });
   });

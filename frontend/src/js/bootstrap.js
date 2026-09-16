@@ -196,7 +196,7 @@ function applyTheme(theme) {
   }
 }
 
-/** Shell chrome driven by settings �?apply without remounting views. */
+/** Shell chrome driven by settings — apply without remounting views. */
 function applyChromeFromSettings() {
   const s = store.settings || {};
   document.body.classList.toggle("bottom-panel-hidden", s.bottomPanel === false);
@@ -216,7 +216,7 @@ function applyAppearanceVars() {
   } else {
     root.style.removeProperty("--font-mono");
   }
-  // Scale entire type ladder proportionally �?do NOT overwrite --text-base alone
+  // Scale entire type ladder proportionally — do NOT overwrite --text-base alone
   // (that collapsed official hierarchy). Official default body = 15px.
   const base = Math.max(12, Math.min(18, Number(a.uiFontSize) || 15));
   const scale = base / 15;
@@ -232,7 +232,7 @@ function applyAppearanceVars() {
   const code = Math.max(10, Math.min(16, Number(a.codeFontSize) || 13));
   root.style.setProperty("--text-code", `${code}px`);
   if (a.accent) root.style.setProperty("--accent", a.accent === "blue" ? "#0285FF" : a.accent);
-  // sidebar background style only �?layout/components untouched
+  // sidebar background style only — layout/components untouched
   // classic = old Codex mesh; lavender/sky/mint/dusk migrate to classic
   let sb = a.sidebarStyle || "default";
   if (["lavender", "sky", "mint", "dusk"].includes(sb)) sb = "classic";

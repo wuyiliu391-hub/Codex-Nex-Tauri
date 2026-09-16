@@ -1,5 +1,5 @@
-// Subscribe to Wails agent events and drive live turn UI + selective refresh.
-// Prefer runtime.EventsOn (direct) over Go callback bridges �?more reliable for EventsEmit.
+// Subscribe to agent events and drive live turn UI + selective refresh.
+// Prefer runtime.EventsOn (direct) over Go callback bridges — more reliable for EventsEmit.
 
 // Use the global Wails runtime directly; the generated wailsjs/runtime wrapper is outside the dev server root.
 const EventsOn = (eventName, callback) => window.runtime.EventsOnMultiple(eventName, callback, -1);
@@ -283,17 +283,20 @@ function showApproval(api, ev) {
   const handle = openModal({
     title: `Approve ${tool}?`,
     body: summary,
+    // Esc/backdrop still needs a server decision so the turn cannot hang.
     dismissible: true,
     actions: [
       {
         label: "Decline",
         onClick: () => {
+          store.pendingApproval = null;
           api?.ResolveApproval?.(requestId, false, kind || "decline");
         },
       },
       {
         label: "Accept for session",
         onClick: () => {
+          store.pendingApproval = null;
           api?.ResolveApproval?.(requestId, true, kind || undefined, true);
         },
       },
@@ -301,15 +304,18 @@ function showApproval(api, ev) {
         label: "Accept",
         variant: "primary",
         onClick: () => {
+          store.pendingApproval = null;
           api?.ResolveApproval?.(requestId, true, kind || undefined, false);
         },
       },
     ],
     onClose: () => {
-      approvalModals.delete(key);
+      // If closed without an action button, decline so app-server unblocks.
       if (store.pendingApproval && String(store.pendingApproval.id) === key) {
+        api?.ResolveApproval?.(requestId, false, kind || "decline");
         store.pendingApproval = null;
       }
+      approvalModals.delete(key);
     },
   });
   approvalModals.set(key, handle.close);
@@ -337,6 +343,7 @@ function showUserInputModal(api, ev) {
       {
         label: "Decline",
         onClick: () => {
+          store.pendingApproval = null;
           api?.ResolveApproval?.(requestId, false, "decline");
         },
       },
@@ -344,15 +351,17 @@ function showUserInputModal(api, ev) {
         label: "Accept",
         variant: "primary",
         onClick: () => {
+          store.pendingApproval = null;
           api?.ResolveApproval?.(requestId, true, undefined, false);
         },
       },
     ],
     onClose: () => {
-      approvalModals.delete(key);
       if (store.pendingApproval && String(store.pendingApproval.id) === String(requestId)) {
+        api?.ResolveApproval?.(requestId, false, "decline");
         store.pendingApproval = null;
       }
+      approvalModals.delete(key);
     },
   });
   approvalModals.set(key, handle.close);

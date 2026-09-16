@@ -1,5 +1,5 @@
 /**
- * Wails 闂?Tauri bridge 闂?drop-in replacement for `window.go.main.App`.
+ * Wails → Tauri bridge — drop-in replacement for `window.go.main.App`.
  *
  * Covers every method in Codex-Nex App.d.ts (156 methods) plus two extras
  * (PickPetSpritesheet, OpenPetsFolder) observed in settings.js.
@@ -7,7 +7,7 @@
  * Mapping strategy:
  *   1. Direct Tauri command (local shell / engine forwarder)
  *   2. rpc_raw fallback for engine methods without a dedicated command
- *   3. Structured error stub for Go-only features (browser, LSP, snapshots, 闂?
+ *   3. Structured error stub for Go-only features (browser, LSP, snapshots, …)
  *
  * GetState is a JS-side aggregator: merges local shell state + best-effort
  * engine list_sessions / list_providers / list_mcp_servers.
@@ -247,7 +247,7 @@ async function savePullRequestsLocal(prs) {
  *   projects, plugins, connections, scheduled, worktrees, notifications,
  *   memory, sitePermissions, archived.
  *
- * All engine calls fail soft 闂? -> empty arrays when engine is offline.
+ * All engine calls fail soft → empty arrays when engine is offline.
  */
 async function compositeGetState() {
   const local = await invoke("get_state");
@@ -621,12 +621,12 @@ PickAllowedApp: async () => {
 
 /**
  * Install Wails-compatible globals:
- *   window.go.main.App          闂? -> full api object
- *   window.runtime.EventsOn     闂? -> Tauri event shim
+ *   window.go.main.App          → full api object
+ *   window.runtime.EventsOn     → Tauri event shim
  *   window.runtime.EventsOnMultiple
  *   window.runtime.EventsOff
  *
- * Also wires codex:* Tauri events 闂? to -> agent:* CustomEvents for agent-events.js.
+ * Also wires codex:* Tauri events → agent:* CustomEvents for agent-events.js.
  */
 export function installBridge() {
   // 1. window.go.main.App

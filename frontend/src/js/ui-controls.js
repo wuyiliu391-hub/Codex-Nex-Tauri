@@ -2,12 +2,14 @@
 
 let openPopover = null;
 
-// Close any currently open popover and remove outside-click handler.
+// Close any currently open popover and remove outside-click / key handlers.
 function closeOpenPopover() {
   if (!openPopover) return;
-  openPopover.el.remove();
-  openPopover.anchor?.setAttribute("aria-expanded", "false");
-  if (openPopover.onOutside) document.removeEventListener("pointerdown", openPopover.onOutside, true);
+  const { el, anchor, onOutside, onKeydownDoc } = openPopover;
+  el.remove();
+  anchor?.setAttribute("aria-expanded", "false");
+  if (onOutside) document.removeEventListener("pointerdown", onOutside, true);
+  if (onKeydownDoc) document.removeEventListener("keydown", onKeydownDoc, true);
   openPopover = null;
 }
 
@@ -18,9 +20,10 @@ function closeOpenPopover() {
  * @param {Array<{value:string,label:string}>} opts.items
  * @param {string} [opts.value] - initially selected value
  * @param {(value:string,label:string)=>void} [opts.onSelect]
+ * @param {boolean} [opts.emitChange=true] - also fire native change on anchor
  * @returns {{open:()=>void,close:()=>void,setValue:(v:string)=>void,destroy:()=>void}}
  */
-export function createDropdown({ anchor, items, value, onSelect }) {
+export function createDropdown({ anchor, items, value, onSelect, emitChange = true }) {
   if (!anchor) return { open() {}, close() {}, setValue() {}, destroy() {} };
 
   anchor.setAttribute("aria-haspopup", "listbox");
@@ -31,6 +34,7 @@ export function createDropdown({ anchor, items, value, onSelect }) {
   let activeIndex = Math.max(0, items.findIndex((i) => i.value === value));
   if (activeIndex < 0) activeIndex = 0;
 
+  // Build listbox DOM for the current items.
   function buildList() {
     const list = document.createElement("div");
     list.className = "ui-popover";
@@ -50,6 +54,7 @@ export function createDropdown({ anchor, items, value, onSelect }) {
     return list;
   }
 
+  // Place popover under/over anchor within viewport.
   function position(list) {
     const rect = anchor.getBoundingClientRect();
     list.style.minWidth = `${Math.max(rect.width, 120)}px`;
@@ -64,6 +69,7 @@ export function createDropdown({ anchor, items, value, onSelect }) {
     }
   }
 
+  // Commit selection, close, notify caller exactly once.
   function select(idx) {
     const item = items[idx];
     if (!item) return;
@@ -73,8 +79,9 @@ export function createDropdown({ anchor, items, value, onSelect }) {
     if (labelEl) labelEl.textContent = item.label;
     closeOpenPopover();
     onSelect?.(item.value, item.label);
-    // Fire change so existing [data-select] / [data-tfont] listeners work
-    anchor.dispatchEvent(new Event("change", { bubbles: true }));
+    if (emitChange) {
+      anchor.dispatchEvent(new Event("change", { bubbles: true }));
+    }
     anchor.focus();
   }
 
@@ -89,42 +96,47 @@ export function createDropdown({ anchor, items, value, onSelect }) {
     position(list);
     anchor.setAttribute("aria-expanded", "true");
     const onOutside = (e) => {
-      if (e.target.closest(".ui-popover") || e.target === anchor) return;
+      const t = e.target;
+      if (!(t instanceof Element)) return;
+      if (t.closest(".ui-popover") || t === anchor) return;
       closeOpenPopover();
     };
+    // Keyboard stays on document while open so focus can sit on options.
+    const onKeydownDoc = (e) => {
+      if (!openPopover || openPopover.anchor !== anchor) return;
+      const opts = [...openPopover.el.querySelectorAll(".ui-option")];
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeOpenPopover();
+        anchor.focus();
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        activeIndex = Math.min(activeIndex + 1, items.length - 1);
+        opts.forEach((o, i) => o.classList.toggle("is-active", i === activeIndex));
+        opts[activeIndex]?.focus();
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        activeIndex = Math.max(activeIndex - 1, 0);
+        opts.forEach((o, i) => o.classList.toggle("is-active", i === activeIndex));
+        opts[activeIndex]?.focus();
+      } else if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        select(activeIndex);
+      }
+    };
     document.addEventListener("pointerdown", onOutside, true);
-    openPopover = { el: list, anchor, onOutside };
-    // Focus active option
+    document.addEventListener("keydown", onKeydownDoc, true);
+    openPopover = { el: list, anchor, onOutside, onKeydownDoc };
     const opts = list.querySelectorAll(".ui-option");
     opts[activeIndex]?.focus();
   }
 
-  function onKeydown(e) {
-    if (!openPopover || openPopover.anchor !== anchor) {
-      if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        open();
-      }
-      return;
-    }
-    const opts = [...openPopover.el.querySelectorAll(".ui-option")];
-    if (e.key === "Escape") {
+  // Closed-state: open on keyboard activation from the anchor.
+  function onAnchorKeydown(e) {
+    if (openPopover?.anchor === anchor) return;
+    if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      closeOpenPopover();
-      anchor.focus();
-    } else if (e.key === "ArrowDown") {
-      e.preventDefault();
-      activeIndex = Math.min(activeIndex + 1, items.length - 1);
-      opts.forEach((o, i) => o.classList.toggle("is-active", i === activeIndex));
-      opts[activeIndex]?.focus();
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      activeIndex = Math.max(activeIndex - 1, 0);
-      opts.forEach((o, i) => o.classList.toggle("is-active", i === activeIndex));
-      opts[activeIndex]?.focus();
-    } else if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      select(activeIndex);
+      open();
     }
   }
 
@@ -133,7 +145,7 @@ export function createDropdown({ anchor, items, value, onSelect }) {
     if (anchor.disabled) return;
     open();
   });
-  anchor.addEventListener("keydown", onKeydown);
+  anchor.addEventListener("keydown", onAnchorKeydown);
 
   return {
     open,
@@ -149,7 +161,7 @@ export function createDropdown({ anchor, items, value, onSelect }) {
     },
     destroy() {
       closeOpenPopover();
-      anchor.removeEventListener("keydown", onKeydown);
+      anchor.removeEventListener("keydown", onAnchorKeydown);
     },
   };
 }
