@@ -43,9 +43,6 @@
       "icons/icon.ico"
     ],
     "resources": [],
-    "externalBin": [
-      "binaries/codex-app-server"
-    ],
     "windows": {
       "webviewInstallMode": { "type": "downloadBootstrapper" }
     }
