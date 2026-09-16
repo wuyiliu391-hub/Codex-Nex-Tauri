@@ -689,18 +689,17 @@ async function selectReasoningEffort(effort) {
   renderMainHome();
 }
 
+// Official model popover: compact effort + reset + 5-dot slider; model list on chevron.
 function openModelMenu(anchor) {
   const groups = providersWithModels();
-  const effort = currentEffortKey();
-  const effortIdx = Math.max(0, EFFORT_ORDER.indexOf(effort));
-  let html = `<div class="composer-menu-label">${escapeHtml(t("home.models", "Models"))}</div>`;
-  if (!groups.length) {
-    html += `<div class="composer-menu-empty">${escapeHtml(t("home.modelEmpty", "No models configured"))}<br><span>${escapeHtml(t("home.modelEmptyHint"))}</span></div>
-      <button class="composer-menu-item" type="button" data-open-providers>
-        <span><strong>${escapeHtml(t("home.openProviders"))}</strong></span>
-      </button>`;
-  } else {
-    html += groups.map((provider) => `
+  const effortIdx = Math.max(0, EFFORT_ORDER.indexOf(currentEffortKey()));
+  const modelName =
+    (store.settings.activeModel || "").trim() ||
+    groups[0]?.models?.[0] ||
+    t("home.modelUnconfigured");
+
+  const listHtml = groups.length
+    ? groups.map((provider) => `
       <div class="composer-menu-section">${escapeHtml(provider.name)}</div>
       ${provider.models.map((model) => {
         const selected = provider.id === store.settings.activeProviderId && model === store.settings.activeModel;
@@ -708,37 +707,96 @@ function openModelMenu(anchor) {
           <span class="menu-icon model-icon"><svg viewBox="0 0 18 18"><circle cx="9" cy="9" r="5.7"/><path d="M9 6v3l2 1.2"/></svg></span>
           <span><strong>${escapeHtml(model)}</strong><small>${escapeHtml(provider.name)}</small></span>${checkIcon(selected)}
         </button>`;
-      }).join("")}`).join("");
-    // Official T20d: intensity slider under model list (5 gears).
-    html += `
-      <div class="composer-menu-separator"></div>
-      <div class="composer-menu-section">${escapeHtml(t("home.intensity", "强度"))}</div>
-      <div class="intensity-row" data-intensity-root>
-        <input type="range" class="intensity-slider" min="0" max="${EFFORT_ORDER.length - 1}" step="1" value="${effortIdx}"
-          aria-label="${escapeHtml(t("home.intensity", "强度"))}" aria-valuetext="${escapeHtml(currentEffortLabel())}" />
-        <span class="intensity-label" data-intensity-label>${escapeHtml(currentEffortLabel())}</span>
+      }).join("")}`).join("")
+    : `<div class="composer-menu-empty">${escapeHtml(t("home.modelEmpty", "No models configured"))}</div>
+       <button class="composer-menu-item" type="button" data-open-providers>
+         <span><strong>${escapeHtml(t("home.openProviders"))}</strong></span>
+       </button>`;
+
+  const html = `
+    <div class="model-panel">
+      <div class="model-panel-head">
+        <button type="button" class="model-panel-effort" data-open-models>
+          <span data-effort-name>${escapeHtml(currentEffortLabel())}</span>
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="m7 5 4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
+        <button type="button" class="model-panel-reset" data-reset-effort aria-label="${escapeHtml(t("home.resetDefault", "重置为默认"))}">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M4.5 9a4.5 4.5 0 1 0 1.3-3.2M4.5 4.5v3h3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
       </div>
-      <div class="composer-menu-hint">${escapeHtml(t("home.intensityHint", "使用左右方向键调整强度"))}</div>`;
+      <div class="model-panel-model" data-model-name>${escapeHtml(modelName)}</div>
+      <div class="model-panel-track" data-intensity-root>
+        <input type="range" class="intensity-slider" min="0" max="${EFFORT_ORDER.length - 1}" step="1" value="${effortIdx}"
+          aria-label="${escapeHtml(t("home.intensity", "强度"))}"
+          aria-valuetext="${escapeHtml(currentEffortLabel())}" />
+        <div class="model-panel-dots" aria-hidden="true">
+          ${EFFORT_ORDER.map((_, i) => `<span class="dot${i <= effortIdx ? " is-on" : ""}"></span>`).join("")}
+        </div>
+      </div>
+    </div>
+    <div class="model-list" hidden>${listHtml}</div>`;
+
+  const menu = openUtilityMenu(anchor, html, "model-menu is-panel");
+  const panel = menu.querySelector(".model-panel");
+  const list = menu.querySelector(".model-list");
+  const slider = menu.querySelector(".intensity-slider");
+  const dots = [...menu.querySelectorAll(".model-panel-dots .dot")];
+  const effortName = menu.querySelector("[data-effort-name]");
+  // Sync CSS track fill/thumb for the initial effort index.
+  {
+    const pct = EFFORT_ORDER.length > 1 ? (effortIdx / (EFFORT_ORDER.length - 1)) * 100 : 100;
+    const track = menu.querySelector(".model-panel-track");
+    if (track) {
+      track.style.setProperty("--thumb", `calc(8px + (100% - 16px) * ${pct / 100})`);
+      const dotsEl = track.querySelector(".model-panel-dots");
+      if (dotsEl) dotsEl.style.setProperty("--fill", `calc(8px + (100% - 16px) * ${pct / 100})`);
+    }
   }
-  const menu = openUtilityMenu(anchor, html, "model-menu");
+
+  menu.querySelector("[data-open-models]")?.addEventListener("click", () => {
+    if (!list) return;
+    list.hidden = !list.hidden;
+    panel?.classList.toggle("is-open", !list.hidden);
+  });
+  menu.querySelector("[data-reset-effort]")?.addEventListener("click", () => {
+    if (!slider) return;
+    slider.value = String(Math.max(0, EFFORT_ORDER.indexOf("xhigh")));
+    commitEffort();
+  });
   menu.querySelectorAll("[data-model]").forEach((item) => item.addEventListener("click", () => {
     const { provider, model } = item.dataset;
     closeUtilityMenu();
     selectModel(provider, model);
   }));
-  const slider = menu.querySelector(".intensity-slider");
-  const intensityLabel = menu.querySelector("[data-intensity-label]");
-  const commitEffort = () => {
+
+  // Paint slider dots/label live; persist on release.
+  function paint(idx) {
+    dots.forEach((d, i) => d.classList.toggle("is-on", i <= idx));
+    const key = EFFORT_ORDER[idx] || "xhigh";
+    if (effortName) effortName.textContent = t(`home.effort.${key}`, key);
+    slider?.setAttribute("aria-valuetext", effortName?.textContent || key);
+  }
+  function commitEffort() {
     if (!slider) return;
-    const next = EFFORT_ORDER[Number(slider.value)] || "xhigh";
-    if (intensityLabel) intensityLabel.textContent = t(`home.effort.${next}`, next);
-    slider.setAttribute("aria-valuetext", intensityLabel?.textContent || next);
-    selectReasoningEffort(next);
-  };
+    const idx = Number(slider.value) || 0;
+    paint(idx);
+    selectReasoningEffort(EFFORT_ORDER[idx] || "xhigh");
+  }
+  slider?.addEventListener("input", () => {
+    const idx = Number(slider.value) || 0;
+    paint(idx);
+    // Drive CSS fill/thumb from JS so the track matches official segmented dots.
+    const pct = EFFORT_ORDER.length > 1 ? (idx / (EFFORT_ORDER.length - 1)) * 100 : 100;
+    const track = slider.closest(".model-panel-track");
+    if (track) {
+      track.style.setProperty("--thumb", `calc(8px + (100% - 16px) * ${pct / 100})`);
+      const dots = track.querySelector(".model-panel-dots");
+      if (dots) dots.style.setProperty("--fill", `calc(8px + (100% - 16px) * ${pct / 100})`);
+    }
+  });
   slider?.addEventListener("change", commitEffort);
   slider?.addEventListener("keydown", (e) => {
     if (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "ArrowUp" || e.key === "ArrowDown") {
-      // let range update value, then commit
       setTimeout(commitEffort, 0);
     }
   });

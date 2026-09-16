@@ -64,8 +64,9 @@ html.theme-light {
   --fg-primary: var(--official-text-emphasis);
   --fg-secondary: var(--official-gray-600);
   --fg-muted: var(--official-gray-500);
-  --border-default: var(--official-gray-200);
-  --border-subtle: var(--official-gray-150);
+  /* CDP: border is a faint mix of text, not solid gray-200 */
+  --border-default: color-mix(in srgb, var(--official-text-emphasis) 8%, transparent);
+  --border-subtle: color-mix(in srgb, var(--official-text-emphasis) 5%, transparent);
   --accent-ring: var(--official-ring);
   --accent: var(--official-ring);
   --accent-soft: color-mix(in srgb, var(--official-ring) 12%, transparent);
@@ -100,8 +101,8 @@ html.theme-dark,
   --fg-primary: var(--official-text-emphasis);
   --fg-secondary: var(--official-gray-600);
   --fg-muted: var(--official-gray-500);
-  --border-default: var(--official-gray-200);
-  --border-subtle: var(--official-gray-150);
+  --border-default: color-mix(in srgb, var(--official-text-emphasis) 10%, transparent);
+  --border-subtle: color-mix(in srgb, var(--official-text-emphasis) 6%, transparent);
   --accent-ring: var(--official-ring);
 }
 
