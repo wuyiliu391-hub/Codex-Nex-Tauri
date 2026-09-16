@@ -20,6 +20,10 @@ export const liveTurn = {
   planMode: false,
   /** @type {any[]} */
   tasks: [],
+  /** Official reconnect strip (T27): 1–5 while retrying; freeze residue after recovery. */
+  reconnectAttempt: 0,
+  reconnectFrozen: false,
+  durationMs: 0,
 };
 
 function notify() {
@@ -81,6 +85,9 @@ export function resetLiveTurn() {
   liveTurn.startedAt = 0;
   liveTurn.planMode = false;
   liveTurn.tasks = [];
+  liveTurn.reconnectAttempt = 0;
+  liveTurn.reconnectFrozen = false;
+  liveTurn.durationMs = 0;
   notify();
 }
 
@@ -99,6 +106,9 @@ export function beginLiveTurn(sessionId, userText = "") {
   liveTurn.startedAt = Date.now();
   liveTurn.planMode = false;
   liveTurn.tasks = [];
+  liveTurn.reconnectAttempt = 0;
+  liveTurn.reconnectFrozen = false;
+  liveTurn.durationMs = 0;
   notify();
 }
 
@@ -267,6 +277,15 @@ function prettyResult(raw) {
   return String(raw);
 }
 
+/** Parse official reconnect progress: "reconnecting 3/5" / "重新连接 3/5". */
+function parseReconnect(text) {
+  if (!text) return 0;
+  const m = String(text).match(/(?:reconnect|重新连接)[^\d]*(\d)\s*\/\s*5/i);
+  if (m) return Number(m[1]);
+  if (/reconnect|重新连接/i.test(String(text)) && !/\d/.test(String(text))) return 1;
+  return 0;
+}
+
 export function applyAgentEvent(raw) {
   if (!raw) return { refresh: false, composer: false };
   const ev = normalizeEvent(raw);
@@ -390,6 +409,13 @@ export function applyAgentEvent(raw) {
       if (!ensureTurn(ev)) return { refresh: false, composer: false };
       liveTurn.error = ev.error || "error";
       liveTurn.phase = "failed";
+      {
+        const attempt = parseReconnect(ev.error || ev.text);
+        if (attempt) {
+          liveTurn.reconnectAttempt = attempt;
+          liveTurn.phase = "reconnecting";
+        }
+      }
       break;
 
     case "assistant_done":
@@ -400,6 +426,14 @@ export function applyAgentEvent(raw) {
       liveTurn.phase = typeStatus(ev);
       liveTurn.active = false;
       liveTurn.userPreview = "";
+      if (liveTurn.startedAt) {
+        liveTurn.durationMs = Date.now() - liveTurn.startedAt;
+      }
+      // Official T27: freeze reconnect residue into the stream after recovery.
+      if (liveTurn.reconnectAttempt > 0) {
+        liveTurn.reconnectFrozen = true;
+      }
+      liveTurn.reconnectAttempt = 0;
       // close open segments
       for (const s of liveTurn.segments) s.closed = true;
       refresh = true;
@@ -439,7 +473,21 @@ export function applyRuntimeEvent(raw) {
   const sessionId = pick(raw, "sessionId", "SessionID", "SessionId");
   const turnId = pick(raw, "turnId", "TurnID", "TurnId");
   let payload = raw.payload || raw.Payload || null;
-  if (!payload || typeof payload !== "object") payload = {};
+  // Official notification params are the Tauri event body itself (bridge may inject type).
+  if (!payload || typeof payload !== "object") {
+    if (raw && typeof raw === "object") {
+      const { type: _type, Type: _Type, payload: _p, Payload: _P, ...rest } = raw;
+      payload = rest;
+    } else {
+      payload = {};
+    }
+  }
+  const p = { ...payload };
+  if (raw && typeof raw === "object") {
+    for (const k of ["item", "Item", "delta", "Delta", "text", "Text", "itemType", "command", "exitCode", "sessionId", "threadId"]) {
+      if (raw[k] !== undefined && p[k] === undefined) p[k] = raw[k];
+    }
+  }
 
   if (sessionId && liveTurn.sessionId && sessionId !== liveTurn.sessionId) {
     return { refresh: false };
@@ -447,6 +495,96 @@ export function applyRuntimeEvent(raw) {
   if (sessionId) liveTurn.sessionId = sessionId;
   if (turnId) liveTurn.turnId = turnId;
   if (!liveTurn.startedAt) liveTurn.startedAt = Date.now();
+
+  // ── Official app-server event names (method / → .) ──────────────────────
+  if (type === "turn.started") {
+    liveTurn.active = true;
+    liveTurn.phase = "thinking";
+    notify();
+    return { refresh: false };
+  }
+  if (type === "item.agentMessage.delta") {
+    liveTurn.active = true;
+    liveTurn.phase = "streaming";
+    const text = pick(p, "delta", "text", "content") || pick(raw, "delta", "text");
+    if (text) {
+      liveTurn.streamingText += String(text);
+      {
+        const last = lastSegment();
+        if (last?.kind === "tools") last.closed = true;
+        const seg = ensureTextSegment();
+        seg.text += String(text);
+      }
+    }
+    notify();
+    return { refresh: false };
+  }
+  if (type === "item.commandExecution.outputDelta" || type === "item.fileChange.outputDelta") {
+    liveTurn.active = true;
+    liveTurn.phase = "executing_tool";
+    const callId = pick(p, "callId", "itemCallId", "toolCallId") || "cmd-live";
+    const existing = findTool(callId);
+    const chunk = pick(p, "delta", "outputDelta", "chunk", "text");
+    if (existing) {
+      existing.result = (existing.result || "") + String(chunk || "");
+      syncToolIntoSegments(existing);
+    } else {
+      upsertTool({
+        callId,
+        tool: "shell",
+        args: pick(p, "command", "cmd"),
+        summary: pick(p, "command", "cmd"),
+        status: "running",
+        result: String(chunk || ""),
+        expanded: false,
+      });
+    }
+    notify();
+    return { refresh: false };
+  }
+  if (type === "item.started") {
+    liveTurn.active = true;
+    const item = p.item && typeof p.item === "object" ? p.item : p;
+    const itemType = String(item.itemType || item.type || item.ItemType || "");
+    if (/command/i.test(itemType) || item.command || item.cmd) {
+      liveTurn.phase = "executing_tool";
+      upsertTool({
+        callId: pick(item, "callId", "itemCallId") || `item-${Date.now()}`,
+        tool: "shell",
+        args: prettyArgs(item.command || item.cmd || ""),
+        summary: pick(item, "command", "cmd"),
+        status: "running",
+        expanded: false,
+      });
+    }
+    notify();
+    return { refresh: false };
+  }
+  if (type === "item.completed") {
+    const item = p.item && typeof p.item === "object" ? p.item : p;
+    const callId = pick(item, "callId", "itemCallId", "toolCallId");
+    const itemType = String(item.itemType || item.type || "");
+    if (callId || /command|agent/i.test(itemType)) {
+      const t = findTool(callId) || liveTurn.tools[liveTurn.tools.length - 1];
+      if (t) {
+        t.status = item.status === "failed" || item.error ? "error" : "done";
+        if (item.output !== undefined) t.result = prettyResult(item.output);
+        if (item.text && /agent/i.test(itemType)) {
+          liveTurn.streamingText += String(item.text);
+          {
+            const last = lastSegment();
+            if (last?.kind === "tools") last.closed = true;
+            const seg = ensureTextSegment();
+            seg.text += String(item.text);
+          }
+        }
+        if (t.startedAt && !t.durationMs) t.durationMs = Date.now() - t.startedAt;
+        syncToolIntoSegments(t);
+      }
+    }
+    notify();
+    return { refresh: true };
+  }
 
   if (type === "tool.started") {
     liveTurn.active = true;
@@ -504,6 +642,11 @@ export function applyRuntimeEvent(raw) {
     const phase = payload.phase || payload.Phase;
     if (phase) liveTurn.phase = phase;
     liveTurn.active = true;
+    const attempt = parseReconnect(payload.error || payload.Error || payload.message || payload.Message || "");
+    if (attempt) {
+      liveTurn.reconnectAttempt = attempt;
+      liveTurn.phase = "reconnecting";
+    }
     notify();
     return { refresh: false };
   }
@@ -513,6 +656,11 @@ export function applyRuntimeEvent(raw) {
     liveTurn.active = false;
     liveTurn.phase = status;
     if (err) liveTurn.error = String(err);
+    if (liveTurn.startedAt && !liveTurn.durationMs) {
+      liveTurn.durationMs = Date.now() - liveTurn.startedAt;
+    }
+    if (liveTurn.reconnectAttempt > 0) liveTurn.reconnectFrozen = true;
+    liveTurn.reconnectAttempt = 0;
     notify();
     return { refresh: true };
   }

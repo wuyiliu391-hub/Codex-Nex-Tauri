@@ -1,7 +1,7 @@
 // Message / process-line / diff / plan / live-turn rendering.
 // Official-style: narrative text + compact process summaries; heavy detail on expand / review panel.
 
-import { t } from "./i18n.js";
+import { t, currentLang } from "./i18n.js";
 
 function escapeHtml(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
@@ -13,13 +13,27 @@ function truncate(s, n = 4000) {
   return s.slice(0, n) + "\n…[truncated]";
 }
 
-function formatDuration(ms) {
+/**
+ * Official UIA duration style (T29/T31):
+ *   46秒 / 1分25秒  (elapsed)
+ *   用时 footer uses 分钟: 2分钟 6秒
+ */
+function formatDuration(ms, style = "elapsed") {
   if (!ms || ms < 0) return "";
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-  const m = Math.floor(ms / 60000);
-  const s = Math.floor((ms % 60000) / 1000);
-  return `${m}m ${s}s`;
+  const lang = currentLang();
+  const isZh = lang.startsWith("zh");
+  if (ms < 1000) return isZh ? `${ms}ms` : `${ms}ms`;
+  const totalSec = ms / 1000;
+  if (totalSec < 60) {
+    const s = totalSec < 10 ? totalSec.toFixed(1) : String(Math.floor(totalSec));
+    return isZh ? `${s}秒` : `${s}s`;
+  }
+  const m = Math.floor(totalSec / 60);
+  const s = Math.floor(totalSec % 60);
+  if (!isZh) return `${m}m ${s}s`;
+  // elapsed: 1分25秒 · footer/usedTime: 2分钟 6秒 (official copies)
+  if (style === "used") return s ? `${m}分钟 ${s}秒` : `${m}分钟`;
+  return s ? `${m}分${s}秒` : `${m}分`;
 }
 
 function prettyJSON(raw) {
@@ -139,8 +153,13 @@ export function renderProcessLine(tool, opts = {}) {
 
   let labelHtml;
   if (status === "running") {
+    // Official T29: 正在运行 <cmd>
     const name = shellSnippet(tool) || tool.tool;
-    labelHtml = formatProcessLabel(t("process.runningPrefix", "Running"), name);
+    if (kind === "shell") {
+      labelHtml = escapeHtml(t("process.runningCmd", "正在运行 {name}", { name }));
+    } else {
+      labelHtml = formatProcessLabel(t("process.runningPrefix", "Running"), name);
+    }
   } else if (status === "waiting_approval") {
     labelHtml = formatProcessLabel(t("process.needsApproval", "Needs approval") + " ·", tool.tool);
   } else if (status === "denied") {
@@ -153,10 +172,16 @@ export function renderProcessLine(tool, opts = {}) {
       ? formatProcessLabel(t("process.wrotePrefix", "Wrote"), p, { pathLike: true })
       : formatProcessLabel(t("process.wrote", `Wrote files · ${tool.tool}`, { name: tool.tool }));
   } else if (kind === "shell") {
-    const cmd = shellSnippet(tool);
-    labelHtml = cmd
-      ? formatProcessLabel(t("process.ranPrefix", "Ran"), cmd)
-      : escapeHtml(t("process.ranCommand", "Ran a command"));
+    // Official three-state titles: 正在运行 → 已在 Ns 内运行 → 已运行
+    const cmd = shellSnippet(tool) || tool.tool;
+    if (tool.durationMs) {
+      labelHtml = escapeHtml(t("process.ranIn", "已在 {time} 内运行 {name}", {
+        time: formatDuration(tool.durationMs),
+        name: cmd,
+      }));
+    } else {
+      labelHtml = escapeHtml(t("process.ranCmd", "已运行 {name}", { name: cmd }));
+    }
   } else if (kind === "search") {
     const p = pathFromTool(tool) || shellSnippet(tool);
     labelHtml = p
@@ -189,14 +214,31 @@ export function renderProcessLine(tool, opts = {}) {
     s.textContent = tool.summary;
     body.appendChild(s);
   }
-  if (tool.args) {
+  // Official T29 expanded shell card: Shell + $ cmd + stdout block + 成功
+  if (kind === "shell") {
+    const cmd = shellSnippet(tool) || tool.tool;
+    const shellBlock = document.createElement("div");
+    shellBlock.className = "proc-section proc-shell-block";
+    shellBlock.innerHTML = `
+      <div class="proc-section-label">${escapeHtml(t("process.shell", "Shell"))}</div>
+      <div class="proc-shell-cmd"><code>$ ${escapeHtml(cmd)}</code>
+        <button type="button" class="proc-copy" data-copy-cmd aria-label="${escapeHtml(t("process.copyMessage", "复制消息"))}">⧉</button>
+      </div>
+      ${tool.result ? `<pre class="proc-pre proc-stdout">${escapeHtml(truncate(tool.result))}</pre>` : ""}
+      ${status === "done" || status === "approved" ? `<div class="proc-success">${escapeHtml(t("process.success", "成功"))}</div>` : ""}`;
+    shellBlock.querySelector("[data-copy-cmd]")?.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(String(cmd)); } catch { /* ignore */ }
+    });
+    body.appendChild(shellBlock);
+  }
+  if (tool.args && kind !== "shell") {
     const block = document.createElement("div");
     block.className = "proc-section";
     block.innerHTML = `<div class="proc-section-label">Input</div><pre class="proc-pre">${escapeHtml(truncate(typeof tool.args === "string" ? tool.args : prettyJSON(tool.args)))}</pre>`;
     body.appendChild(block);
   }
   if (tool.diff) body.appendChild(renderDiffCard(tool.path || pathFromTool(tool), tool.diff));
-  if (tool.result) {
+  if (tool.result && kind !== "shell") {
     const block = document.createElement("div");
     block.className = "proc-section";
     block.innerHTML = `<div class="proc-section-label">Output</div><pre class="proc-pre">${escapeHtml(truncate(tool.result))}</pre>`;
@@ -632,6 +674,10 @@ export function renderLiveTurn(turn, api) {
 
   // Interleave: if we have segment timeline use it; else text then tools (legacy)
   const segs = turn.segments;
+  // Official T27: reconnect strip during error retry; frozen residue stays after recovery.
+  if (turn.reconnectAttempt > 0 || turn.reconnectFrozen) {
+    body.appendChild(renderReconnectBar(turn.reconnectAttempt || 0));
+  }
   if (segs && segs.length) {
     for (const seg of segs) {
       if (seg.kind === "text" && seg.text) {
@@ -677,6 +723,14 @@ export function renderLiveTurn(turn, api) {
     body.appendChild(err);
   }
 
+  // Official T29/T31 footer after turn ends (not while streaming).
+  if (!turn.active && (turn.startedAt || turn.durationMs || turn.streamingText || segs?.length)) {
+    const durationMs = turn.durationMs || (turn.startedAt ? Date.now() - turn.startedAt : 0);
+    const fullText = turn.streamingText
+      || (segs || []).filter((s) => s.kind === "text").map((s) => s.text).join("");
+    body.appendChild(renderTurnFooter({ durationMs, text: fullText }));
+  }
+
   // live change footer
   const changes = turn.changes || collectChangesFromTools(turn.tools || []);
   if (changes.length) {
@@ -703,13 +757,59 @@ function collectChangesFromTools(tools) {
   return collectChanges(fakeParts);
 }
 
-export function renderUserPreview(text) {
+export function renderUserPreview(text, opts = {}) {
   const row = document.createElement("div");
   row.className = "message-row user live-user-preview";
   row.id = "live-user-preview";
-  row.innerHTML = `<div class="message-body"><div class="message-part part-text"></div></div>`;
+  const time = opts.time || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const sayLabel = t("process.say", "你说：");
+  row.innerHTML = `<div class="message-body">
+    <div class="user-meta">
+      <span class="user-say">${escapeHtml(sayLabel)}</span>
+      <span class="user-time">${escapeHtml(time)}</span>
+      <button type="button" class="user-copy" data-copy-user aria-label="${escapeHtml(t("process.copyMessage", "复制消息"))}">${escapeHtml(t("process.copyMessage", "复制消息"))}</button>
+      ${opts.editable ? `<button type="button" class="user-edit" data-edit-user aria-label="${escapeHtml(t("process.editMessage", "编辑消息"))}">${escapeHtml(t("process.editMessage", "编辑消息"))}</button>` : ""}
+    </div>
+    <div class="message-part part-text"></div>
+  </div>`;
   row.querySelector(".part-text").textContent = text;
+  row.querySelector("[data-copy-user]")?.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(String(text || "")); } catch { /* ignore */ }
+  });
+  row.querySelector("[data-edit-user]")?.addEventListener("click", () => {
+    document.dispatchEvent(new CustomEvent("codex:edit-user-message", { detail: { text } }));
+  });
   return row;
+}
+
+/** Official T29 reconnect strip — freeze residue preserved when finished. */
+export function renderReconnectBar(attempt) {
+  const bar = document.createElement("div");
+  bar.className = "reconnect-bar" + (attempt <= 0 ? " is-frozen" : "");
+  const n = Math.max(0, Math.min(5, Number(attempt) || 0));
+  bar.innerHTML = `<span class="reconnect-dot"></span><span>${escapeHtml(t("process.reconnecting", "正在重新连接 {n}/5", { n }))}</span>`;
+  return bar;
+}
+
+/** Official turn footer: 用时 X + 复制 + 从这里创建聊天分支. */
+export function renderTurnFooter(opts = {}) {
+  const footer = document.createElement("div");
+  footer.className = "turn-footer";
+  const used = opts.durationMs ? formatDuration(opts.durationMs, "used") : "";
+  const time = opts.time || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  footer.innerHTML = `
+    ${used ? `<span class="turn-used">${escapeHtml(t("process.usedTime", "用时 {time}", { time: used }))}</span>` : ""}
+    <button type="button" class="turn-footer-btn" data-copy-turn>${escapeHtml(t("process.copyMessage", "复制消息"))}</button>
+    <button type="button" class="turn-footer-btn" data-branch-turn>${escapeHtml(t("process.branchFromHere", "从这里创建聊天分支"))}</button>
+    <span class="turn-time">${escapeHtml(time)}</span>`;
+  footer.querySelector("[data-copy-turn]")?.addEventListener("click", async () => {
+    const text = opts.text || "";
+    try { await navigator.clipboard.writeText(String(text)); } catch { /* ignore */ }
+  });
+  footer.querySelector("[data-branch-turn]")?.addEventListener("click", () => {
+    document.dispatchEvent(new CustomEvent("codex:branch-from-here", { detail: opts }));
+  });
+  return footer;
 }
 
 /** Right-side review panel content. */

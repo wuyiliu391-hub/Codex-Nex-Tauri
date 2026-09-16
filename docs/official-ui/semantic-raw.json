@@ -1,0 +1,1546 @@
+[
+    {
+        "name":  "--padding-panel",
+        "value":  "var(--padding-panel)"
+    },
+    {
+        "name":  "--padding-toolbar",
+        "value":  "var(--padding-toolbar)"
+    },
+    {
+        "name":  "--height-toolbar",
+        "value":  "46px"
+    },
+    {
+        "name":  "--height-toolbar-sm",
+        "value":  "36px"
+    },
+    {
+        "name":  "--height-toolbar-pane",
+        "value":  "40px"
+    },
+    {
+        "name":  "--inset-toolbar",
+        "value":  "var(--height-toolbar)"
+    },
+    {
+        "name":  "--inset-toolbar-sm",
+        "value":  "var(--height-toolbar-sm)"
+    },
+    {
+        "name":  "--spacing-token-sidebar",
+        "value":  "clamp(240px, var(--codex-sidebar-preferred-width,275px), min(520px, calc(100vw - 320px)))"
+    },
+    {
+        "name":  "--spacing-token-button-composer",
+        "value":  "calc(var(--spacing) * 7)"
+    },
+    {
+        "name":  "--spacing-token-button-composer-sm",
+        "value":  "calc(var(--spacing) * 5)"
+    },
+    {
+        "name":  "--spacing-token-button-composer-gap",
+        "value":  "var(--spacing)"
+    },
+    {
+        "name":  "--spacing-button-toolbar-inline",
+        "value":  "calc(var(--spacing) * 2)"
+    },
+    {
+        "name":  "--radius-button-toolbar",
+        "value":  "var(--radius-lg)"
+    },
+    {
+        "name":  "--spacing-home-suggestion-chat-inset",
+        "value":  "calc(var(--spacing) * 2 + (var(--spacing-token-button-composer) - var(--spacing) * 5) / 2)"
+    },
+    {
+        "name":  "--radius-token-composer-single-line",
+        "value":  "calc(var(--spacing) * 5.5)"
+    },
+    {
+        "name":  "--h-token-button-composer-gap",
+        "value":  "var(--spacing-token-button-composer-gap)"
+    },
+    {
+        "name":  "--thread-content-max-width",
+        "value":  "none"
+    },
+    {
+        "name":  "--color-token-text-primary",
+        "value":  "var(--color-token-foreground)"
+    },
+    {
+        "name":  "--color-token-primary",
+        "value":  "var(--color-token-text-link-foreground)"
+    },
+    {
+        "name":  "--color-token-bg-primary",
+        "value":  "var(--color-token-side-bar-background)"
+    },
+    {
+        "name":  "--color-token-diff-surface",
+        "value":  "var(--color-token-main-surface-primary)"
+    },
+    {
+        "name":  "--color-token-diff-surface",
+        "value":  "color-mix(in srgb, var(--color-token-main-surface-primary) 94%, var(--color-token-foreground))"
+    },
+    {
+        "name":  "--color-token-main-surface-primary",
+        "value":  "var(--app-color-background-surface)"
+    },
+    {
+        "name":  "--elevation-100-geo",
+        "value":  "0 1px 2px -1px"
+    },
+    {
+        "name":  "--elevation-200-geo",
+        "value":  "0 2px 4px -1px"
+    },
+    {
+        "name":  "--elevation-300-geo",
+        "value":  "0 4px 8px -2px"
+    },
+    {
+        "name":  "--elevation-400-geo",
+        "value":  "0 8px 16px -4px"
+    },
+    {
+        "name":  "--color-text-primary",
+        "value":  "var(--color-text-emphasis)"
+    },
+    {
+        "name":  "--color-background-primary-soft",
+        "value":  "var(--lightningcss-light,var(--gray-100))var(--lightningcss-dark,var(--gray-300))"
+    },
+    {
+        "name":  "--color-background-primary-soft-hover",
+        "value":  "var(--lightningcss-light,var(--gray-150))var(--lightningcss-dark,var(--gray-350))"
+    },
+    {
+        "name":  "--color-background-primary-soft-active",
+        "value":  "var(--lightningcss-light,var(--gray-200))var(--lightningcss-dark,var(--gray-400))"
+    },
+    {
+        "name":  "--color-background-primary-soft-alpha",
+        "value":  "var(--lightningcss-light,var(--alpha-08))var(--lightningcss-dark,var(--alpha-12))"
+    },
+    {
+        "name":  "--color-background-primary-soft-alpha-hover",
+        "value":  "var(--lightningcss-light,var(--alpha-12))var(--lightningcss-dark,var(--alpha-16))"
+    },
+    {
+        "name":  "--color-background-primary-soft-alpha-active",
+        "value":  "var(--lightningcss-light,var(--alpha-16))var(--lightningcss-dark,var(--alpha-20))"
+    },
+    {
+        "name":  "--color-text-primary-soft",
+        "value":  "var(--color-text-emphasis)"
+    },
+    {
+        "name":  "--color-background-primary-soft-alt",
+        "value":  "var(--alpha-02)"
+    },
+    {
+        "name":  "--color-border-primary-soft-alt",
+        "value":  "var(--alpha-06)"
+    },
+    {
+        "name":  "--color-text-primary-soft-alt",
+        "value":  "var(--color-text-emphasis)"
+    },
+    {
+        "name":  "--color-background-primary-surface",
+        "value":  "var(--lightningcss-light,var(--alpha-05))var(--lightningcss-dark,var(--alpha-08))"
+    },
+    {
+        "name":  "--color-border-primary-surface",
+        "value":  "var(--lightningcss-light,var(--alpha-05))var(--lightningcss-dark,var(--alpha-08))"
+    },
+    {
+        "name":  "--color-text-primary-surface",
+        "value":  "var(--color-text-emphasis)"
+    },
+    {
+        "name":  "--color-background-primary-solid",
+        "value":  "var(--lightningcss-light,var(--gray-900))var(--lightningcss-dark,var(--gray-950))"
+    },
+    {
+        "name":  "--color-background-primary-solid-hover",
+        "value":  "var(--lightningcss-light,var(--gray-700))var(--lightningcss-dark,var(--gray-900))"
+    },
+    {
+        "name":  "--color-background-primary-solid-active",
+        "value":  "var(--lightningcss-light,var(--gray-600))var(--lightningcss-dark,var(--gray-850))"
+    },
+    {
+        "name":  "--color-text-primary-solid",
+        "value":  "var(--color-text-inverse)"
+    },
+    {
+        "name":  "--color-background-primary-outline-hover",
+        "value":  "var(--lightningcss-light,var(--alpha-02))var(--lightningcss-dark,var(--alpha-04))"
+    },
+    {
+        "name":  "--color-background-primary-outline-active",
+        "value":  "var(--lightningcss-light,var(--alpha-04))var(--lightningcss-dark,var(--alpha-06))"
+    },
+    {
+        "name":  "--color-border-primary-outline",
+        "value":  "var(--lightningcss-light,var(--alpha-16))var(--lightningcss-dark,var(--alpha-25))"
+    },
+    {
+        "name":  "--color-border-primary-outline-hover",
+        "value":  "var(--lightningcss-light,var(--alpha-20))var(--lightningcss-dark,var(--alpha-30))"
+    },
+    {
+        "name":  "--color-text-primary-outline",
+        "value":  "var(--color-text-emphasis)"
+    },
+    {
+        "name":  "--color-text-primary-outline-hover",
+        "value":  "var(--color-text-emphasis)"
+    },
+    {
+        "name":  "--color-background-primary-ghost-hover",
+        "value":  "var(--lightningcss-light,var(--alpha-08))var(--lightningcss-dark,var(--alpha-12))"
+    },
+    {
+        "name":  "--color-background-primary-ghost-active",
+        "value":  "var(--lightningcss-light,var(--alpha-12))var(--lightningcss-dark,var(--alpha-16))"
+    },
+    {
+        "name":  "--color-text-primary-ghost",
+        "value":  "var(--color-text-emphasis)"
+    },
+    {
+        "name":  "--color-text-primary-ghost-hover",
+        "value":  "var(--color-text-emphasis)"
+    },
+    {
+        "name":  "--color-ring-primary",
+        "value":  "var(--color-ring)"
+    },
+    {
+        "name":  "--color-ring-primary-soft",
+        "value":  "var(--color-ring-primary)"
+    },
+    {
+        "name":  "--color-ring-primary-solid",
+        "value":  "var(--color-ring-primary)"
+    },
+    {
+        "name":  "--color-ring-primary-outline",
+        "value":  "var(--color-ring-primary)"
+    },
+    {
+        "name":  "--color-ring-primary-ghost",
+        "value":  "var(--color-ring-primary)"
+    },
+    {
+        "name":  "--color-background-info-surface",
+        "value":  "var(--lightningcss-light,var(--blue-a25))var(--lightningcss-dark,var(--blue-a50))"
+    },
+    {
+        "name":  "--color-border-info-surface",
+        "value":  "var(--lightningcss-light,var(--blue-a25))var(--lightningcss-dark,var(--blue-a50))"
+    },
+    {
+        "name":  "--color-text-info-surface",
+        "value":  "var(--lightningcss-light,var(--blue-600))var(--lightningcss-dark,var(--blue-300))"
+    },
+    {
+        "name":  "--color-background-warning-surface",
+        "value":  "var(--lightningcss-light,var(--orange-a25))var(--lightningcss-dark,var(--orange-a50))"
+    },
+    {
+        "name":  "--color-border-warning-surface",
+        "value":  "var(--lightningcss-light,var(--orange-a25))var(--lightningcss-dark,var(--orange-a50))"
+    },
+    {
+        "name":  "--color-text-warning-surface",
+        "value":  "var(--lightningcss-light,var(--orange-700))var(--lightningcss-dark,var(--orange-400))"
+    },
+    {
+        "name":  "--color-background-caution-surface",
+        "value":  "var(--lightningcss-light,var(--yellow-a25))var(--lightningcss-dark,var(--yellow-a50))"
+    },
+    {
+        "name":  "--color-border-caution-surface",
+        "value":  "var(--lightningcss-light,var(--yellow-a25))var(--lightningcss-dark,var(--yellow-a50))"
+    },
+    {
+        "name":  "--color-text-caution-surface",
+        "value":  "var(--lightningcss-light,var(--yellow-800))var(--lightningcss-dark,var(--yellow-400))"
+    },
+    {
+        "name":  "--color-text-danger",
+        "value":  "var(--lightningcss-light,var(--red-700))var(--lightningcss-dark,var(--red-500))"
+    },
+    {
+        "name":  "--color-background-danger-soft",
+        "value":  "var(--red-50)"
+    },
+    {
+        "name":  "--color-background-danger-soft-hover",
+        "value":  "var(--red-75)"
+    },
+    {
+        "name":  "--color-background-danger-soft-active",
+        "value":  "var(--red-75)"
+    },
+    {
+        "name":  "--color-background-danger-soft-alpha",
+        "value":  "var(--red-a50)"
+    },
+    {
+        "name":  "--color-background-danger-soft-alpha-hover",
+        "value":  "var(--red-a75)"
+    },
+    {
+        "name":  "--color-background-danger-soft-alpha-active",
+        "value":  "var(--red-a75)"
+    },
+    {
+        "name":  "--color-text-danger-soft",
+        "value":  "var(--lightningcss-light,var(--red-600))var(--lightningcss-dark,var(--red-400))"
+    },
+    {
+        "name":  "--color-background-danger-surface",
+        "value":  "var(--lightningcss-light,var(--red-a25))var(--lightningcss-dark,var(--red-a50))"
+    },
+    {
+        "name":  "--color-border-danger-surface",
+        "value":  "var(--lightningcss-light,var(--red-a25))var(--lightningcss-dark,var(--red-a50))"
+    },
+    {
+        "name":  "--color-text-danger-surface",
+        "value":  "var(--lightningcss-light,var(--red-600))var(--lightningcss-dark,var(--red-400))"
+    },
+    {
+        "name":  "--color-background-danger-solid",
+        "value":  "var(--red-500)"
+    },
+    {
+        "name":  "--color-background-danger-solid-hover",
+        "value":  "var(--red-600)"
+    },
+    {
+        "name":  "--color-background-danger-solid-active",
+        "value":  "var(--red-600)"
+    },
+    {
+        "name":  "--color-text-danger-solid",
+        "value":  "var(--white)"
+    },
+    {
+        "name":  "--color-background-danger-outline-hover",
+        "value":  "var(--red-a25)"
+    },
+    {
+        "name":  "--color-background-danger-outline-active",
+        "value":  "var(--red-a25)"
+    },
+    {
+        "name":  "--color-border-danger-outline",
+        "value":  "var(--red-500)"
+    },
+    {
+        "name":  "--color-border-danger-outline-hover",
+        "value":  "var(--red-500)"
+    },
+    {
+        "name":  "--color-text-danger-outline",
+        "value":  "var(--red-500)"
+    },
+    {
+        "name":  "--color-text-danger-outline-hover",
+        "value":  "var(--red-500)"
+    },
+    {
+        "name":  "--color-background-danger-ghost-hover",
+        "value":  "var(--red-a50)"
+    },
+    {
+        "name":  "--color-background-danger-ghost-active",
+        "value":  "var(--red-a50)"
+    },
+    {
+        "name":  "--color-text-danger-ghost",
+        "value":  "var(--red-500)"
+    },
+    {
+        "name":  "--color-text-danger-ghost-hover",
+        "value":  "var(--red-500)"
+    },
+    {
+        "name":  "--color-ring-danger",
+        "value":  "var(--red-200)"
+    },
+    {
+        "name":  "--color-ring-danger-soft",
+        "value":  "var(--color-ring-danger)"
+    },
+    {
+        "name":  "--color-ring-danger-solid",
+        "value":  "var(--color-ring-danger)"
+    },
+    {
+        "name":  "--color-ring-danger-outline",
+        "value":  "var(--color-ring-danger)"
+    },
+    {
+        "name":  "--color-ring-danger-ghost",
+        "value":  "var(--color-ring-danger)"
+    },
+    {
+        "name":  "--color-text-success",
+        "value":  "var(--lightningcss-light,var(--green-700))var(--lightningcss-dark,var(--green-400))"
+    },
+    {
+        "name":  "--color-background-success-soft",
+        "value":  "var(--green-50)"
+    },
+    {
+        "name":  "--color-background-success-soft-hover",
+        "value":  "var(--green-75)"
+    },
+    {
+        "name":  "--color-background-success-soft-active",
+        "value":  "var(--green-75)"
+    },
+    {
+        "name":  "--color-background-success-soft-alpha",
+        "value":  "var(--green-a50)"
+    },
+    {
+        "name":  "--color-background-success-soft-alpha-hover",
+        "value":  "var(--green-a75)"
+    },
+    {
+        "name":  "--color-background-success-soft-alpha-active",
+        "value":  "var(--green-a75)"
+    },
+    {
+        "name":  "--color-text-success-soft",
+        "value":  "var(--lightningcss-light,var(--green-600))var(--lightningcss-dark,var(--green-400))"
+    },
+    {
+        "name":  "--color-background-success-surface",
+        "value":  "var(--lightningcss-light,var(--green-a25))var(--lightningcss-dark,var(--green-a50))"
+    },
+    {
+        "name":  "--color-border-success-surface",
+        "value":  "var(--lightningcss-light,var(--green-a25))var(--lightningcss-dark,var(--green-a50))"
+    },
+    {
+        "name":  "--color-text-success-surface",
+        "value":  "var(--lightningcss-light,var(--green-600))var(--lightningcss-dark,var(--green-400))"
+    },
+    {
+        "name":  "--color-background-success-solid",
+        "value":  "var(--lightningcss-light,var(--green-500))var(--lightningcss-dark,var(--green-600))"
+    },
+    {
+        "name":  "--color-background-success-solid-hover",
+        "value":  "var(--lightningcss-light,var(--green-500))var(--lightningcss-dark,var(--green-600))"
+    },
+    {
+        "name":  "--color-background-success-solid-active",
+        "value":  "var(--lightningcss-light,var(--green-500))var(--lightningcss-dark,var(--green-600))"
+    },
+    {
+        "name":  "--color-text-success-solid",
+        "value":  "var(--white)"
+    },
+    {
+        "name":  "--color-background-success-outline-hover",
+        "value":  "var(--green-a25)"
+    },
+    {
+        "name":  "--color-background-success-outline-active",
+        "value":  "var(--green-a25)"
+    },
+    {
+        "name":  "--color-border-success-outline",
+        "value":  "var(--lightningcss-light,var(--green-500))var(--lightningcss-dark,var(--green-600))"
+    },
+    {
+        "name":  "--color-border-success-outline-hover",
+        "value":  "var(--lightningcss-light,var(--green-500))var(--lightningcss-dark,var(--green-600))"
+    },
+    {
+        "name":  "--color-text-success-outline",
+        "value":  "var(--green-500)"
+    },
+    {
+        "name":  "--color-text-success-outline-hover",
+        "value":  "var(--green-500)"
+    },
+    {
+        "name":  "--color-background-success-ghost-hover",
+        "value":  "var(--green-a50)"
+    },
+    {
+        "name":  "--color-background-success-ghost-active",
+        "value":  "var(--green-a50)"
+    },
+    {
+        "name":  "--color-text-success-ghost",
+        "value":  "var(--green-500)"
+    },
+    {
+        "name":  "--color-text-success-ghost-hover",
+        "value":  "var(--green-500)"
+    },
+    {
+        "name":  "--color-ring-success",
+        "value":  "var(--color-ring)"
+    },
+    {
+        "name":  "--color-ring-success-soft",
+        "value":  "var(--color-ring-info)"
+    },
+    {
+        "name":  "--color-ring-success-solid",
+        "value":  "var(--color-ring-info)"
+    },
+    {
+        "name":  "--color-ring-success-outline",
+        "value":  "var(--color-ring-info)"
+    },
+    {
+        "name":  "--color-ring-success-ghost",
+        "value":  "var(--color-ring-info)"
+    },
+    {
+        "name":  "--color-background-discovery-surface",
+        "value":  "var(--lightningcss-light,var(--purple-a25))var(--lightningcss-dark,var(--purple-a50))"
+    },
+    {
+        "name":  "--color-border-discovery-surface",
+        "value":  "var(--lightningcss-light,var(--purple-a25))var(--lightningcss-dark,var(--purple-a50))"
+    },
+    {
+        "name":  "--color-text-discovery-surface",
+        "value":  "var(--lightningcss-light,var(--purple-600))var(--lightningcss-dark,var(--purple-200))"
+    },
+    {
+        "name":  "--color-surface",
+        "value":  "var(--lightningcss-light,var(--gray-0))var(--lightningcss-dark,var(--gray-200))"
+    },
+    {
+        "name":  "--color-surface-secondary",
+        "value":  "var(--lightningcss-light,var(--gray-50))var(--lightningcss-dark,var(--gray-100))"
+    },
+    {
+        "name":  "--color-surface-tertiary",
+        "value":  "var(--lightningcss-light,var(--gray-75))var(--lightningcss-dark,var(--gray-50))"
+    },
+    {
+        "name":  "--color-surface-elevated",
+        "value":  "var(--lightningcss-light,var(--gray-0))var(--lightningcss-dark,var(--gray-300))"
+    },
+    {
+        "name":  "--color-surface-elevated-secondary",
+        "value":  "var(--lightningcss-light,var(--gray-50))var(--lightningcss-dark,var(--gray-400))"
+    },
+    {
+        "name":  "--app-color-background-surface",
+        "value":  "var(--lightningcss-light,var(--gray-fixed-0))var(--lightningcss-dark,var(--gray-fixed-900))"
+    },
+    {
+        "name":  "--app-color-background-surface-under",
+        "value":  "var(--lightningcss-light,var(--gray-fixed-50))var(--lightningcss-dark,black)"
+    },
+    {
+        "name":  "--app-color-background-elevated-primary",
+        "value":  "var(--lightningcss-light,var(--gray-fixed-0))var(--lightningcss-dark,var(--gray-fixed-800))"
+    },
+    {
+        "name":  "--app-color-background-elevated-primary",
+        "value":  "var(--lightningcss-light,color-mix(in oklab, var(--gray-fixed-0) 70%, transparent))var(--lightningcss-dark,color-mix(in oklab, var(--gray-fixed-800) 96%, transparent))"
+    },
+    {
+        "name":  "--app-color-background-elevated-primary-opaque",
+        "value":  "var(--lightningcss-light,var(--gray-fixed-0))var(--lightningcss-dark,var(--gray-fixed-750))"
+    },
+    {
+        "name":  "--app-color-background-button-primary",
+        "value":  "var(--lightningcss-light,var(--app-color-text-foreground))var(--lightningcss-dark,var(--gray-fixed-1000))"
+    },
+    {
+        "name":  "--app-color-background-button-primary-hover",
+        "value":  "var(--lightningcss-light,var(--app-color-text-foreground))var(--lightningcss-dark,var(--gray-fixed-1000))"
+    },
+    {
+        "name":  "--app-color-background-button-primary-hover",
+        "value":  "var(--lightningcss-light,color-mix(in oklab, var(--app-color-text-foreground) 8%, transparent))var(--lightningcss-dark,color-mix(in oklab, var(--gray-fixed-1000) 6%, transparent))"
+    },
+    {
+        "name":  "--app-color-background-button-primary-active",
+        "value":  "var(--lightningcss-light,var(--app-color-text-foreground))var(--lightningcss-dark,var(--gray-fixed-1000))"
+    },
+    {
+        "name":  "--app-color-background-button-primary-active",
+        "value":  "var(--lightningcss-light,color-mix(in oklab, var(--app-color-text-foreground) 16%, transparent))var(--lightningcss-dark,color-mix(in oklab, var(--gray-fixed-1000) 10%, transparent))"
+    },
+    {
+        "name":  "--app-color-background-button-primary-inactive",
+        "value":  "var(--lightningcss-light,var(--app-color-text-foreground))var(--lightningcss-dark,var(--gray-fixed-1000))"
+    },
+    {
+        "name":  "--app-color-background-button-primary-inactive",
+        "value":  "var(--lightningcss-light,color-mix(in oklab, var(--app-color-text-foreground) 24%, transparent))var(--lightningcss-dark,color-mix(in oklab, var(--gray-fixed-1000) 3%, transparent))"
+    },
+    {
+        "name":  "--app-color-background-accent",
+        "value":  "var(--lightningcss-light,var(--blue-50))var(--lightningcss-dark,var(--blue-900))"
+    },
+    {
+        "name":  "--app-color-background-accent-hover",
+        "value":  "var(--lightningcss-light,var(--blue-50))var(--lightningcss-dark,var(--blue-900))"
+    },
+    {
+        "name":  "--app-color-background-accent-active",
+        "value":  "var(--lightningcss-light,var(--blue-50))var(--lightningcss-dark,var(--blue-900))"
+    },
+    {
+        "name":  "--app-color-background-status-success",
+        "value":  "var(--lightningcss-light,var(--green-500))var(--lightningcss-dark,var(--green-400))"
+    },
+    {
+        "name":  "--app-color-background-status-success",
+        "value":  "var(--lightningcss-light,color-mix(in oklab, var(--green-500) 7.0%, transparent))var(--lightningcss-dark,color-mix(in oklab, var(--green-400) 16%, transparent))"
+    },
+    {
+        "name":  "--app-color-background-danger-active",
+        "value":  "var(--lightningcss-light,var(--red-500))var(--lightningcss-dark,var(--red-400))"
+    },
+    {
+        "name":  "--app-color-background-danger-active",
+        "value":  "var(--lightningcss-light,color-mix(in oklab, var(--red-500) 90%, transparent))var(--lightningcss-dark,color-mix(in oklab, var(--red-400) 36%, transparent))"
+    },
+    {
+        "name":  "--app-color-text-button-primary",
+        "value":  "var(--lightningcss-light,var(--gray-fixed-0))var(--lightningcss-dark,var(--gray-fixed-1000))"
+    },
+    {
+        "name":  "--app-color-text-accent",
+        "value":  "var(--blue-300)"
+    },
+    {
+        "name":  "--app-color-text-accent",
+        "value":  "var(--blue-100)"
+    },
+    {
+        "name":  "--app-color-text-on-accent",
+        "value":  "var(--gray-fixed-1000)"
+    },
+    {
+        "name":  "--app-color-text-success",
+        "value":  "var(--lightningcss-light,var(--green-500))var(--lightningcss-dark,var(--green-300))"
+    },
+    {
+        "name":  "--app-color-icon-primary",
+        "value":  "var(--lightningcss-light,var(--app-color-text-foreground))var(--lightningcss-dark,var(--white))"
+    },
+    {
+        "name":  "--app-color-icon-primary",
+        "value":  "var(--lightningcss-light,var(--app-color-text-foreground))var(--lightningcss-dark,color-mix(in oklab, var(--white) 90%, transparent))"
+    },
+    {
+        "name":  "--app-color-icon-accent",
+        "value":  "var(--blue-300)"
+    },
+    {
+        "name":  "--app-color-icon-success",
+        "value":  "var(--lightningcss-light,var(--green-500))var(--lightningcss-dark,var(--green-300))"
+    },
+    {
+        "name":  "--app-color-accent-red",
+        "value":  "var(--lightningcss-light,var(--red-500))var(--lightningcss-dark,var(--red-300))"
+    },
+    {
+        "name":  "--app-color-accent-blue",
+        "value":  "var(--blue-300)"
+    },
+    {
+        "name":  "--app-color-accent-yellow",
+        "value":  "var(--lightningcss-light,var(--yellow-400))var(--lightningcss-dark,var(--yellow-300))"
+    },
+    {
+        "name":  "--app-color-accent-orange",
+        "value":  "var(--lightningcss-light,var(--orange-500))var(--lightningcss-dark,var(--orange-400))"
+    },
+    {
+        "name":  "--app-color-accent-green",
+        "value":  "var(--lightningcss-light,var(--green-500))var(--lightningcss-dark,var(--green-300))"
+    },
+    {
+        "name":  "--app-color-accent-purple",
+        "value":  "var(--lightningcss-light,var(--purple-400))var(--lightningcss-dark,var(--purple-300))"
+    },
+    {
+        "name":  "--color-text-danger",
+        "value":  "var(--vscode-errorForeground)"
+    },
+    {
+        "name":  "--color-text-danger-soft",
+        "value":  "var(--vscode-charts-red)"
+    },
+    {
+        "name":  "--color-text-success",
+        "value":  "var(--vscode-charts-green)"
+    },
+    {
+        "name":  "--color-text-primary-solid",
+        "value":  "var(--app-color-text-primary-solid,var(--vscode-dropdown-background))"
+    },
+    {
+        "name":  "--color-text-composer-primary",
+        "value":  "var(--color-text-primary-solid)"
+    },
+    {
+        "name":  "--color-text-danger-solid",
+        "value":  "var(--white)"
+    },
+    {
+        "name":  "--color-text-success-solid",
+        "value":  "var(--white)"
+    },
+    {
+        "name":  "--color-control-thumb-on-accent",
+        "value":  "var(--white)"
+    },
+    {
+        "name":  "--color-image-generation-accent",
+        "value":  "var(--color-chart-blue)"
+    },
+    {
+        "name":  "--color-artifact-powerpoint-surface",
+        "value":  "var(--lightningcss-light,var(--red-600))var(--lightningcss-dark,var(--red-300))"
+    },
+    {
+        "name":  "--color-artifact-powerpoint-surface",
+        "value":  "var(--lightningcss-light,color-mix(in oklab, var(--red-600) 5%, transparent))var(--lightningcss-dark,color-mix(in oklab, var(--red-300) 12%, transparent))"
+    },
+    {
+        "name":  "--color-surface",
+        "value":  "var(--app-color-background-surface)"
+    },
+    {
+        "name":  "--color-surface-secondary",
+        "value":  "var(--vscode-sideBar-background)"
+    },
+    {
+        "name":  "--color-surface-recovery",
+        "value":  "var(--app-color-background-recovery,var(--color-surface-secondary))"
+    },
+    {
+        "name":  "--color-surface-tertiary",
+        "value":  "var(--vscode-editor-background)"
+    },
+    {
+        "name":  "--color-surface-elevated",
+        "value":  "var(--vscode-menu-background)"
+    },
+    {
+        "name":  "--color-surface-elevated-secondary",
+        "value":  "var(--vscode-dropdown-background)"
+    },
+    {
+        "name":  "--color-background-primary-soft",
+        "value":  "var(--vscode-input-background)"
+    },
+    {
+        "name":  "--color-background-primary-soft-alpha",
+        "value":  "var(--vscode-foreground)"
+    },
+    {
+        "name":  "--color-background-primary-soft-alpha",
+        "value":  "color-mix(in oklab, var(--vscode-foreground) 2.5%, transparent)"
+    },
+    {
+        "name":  "--color-background-primary-soft-active",
+        "value":  "var(--vscode-list-activeSelectionBackground)"
+    },
+    {
+        "name":  "--color-background-primary-ghost-hover",
+        "value":  "var(--vscode-list-hoverBackground)"
+    },
+    {
+        "name":  "--color-background-primary-ghost-focus",
+        "value":  "var(--lightningcss-light,var(--color-text))var(--lightningcss-dark,var(--color-background-primary-ghost-hover))"
+    },
+    {
+        "name":  "--color-background-primary-ghost-focus",
+        "value":  "var(--lightningcss-light,color-mix(in oklab, var(--color-text) 12%, transparent))var(--lightningcss-dark,var(--color-background-primary-ghost-hover))"
+    },
+    {
+        "name":  "--color-background-primary-solid",
+        "value":  "var(--vscode-foreground)"
+    },
+    {
+        "name":  "--color-background-composer-primary",
+        "value":  "var(--color-background-primary-solid)"
+    },
+    {
+        "name":  "--color-background-callout-surface",
+        "value":  "var(--vscode-editorWidget-background)"
+    },
+    {
+        "name":  "--color-background-composer-action-bar",
+        "value":  "var(--lightningcss-light,var(--color-surface-secondary))var(--lightningcss-dark,var(--color-background-primary-soft-alpha))"
+    },
+    {
+        "name":  "--color-background-info-surface",
+        "value":  "var(--vscode-editor-findMatchBackground)"
+    },
+    {
+        "name":  "--color-background-success-surface",
+        "value":  "var(--lightningcss-light,var(--green-25))var(--lightningcss-dark,var(--green-950))"
+    },
+    {
+        "name":  "--color-background-success-solid",
+        "value":  "var(--green-600)"
+    },
+    {
+        "name":  "--color-background-danger-surface",
+        "value":  "var(--lightningcss-light,var(--red-25))var(--lightningcss-dark,var(--red-950))"
+    },
+    {
+        "name":  "--color-background-danger-solid",
+        "value":  "var(--red-500)"
+    },
+    {
+        "name":  "--color-background-warning-surface",
+        "value":  "var(--lightningcss-light,var(--orange-25))var(--lightningcss-dark,var(--orange-950))"
+    },
+    {
+        "name":  "--color-border-primary-outline",
+        "value":  "var(--vscode-input-border,var(--color-border-strong))"
+    },
+    {
+        "name":  "--color-border-danger-outline",
+        "value":  "var(--vscode-inputValidation-errorBorder)"
+    },
+    {
+        "name":  "--color-codex-drop-overlay",
+        "value":  "var(--vscode-editorGroup-dropBackground)"
+    },
+    {
+        "name":  "--color-codex-diff-surface",
+        "value":  "var(--color-surface)"
+    },
+    {
+        "name":  "--color-codex-diff-surface",
+        "value":  "color-mix(in srgb, var(--color-surface) 94%, var(--color-text))"
+    },
+    {
+        "name":  "--color-background-primary-soft-hover",
+        "value":  "var(--vscode-list-hoverBackground)"
+    },
+    {
+        "name":  "--text-primary",
+        "value":  "var(--loading-shimmer-foreground,var(--color-codex-description))"
+    },
+    {
+        "name":  "--image-transparency-backdrop-primary",
+        "value":  "var(--color-token-main-surface-primary)"
+    },
+    {
+        "name":  "--codex-chat-font-size",
+        "value":  "16px"
+    },
+    {
+        "name":  "--codex-diffs-surface-override",
+        "value":  "var(--color-surface-elevated-secondary)"
+    },
+    {
+        "name":  "--codex-diffs-surface-override",
+        "value":  "color-mix(in oklab,var(--color-surface-elevated-secondary) 50%,transparent)"
+    },
+    {
+        "name":  "--codex-diffs-surface",
+        "value":  "var(--color-surface)"
+    },
+    {
+        "name":  "--color-surface-elevated-secondary",
+        "value":  "var(--color-surface-elevated-secondary)"
+    },
+    {
+        "name":  "--color-surface-elevated",
+        "value":  "var(--color-surface)"
+    },
+    {
+        "name":  "--color-surface-tertiary",
+        "value":  "var(--color-surface-secondary)"
+    },
+    {
+        "name":  "--color-surface-tertiary",
+        "value":  "color-mix(in srgb,var(--color-surface-secondary) 92%,transparent)"
+    },
+    {
+        "name":  "--composer-overlay-placement",
+        "value":  "bottom"
+    },
+    {
+        "name":  "--padding-panel",
+        "value":  "calc(var(--padding-panel-base) / 2)"
+    },
+    {
+        "name":  "--padding-toolbar",
+        "value":  "calc(var(--spacing) * 2)"
+    },
+    {
+        "name":  "--right-panel-composer-overlay-reserve",
+        "value":  "118px"
+    },
+    {
+        "name":  "--sidebar-footer-height",
+        "value":  "0px"
+    },
+    {
+        "name":  "--text-primary",
+        "value":  "var(--color-text)"
+    },
+    {
+        "name":  "--thread-content-max-width",
+        "value":  "42rem"
+    },
+    {
+        "name":  "--thread-content-max-width",
+        "value":  "48rem"
+    },
+    {
+        "name":  "--thread-content-max-width",
+        "value":  "100%"
+    },
+    {
+        "name":  "--thread-content-max-width",
+        "value":  "480px"
+    },
+    {
+        "name":  "--thread-content-max-width",
+        "value":  "500px"
+    },
+    {
+        "name":  "--thread-content-max-width",
+        "value":  "var(--container-3xl)"
+    },
+    {
+        "name":  "--thread-content-top-inset",
+        "value":  "calc(var(--spacing) * 8)"
+    },
+    {
+        "name":  "--thread-content-top-inset",
+        "value":  "var(--height-toolbar)"
+    },
+    {
+        "name":  "--thread-floating-content-bottom-inset",
+        "value":  "16px"
+    },
+    {
+        "name":  "--thread-floating-content-bottom-inset",
+        "value":  "calc(var(--spacing) * 10)"
+    },
+    {
+        "name":  "--thread-floating-content-top-inset",
+        "value":  "16px"
+    },
+    {
+        "name":  "--thread-floating-content-top-inset",
+        "value":  "calc(var(--height-toolbar) + var(--spacing) * 3)"
+    },
+    {
+        "name":  "--thread-resource-card-max-width",
+        "value":  "var(--container-sm)"
+    },
+    {
+        "name":  "--thread-resource-card-row-padding-x",
+        "value":  ".75rem"
+    },
+    {
+        "name":  "--thread-resource-card-row-padding-x",
+        "value":  "1rem"
+    },
+    {
+        "name":  "--thread-sticky-header-top",
+        "value":  "calc(var(--spacing) * 8)"
+    },
+    {
+        "name":  "--thread-sticky-header-top",
+        "value":  "var(--thread-content-top-inset)"
+    },
+    {
+        "name":  "--wb-accent",
+        "value":  "var(--codex-base-accent,var(--color-text-info,var(--color-text)))"
+    },
+    {
+        "name":  "--wb-on-accent",
+        "value":  "var(--color-text-info-solid,var(--color-text-inverse,#fff))"
+    },
+    {
+        "name":  "--wb-surface-primary",
+        "value":  "var(--color-surface-elevated-secondary)"
+    },
+    {
+        "name":  "--wb-surface-primary",
+        "value":  "color-mix(in srgb,var(--color-surface-elevated-secondary) 86%,var(--color-surface))"
+    },
+    {
+        "name":  "--composer-overlay-placement",
+        "value":  "top"
+    },
+    {
+        "name":  "--thread-sticky-header-top",
+        "value":  "var(--thread-content-top-inset,0px)"
+    },
+    {
+        "name":  "--elevation-prominent",
+        "value":  "var(--elevation-sidebar)"
+    },
+    {
+        "name":  "--codex-diffs-surface-override",
+        "value":  "var(--color-background-primary-soft)"
+    },
+    {
+        "name":  "--codex-diffs-surface-override",
+        "value":  "color-mix(in oklab,var(--color-background-primary-soft) 50%,transparent)"
+    },
+    {
+        "name":  "--codex-diffs-surface-override",
+        "value":  "var(--color-codex-diff-surface)"
+    },
+    {
+        "name":  "--vscode-toolbar-hoverBackground",
+        "value":  "var(--app-color-background-button-secondary-hover)"
+    },
+    {
+        "name":  "--vscode-toolbar-activeBackground",
+        "value":  "var(--app-color-background-button-secondary-active)"
+    },
+    {
+        "name":  "--vscode-inlineChat-foreground",
+        "value":  "var(--app-color-text-foreground)"
+    },
+    {
+        "name":  "--vscode-inlineChat-background",
+        "value":  "var(--app-color-background-elevated-primary)"
+    },
+    {
+        "name":  "--vscode-inlineChat-border",
+        "value":  "var(--app-color-border)"
+    },
+    {
+        "name":  "--vscode-inlineChat-shadow",
+        "value":  "var(--app-color-border-light)"
+    },
+    {
+        "name":  "--vscode-inlineChatInput-border",
+        "value":  "var(--app-color-border)"
+    },
+    {
+        "name":  "--vscode-inlineChatInput-focusBorder",
+        "value":  "var(--app-color-border-focus)"
+    },
+    {
+        "name":  "--vscode-inlineChatInput-placeholderForeground",
+        "value":  "var(--app-color-text-foreground-tertiary)"
+    },
+    {
+        "name":  "--vscode-inlineChatInput-background",
+        "value":  "var(--app-color-background-elevated-primary)"
+    },
+    {
+        "name":  "--vscode-inlineChatDiff-inserted",
+        "value":  "var(--app-color-text-success)"
+    },
+    {
+        "name":  "--vscode-editorOverviewRuler-inlineChatInserted",
+        "value":  "var(--app-color-editor-added)"
+    },
+    {
+        "name":  "--vscode-inlineChatDiff-removed",
+        "value":  "var(--app-color-text-error)"
+    },
+    {
+        "name":  "--vscode-editorOverviewRuler-inlineChatRemoved",
+        "value":  "var(--app-color-editor-deleted)"
+    },
+    {
+        "name":  "--vscode-panel-background",
+        "value":  "var(--app-color-background-elevated-primary)"
+    },
+    {
+        "name":  "--vscode-panel-border",
+        "value":  "var(--app-color-border)"
+    },
+    {
+        "name":  "--vscode-panelTitle-activeForeground",
+        "value":  "var(--app-color-text-foreground)"
+    },
+    {
+        "name":  "--vscode-panelTitle-inactiveForeground",
+        "value":  "var(--app-color-text-foreground-tertiary)"
+    },
+    {
+        "name":  "--vscode-panelTitle-activeBorder",
+        "value":  "var(--app-color-border-heavy)"
+    },
+    {
+        "name":  "--vscode-panelInput-border",
+        "value":  "var(--app-color-border)"
+    },
+    {
+        "name":  "--vscode-panel-dropBorder",
+        "value":  "var(--app-color-border)"
+    },
+    {
+        "name":  "--vscode-panelSection-dropBackground",
+        "value":  "var(--app-color-background-accent-active)"
+    },
+    {
+        "name":  "--vscode-panelSectionHeader-background",
+        "value":  "var(--app-color-background-elevated-primary)"
+    },
+    {
+        "name":  "--vscode-panelSection-border",
+        "value":  "var(--app-color-border)"
+    },
+    {
+        "name":  "--vscode-panelStickyScroll-background",
+        "value":  "var(--app-color-background-elevated-primary)"
+    },
+    {
+        "name":  "--vscode-panelStickyScroll-shadow",
+        "value":  "var(--app-color-border-light)"
+    },
+    {
+        "name":  "--vscode-sideBar-background",
+        "value":  "var(--app-color-background-surface-under)"
+    },
+    {
+        "name":  "--vscode-sideBar-foreground",
+        "value":  "var(--app-color-text-foreground)"
+    },
+    {
+        "name":  "--vscode-sideBar-border",
+        "value":  "var(--app-color-border)"
+    },
+    {
+        "name":  "--vscode-sideBarTitle-background",
+        "value":  "var(--app-color-background-surface-under)"
+    },
+    {
+        "name":  "--vscode-sideBarTitle-foreground",
+        "value":  "var(--app-color-text-foreground)"
+    },
+    {
+        "name":  "--vscode-sideBar-dropBackground",
+        "value":  "var(--app-color-background-accent-active)"
+    },
+    {
+        "name":  "--vscode-sideBarSectionHeader-background",
+        "value":  "var(--app-color-background-elevated-primary)"
+    },
+    {
+        "name":  "--vscode-sideBarSectionHeader-foreground",
+        "value":  "var(--app-color-text-foreground)"
+    },
+    {
+        "name":  "--vscode-sideBarSectionHeader-border",
+        "value":  "var(--app-color-border)"
+    },
+    {
+        "name":  "--vscode-sideBarActivityBarTop-border",
+        "value":  "var(--app-color-border)"
+    },
+    {
+        "name":  "--vscode-sideBarStickyScroll-background",
+        "value":  "var(--app-color-background-elevated-secondary)"
+    },
+    {
+        "name":  "--vscode-sideBarStickyScroll-shadow",
+        "value":  "var(--app-color-border-light)"
+    },
+    {
+        "name":  "--vscode-titleBar-activeForeground",
+        "value":  "var(--app-color-text-foreground)"
+    },
+    {
+        "name":  "--vscode-titleBar-inactiveForeground",
+        "value":  "var(--app-color-text-foreground-tertiary)"
+    },
+    {
+        "name":  "--vscode-titleBar-activeBackground",
+        "value":  "var(--app-color-background-surface)"
+    },
+    {
+        "name":  "--vscode-titleBar-inactiveBackground",
+        "value":  "var(--app-color-background-elevated-secondary)"
+    },
+    {
+        "name":  "--vscode-titleBar-border",
+        "value":  "var(--app-color-border)"
+    },
+    {
+        "name":  "--vscode-chat-requestBorder",
+        "value":  "var(--app-color-border)"
+    },
+    {
+        "name":  "--vscode-chat-requestBackground",
+        "value":  "var(--app-color-background-elevated-primary)"
+    },
+    {
+        "name":  "--vscode-chat-slashCommandBackground",
+        "value":  "var(--app-color-background-elevated-secondary)"
+    },
+    {
+        "name":  "--vscode-chat-slashCommandForeground",
+        "value":  "var(--app-color-text-foreground)"
+    },
+    {
+        "name":  "--vscode-chat-avatarBackground",
+        "value":  "var(--app-color-background-elevated-secondary)"
+    },
+    {
+        "name":  "--vscode-chat-avatarForeground",
+        "value":  "var(--app-color-text-foreground)"
+    },
+    {
+        "name":  "--vscode-chat-editedFileForeground",
+        "value":  "var(--app-color-text-foreground)"
+    },
+    {
+        "name":  "--vscode-terminalCommandDecoration-successBackground",
+        "value":  "var(--app-color-decoration-unchanged)"
+    },
+    {
+        "name":  "--vscode-debugToolBar-background",
+        "value":  "var(--app-color-background-elevated-primary)"
+    },
+    {
+        "name":  "--vscode-notebookStatusSuccessIcon-foreground",
+        "value":  "var(--app-color-icon-success)"
+    },
+    {
+        "name":  "--vscode-notebook-cellToolbarSeparator",
+        "value":  "var(--app-color-border-light)"
+    },
+    {
+        "name":  "--wb-text-primary",
+        "value":  "var(--color-text)"
+    },
+    {
+        "name":  "--wb-surface-primary",
+        "value":  "var(--color-surface)"
+    },
+    {
+        "name":  "--wb-surface-secondary",
+        "value":  "var(--color-surface-secondary)"
+    },
+    {
+        "name":  "--learning-block-accent",
+        "value":  "var(--learning-block-color-blue)"
+    },
+    {
+        "name":  "--learning-block-color-primary",
+        "value":  "var(--learning-block-color-blue)"
+    },
+    {
+        "name":  "--learning-block-color-accent",
+        "value":  "var(--learning-block-accent)"
+    },
+    {
+        "name":  "--learning-block-accent-surface",
+        "value":  "var(--learning-block-accent)"
+    },
+    {
+        "name":  "--learning-block-accent-surface",
+        "value":  "color-mix(in srgb, var(--learning-block-accent) 18%, transparent)"
+    },
+    {
+        "name":  "--learning-block-visualization-surface",
+        "value":  "var(--color-surface)"
+    },
+    {
+        "name":  "--icon-accent",
+        "value":  "var(--learning-block-accent)"
+    },
+    {
+        "name":  "--text-primary",
+        "value":  "var(--color-text)"
+    },
+    {
+        "name":  "--bg-primary",
+        "value":  "var(--color-surface)"
+    },
+    {
+        "name":  "--bg-elevated-primary",
+        "value":  "var(--color-surface-elevated)"
+    },
+    {
+        "name":  "--main-surface-primary",
+        "value":  "var(--color-surface)"
+    },
+    {
+        "name":  "--color-background-primary-soft-alpha",
+        "value":  "var(--app-color-background-elevated-secondary)"
+    },
+    {
+        "name":  "--codex-chat-font-size-override",
+        "value":  "var(--font-ui-size)"
+    },
+    {
+        "name":  "--codex-chat-code-font-size-override",
+        "value":  "var(--font-code-size)"
+    },
+    {
+        "name":  "--codex-chat-font-size",
+        "value":  "var(--codex-chat-font-size-override)"
+    },
+    {
+        "name":  "--codex-chat-code-font-size",
+        "value":  "var(--codex-chat-code-font-size-override)"
+    },
+    {
+        "name":  "--icon-primary-action-size",
+        "value":  "calc(var(--spacing) * 5)"
+    },
+    {
+        "name":  "--height-composer-plugins-menu",
+        "value":  "350px"
+    },
+    {
+        "name":  "--height-toolbar",
+        "value":  "calc(var(--spacing) * 13)"
+    },
+    {
+        "name":  "--spacing-token-button-composer",
+        "value":  "calc(var(--spacing) * 9)"
+    },
+    {
+        "name":  "--spacing-button-toolbar-inline",
+        "value":  "calc(var(--spacing) * 3)"
+    },
+    {
+        "name":  "--radius-button-toolbar",
+        "value":  "var(--radius-full)"
+    },
+    {
+        "name":  "--padding-composer-control-inline",
+        "value":  "calc(var(--spacing) * 3.5) calc(var(--spacing) * 3)"
+    },
+    {
+        "name":  "--text-composer-control",
+        "value":  "var(--text-base)"
+    },
+    {
+        "name":  "--line-height-composer-control",
+        "value":  "calc(var(--text-composer-control) * var(--leading-relaxed))"
+    },
+    {
+        "name":  "--padding-panel-base",
+        "value":  "calc(var(--spacing) * 5)"
+    },
+    {
+        "name":  "--padding-panel",
+        "value":  "var(--padding-panel-base)"
+    },
+    {
+        "name":  "--thread-content-max-width",
+        "value":  "48rem"
+    },
+    {
+        "name":  "--composer-adjacent-max-width",
+        "value":  "calc(var(--thread-content-max-width) + var(--composer-inline-overhang) + var(--composer-inline-overhang) - var(--home-composer-inline-inset) - var(--home-composer-inline-inset))"
+    },
+    {
+        "name":  "--color-background-primary-soft-alpha",
+        "value":  "var(--app-color-background-elevated-secondary)"
+    },
+    {
+        "name":  "--codex-chat-font-size-override",
+        "value":  "var(--font-ui-size)"
+    },
+    {
+        "name":  "--codex-chat-code-font-size-override",
+        "value":  "var(--font-code-size)"
+    },
+    {
+        "name":  "--spacing-token-button-composer-sm",
+        "value":  "calc(var(--spacing) * 7)"
+    },
+    {
+        "name":  "--line-height-composer",
+        "value":  "calc(var(--codex-chat-font-size) * var(--leading-relaxed))"
+    },
+    {
+        "name":  "--min-height-composer",
+        "value":  "var(--line-height-composer)"
+    },
+    {
+        "name":  "--min-rows-composer-work-home",
+        "value":  "2"
+    },
+    {
+        "name":  "--padding-composer-input",
+        "value":  "calc(var(--spacing) * 3.75) calc(var(--spacing) * 4.5) calc(var(--spacing) * 4)"
+    },
+    {
+        "name":  "--spacing-composer-input-footer",
+        "value":  "0"
+    },
+    {
+        "name":  "--padding-composer-empty-attachments",
+        "value":  "0"
+    },
+    {
+        "name":  "--spacing-composer-footer-bottom",
+        "value":  "calc(var(--spacing) * 2.25)"
+    },
+    {
+        "name":  "--opacity-composer-placeholder",
+        "value":  "1"
+    },
+    {
+        "name":  "--spacing-composer-single-line-controls",
+        "value":  "calc(var(--spacing) * 1.75)"
+    },
+    {
+        "name":  "--padding-composer-single-line-footer-block",
+        "value":  "calc(var(--spacing) * 2)"
+    },
+    {
+        "name":  "--thread-body-max-width",
+        "value":  "calc(var(--thread-content-max-width) + var(--padding-toolbar) * 2)"
+    },
+    {
+        "name":  "--app-color-background-elevated-primary",
+        "value":  "var(--app-color-background-elevated-primary-opaque)"
+    },
+    {
+        "name":  "--app-color-background-elevated-primary",
+        "value":  "var(--app-color-background-elevated-primary-opaque)"
+    },
+    {
+        "name":  "--elevation-stroke",
+        "value":  "0 0 0 .5px var(--color-border-strong)"
+    },
+    {
+        "name":  "--elevation-prominent",
+        "value":  "var(--elevation-stroke), 0 3px 7.5px #0000000a, 0 0 20px #0000000d"
+    },
+    {
+        "name":  "--elevation-sidebar",
+        "value":  "var(--elevation-stroke), 0 3px 7.5px #00000008, 0 0 16px #00000005"
+    },
+    {
+        "name":  "--elevation-composer",
+        "value":  "0 0 0 1px #0000000a, 0 2px 8px 0 #0000000a, 0 4px 80px 8px #00000006"
+    },
+    {
+        "name":  "--elevation-composer-dark",
+        "value":  "inset 0 0 1px 0 #fff3"
+    },
+    {
+        "name":  "--elevation-composer",
+        "value":  "0 0 0 1px #0000000a, 0 2px 8px 0 #0000000a, 0 4px 40px 8px #00000006"
+    },
+    {
+        "name":  "--max-app-overlay-z-index",
+        "value":  "2147480000"
+    },
+    {
+        "name":  "--padding-panel-base",
+        "value":  "calc(var(--spacing) * 3)"
+    },
+    {
+        "name":  "--padding-panel",
+        "value":  "var(--padding-panel-base)"
+    },
+    {
+        "name":  "--padding-toolbar",
+        "value":  "calc(var(--spacing) * 4)"
+    },
+    {
+        "name":  "--composer-inline-overhang",
+        "value":  "calc(var(--spacing) * 6)"
+    },
+    {
+        "name":  "--home-composer-inline-inset",
+        "value":  "calc(var(--spacing) * 3.25)"
+    },
+    {
+        "name":  "--composer-adjacent-max-width",
+        "value":  "100%"
+    },
+    {
+        "name":  "--line-height-composer",
+        "value":  "calc(var(--spacing) * 5)"
+    },
+    {
+        "name":  "--min-height-composer",
+        "value":  "calc(var(--spacing) * 11)"
+    },
+    {
+        "name":  "--min-rows-composer-work-home",
+        "value":  "1"
+    },
+    {
+        "name":  "--padding-composer-input",
+        "value":  "0 calc(var(--spacing) * 3)"
+    },
+    {
+        "name":  "--spacing-composer-input-footer",
+        "value":  "var(--spacing)"
+    },
+    {
+        "name":  "--padding-composer-empty-attachments",
+        "value":  "calc(var(--spacing) * 2) calc(var(--spacing) * 2) calc(var(--spacing) * 1.5)"
+    },
+    {
+        "name":  "--spacing-composer-footer-bottom",
+        "value":  "calc(var(--spacing) * 2)"
+    },
+    {
+        "name":  "--opacity-composer-placeholder",
+        "value":  ".5"
+    },
+    {
+        "name":  "--spacing-composer-single-line-controls",
+        "value":  "calc(var(--spacing) * 1.25)"
+    },
+    {
+        "name":  "--padding-composer-single-line-footer-block",
+        "value":  "var(--spacing)"
+    },
+    {
+        "name":  "--composer-suggestion-inline-inset",
+        "value":  "calc(var(--padding-toolbar) + var(--home-composer-inline-inset))"
+    },
+    {
+        "name":  "--inset-toolbar",
+        "value":  "var(--height-toolbar)"
+    },
+    {
+        "name":  "--codex-chat-font-size",
+        "value":  "var(--codex-chat-font-size-override,var(--font-ui-size,13px))"
+    },
+    {
+        "name":  "--codex-chat-code-font-size",
+        "value":  "var(--codex-chat-code-font-size-override,var(--font-code-size,12px))"
+    },
+    {
+        "name":  "--app-color-background-surface",
+        "value":  "var(--color-surface-tertiary)"
+    },
+    {
+        "name":  "--app-color-background-surface-under",
+        "value":  "var(--color-surface-secondary)"
+    }
+]

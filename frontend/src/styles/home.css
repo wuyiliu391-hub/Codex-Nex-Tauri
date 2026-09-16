@@ -1053,3 +1053,177 @@ html.theme-dark .composer-project-tray { background: #2a2a2a; }
 /* Process row filename emphasis */
 .proc-label .proc-file { color: var(--fg-primary); font-weight: var(--font-weight-medium); }
 .proc-label .proc-path { color: var(--fg-meta, var(--fg-description)); font-weight: 400; }
+
+/* ── Official UIA parity (T20d / T27 / T29 / T36) ─────────────────────── */
+
+/* Composer permission menu (请求批准 / 帮我批准) */
+.composer-menu.permission-menu .composer-menu-label {
+  font-size: 12px;
+  color: var(--fg-description, var(--fg-muted));
+  padding: 8px 12px 4px;
+  max-width: 280px;
+  white-space: normal;
+  line-height: 1.4;
+}
+
+/* Model intensity slider (5 gears: 轻度…Ultra) */
+.intensity-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px 4px;
+}
+.intensity-slider {
+  flex: 1;
+  accent-color: var(--accent-ring, #339cff);
+  height: 18px;
+  cursor: pointer;
+}
+.intensity-label {
+  min-width: 4.5em;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fg-primary);
+  font-variant-numeric: tabular-nums;
+}
+.composer-menu-hint {
+  padding: 0 12px 10px;
+  font-size: 11px;
+  color: var(--fg-description, var(--fg-muted));
+}
+
+/* Reconnect strip — official keeps freeze residue after recovery (T27) */
+.reconnect-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 4px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--fg-secondary);
+  background: color-mix(in srgb, var(--fg-primary) 6%, transparent);
+  border: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.06));
+}
+.reconnect-bar.is-frozen {
+  opacity: 0.55;
+}
+.reconnect-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-ring, #339cff);
+  animation: reconnect-pulse 1s ease-in-out infinite;
+}
+.reconnect-bar.is-frozen .reconnect-dot {
+  animation: none;
+  opacity: 0.5;
+}
+@keyframes reconnect-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+
+/* User bubble meta: 你说： · time · 复制消息 / 编辑消息 */
+.message-row.user .user-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: var(--fg-description, var(--fg-muted));
+}
+.message-row.user .user-say {
+  font-weight: 500;
+  color: var(--fg-secondary);
+}
+.message-row.user .user-time {
+  font-variant-numeric: tabular-nums;
+}
+.message-row.user .user-copy,
+.message-row.user .user-edit {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  color: var(--fg-description, var(--fg-muted));
+  cursor: pointer;
+  text-decoration: none;
+}
+.message-row.user .user-copy:hover,
+.message-row.user .user-edit:hover {
+  color: var(--fg-primary);
+  text-decoration: underline;
+}
+
+/* Turn footer: 用时 · 复制 · 分支 · time */
+.turn-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 6px;
+  font-size: 12px;
+  color: var(--fg-description, var(--fg-muted));
+}
+.turn-used {
+  font-variant-numeric: tabular-nums;
+}
+.turn-footer-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  color: var(--fg-description, var(--fg-muted));
+  cursor: pointer;
+}
+.turn-footer-btn:hover {
+  color: var(--fg-primary);
+  text-decoration: underline;
+}
+.turn-time {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Official expanded shell tool card */
+.proc-shell-block .proc-shell-cmd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 8px;
+  font-family: var(--font-mono, ui-monospace, Consolas, monospace);
+  font-size: 12px;
+}
+.proc-shell-block .proc-shell-cmd code {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg-primary);
+}
+.proc-shell-block .proc-copy {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--fg-muted, var(--fg-description));
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0 2px;
+}
+.proc-shell-block .proc-stdout {
+  max-height: 240px;
+  overflow: auto;
+  margin: 0 0 8px;
+}
+.proc-shell-block .proc-success {
+  font-size: 12px;
+  color: var(--semantic-success, #0f7b46);
+}

@@ -27,12 +27,25 @@ function currentProjectPath() {
   return proj?.path || "";
 }
 
+function currentEffortKey() {
+  const e = String(store.settings?.modelReasoningEffort || "xhigh").toLowerCase();
+  if (["low", "medium", "high", "xhigh", "ultra"].includes(e)) return e;
+  // map common aliases from config.toml
+  if (e === "minimal") return "low";
+  return "xhigh";
+}
+
+function currentEffortLabel() {
+  return t(`home.effort.${currentEffortKey()}`, currentEffortKey());
+}
+
 function currentModelLabel() {
   const p = (store.providers || []).find((x) => x.id === store.settings.activeProviderId);
   const models = (p?.models || []).filter(Boolean);
   const active = (store.settings.activeModel || "").trim();
   if (!p || !active || !models.includes(active)) return t("home.modelUnconfigured");
-  return active;
+  // Official trigger: "6 Astra 极高"
+  return `${active} ${currentEffortLabel()}`.trim();
 }
 
 /** Providers with at least one real model id — no empty / stock placeholders. */
@@ -50,8 +63,9 @@ function currentPermissionMode() {
 }
 
 function permissionPresentation() {
+  // Official composer permission menu (T36): 请求批准 / 帮我批准 — no "full access" chip label.
   return currentPermissionMode() === "full-access"
-    ? { label: t("home.fullAccess"), tone: "permission-full" }
+    ? { label: t("home.helpApproval"), tone: "permission-full" }
     : { label: t("home.askApproval"), tone: "permission-workspace" };
 }
 
@@ -423,9 +437,9 @@ function ensureJumpListener(t) {
   t.addEventListener("scroll", () => updateJumpToLatest(t), { passive: true });
 }
 
-function updateJumpToLatest(t) {
-  ensureJumpListener(t);
-  const nearBottom = t.scrollHeight - t.scrollTop - t.clientHeight < 140;
+function updateJumpToLatest(threadEl) {
+  ensureJumpListener(threadEl);
+  const nearBottom = threadEl.scrollHeight - threadEl.scrollTop - threadEl.clientHeight < 140;
   let btn = document.getElementById("jump-to-latest");
   const show = !nearBottom && (liveTurn.active || (store.activeSession?.messages?.length));
   if (show) {
@@ -434,13 +448,14 @@ function updateJumpToLatest(t) {
       btn.id = "jump-to-latest";
       btn.type = "button";
       btn.className = "jump-to-latest";
-      btn.innerHTML = `<svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 14V4M5 8l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>${escapeHtml(t("home.jumpLatest", "Jump to latest"))}</span>`;
+      // Official FAB label: 滚动到底部
+      btn.innerHTML = `<svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 14V4M5 8l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>${escapeHtml(t("home.jumpLatest", "滚动到底部"))}</span>`;
       btn.addEventListener("click", () => {
         const th = $("thread");
         if (th) th.scrollTop = th.scrollHeight;
         updateJumpToLatest(th);
       });
-      const wrap = t.parentElement || document.body;
+      const wrap = threadEl.parentElement || document.body;
       wrap.appendChild(btn);
     }
     btn.style.display = "";
@@ -459,7 +474,9 @@ function paintLiveTurn(threadEl) {
     (!liveTurn.sessionId && store.running) ||
     (liveTurn.active && !store.activeSessionId);
   if (!show && !liveTurn.userPreview) return;
-  if (liveTurn.userPreview) t.appendChild(renderUserPreview(liveTurn.userPreview));
+  if (liveTurn.userPreview) {
+    t.appendChild(renderUserPreview(liveTurn.userPreview, { editable: !!liveTurn.error }));
+  }
   if (liveTurn.active || liveTurn.tools.length || liveTurn.streamingText || liveTurn.error || liveTurn.segments?.length) {
     const api = window.go?.main?.App;
     t.appendChild(renderLiveTurn(liveTurn, api));
@@ -642,14 +659,14 @@ function checkIcon(selected) {
 function openPermissionMenu(anchor) {
   const current = currentPermissionMode();
   const menu = openUtilityMenu(anchor, `
-    <div class="composer-menu-label">Permissions</div>
+    <div class="composer-menu-label">${escapeHtml(t("home.approvalTitle", "应如何批准 ChatGPT 操作？"))}</div>
     <button class="composer-menu-item permission-item permission-workspace" data-mode="workspace">
       <span class="menu-icon"><svg viewBox="0 0 18 18"><path d="M9 2.2 4.2 4.5v4.2c0 3.5 2.1 6.4 4.8 7.1 2.7-.7 4.8-3.6 4.8-7.1V4.5L9 2.2Z"/><path d="M6.8 9.1 8.2 10.5l3.1-3.1"/></svg></span>
-      <span><strong>Ask approval</strong><small>Approve file writes and patches</small></span>${checkIcon(current === "workspace")}
+      <span><strong>${escapeHtml(t("home.askApproval", "请求批准"))}</strong><small>${escapeHtml(t("home.askApprovalDesc", "外部文件与互联网始终询问"))}</small></span>${checkIcon(current === "workspace")}
     </button>
     <button class="composer-menu-item permission-item permission-full" data-mode="full-access">
-      <span class="menu-icon"><svg viewBox="0 0 18 18"><path d="M9 1.8 4 4.2v4.6c0 3.8 2.3 6.8 5 7.5 2.7-.7 5-3.7 5-7.5V4.2L9 1.8Z"/><path d="M9 5.2v4.1M9 12.3h.01"/></svg></span>
-      <span><strong>Full access</strong><small>Run tools without approval prompts</small></span>${checkIcon(current === "full-access")}
+      <span class="menu-icon"><svg viewBox="0 0 18 18"><path d="M9 1.8 4 4.2v4.6c0 3.8 2.3 6.8 5 7.5 2.7-.7 5-3.7 5-7.5V4.2L9 1.8Z"/><path d="M6.5 9.1 8.1 10.7l3.5-3.5"/></svg></span>
+      <span><strong>${escapeHtml(t("home.helpApproval", "帮我批准"))}</strong><small>${escapeHtml(t("home.helpApprovalDesc", "仅风险操作询问"))}</small></span>${checkIcon(current === "full-access")}
     </button>`, "permission-menu");
   menu.querySelectorAll("[data-mode]").forEach((item) => item.addEventListener("click", () => {
     const mode = item.dataset.mode;
@@ -658,13 +675,29 @@ function openPermissionMenu(anchor) {
   }));
 }
 
+const EFFORT_ORDER = ["low", "medium", "high", "xhigh", "ultra"];
+
+async function selectReasoningEffort(effort) {
+  const api = window.go?.main?.App;
+  store.settings = { ...store.settings, modelReasoningEffort: effort };
+  try {
+    await api?.SaveSettings?.({ ...store.settings });
+  } catch (e) {
+    console.error(e);
+  }
+  await store.onRefresh?.();
+  renderMainHome();
+}
+
 function openModelMenu(anchor) {
   const groups = providersWithModels();
+  const effort = currentEffortKey();
+  const effortIdx = Math.max(0, EFFORT_ORDER.indexOf(effort));
   let html = `<div class="composer-menu-label">${escapeHtml(t("home.models", "Models"))}</div>`;
   if (!groups.length) {
-    html += `<div class="composer-menu-empty">${escapeHtml(t("home.modelEmpty", "No models configured"))}<br><span>${escapeHtml(t("home.modelEmptyHint", "Open Settings → Account / Providers, add a real endpoint, then Discover models."))}</span></div>
+    html += `<div class="composer-menu-empty">${escapeHtml(t("home.modelEmpty", "No models configured"))}<br><span>${escapeHtml(t("home.modelEmptyHint"))}</span></div>
       <button class="composer-menu-item" type="button" data-open-providers>
-        <span><strong>${escapeHtml(t("home.openProviders", "Open provider settings"))}</strong></span>
+        <span><strong>${escapeHtml(t("home.openProviders"))}</strong></span>
       </button>`;
   } else {
     html += groups.map((provider) => `
@@ -676,6 +709,16 @@ function openModelMenu(anchor) {
           <span><strong>${escapeHtml(model)}</strong><small>${escapeHtml(provider.name)}</small></span>${checkIcon(selected)}
         </button>`;
       }).join("")}`).join("");
+    // Official T20d: intensity slider under model list (5 gears).
+    html += `
+      <div class="composer-menu-separator"></div>
+      <div class="composer-menu-section">${escapeHtml(t("home.intensity", "强度"))}</div>
+      <div class="intensity-row" data-intensity-root>
+        <input type="range" class="intensity-slider" min="0" max="${EFFORT_ORDER.length - 1}" step="1" value="${effortIdx}"
+          aria-label="${escapeHtml(t("home.intensity", "强度"))}" aria-valuetext="${escapeHtml(currentEffortLabel())}" />
+        <span class="intensity-label" data-intensity-label>${escapeHtml(currentEffortLabel())}</span>
+      </div>
+      <div class="composer-menu-hint">${escapeHtml(t("home.intensityHint", "使用左右方向键调整强度"))}</div>`;
   }
   const menu = openUtilityMenu(anchor, html, "model-menu");
   menu.querySelectorAll("[data-model]").forEach((item) => item.addEventListener("click", () => {
@@ -683,6 +726,22 @@ function openModelMenu(anchor) {
     closeUtilityMenu();
     selectModel(provider, model);
   }));
+  const slider = menu.querySelector(".intensity-slider");
+  const intensityLabel = menu.querySelector("[data-intensity-label]");
+  const commitEffort = () => {
+    if (!slider) return;
+    const next = EFFORT_ORDER[Number(slider.value)] || "xhigh";
+    if (intensityLabel) intensityLabel.textContent = t(`home.effort.${next}`, next);
+    slider.setAttribute("aria-valuetext", intensityLabel?.textContent || next);
+    selectReasoningEffort(next);
+  };
+  slider?.addEventListener("change", commitEffort);
+  slider?.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "ArrowUp" || e.key === "ArrowDown") {
+      // let range update value, then commit
+      setTimeout(commitEffort, 0);
+    }
+  });
   menu.querySelector("[data-open-providers]")?.addEventListener("click", () => {
     closeUtilityMenu();
     navigate("settings", "account");

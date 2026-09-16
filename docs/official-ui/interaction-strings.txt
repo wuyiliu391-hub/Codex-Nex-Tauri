@@ -1,0 +1,94 @@
+$(git rev-parse --show-toplevel)
+'])(.*)\1$/,`$2`)}function nr(e,t){let n=t;for(let t=0;t<e.length;t+=1){let r=e[t];if(n!=null){if(n===`
+-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif
+.repeat(We(e)+1);return`${t}${e}${t}`}function Ue(e){return`<code>${$e(e)}</code>`}function J(e,t){let n=V(t).trimEnd(),r=
+0 0 `+l+` `+l+`
+:H.category,minHeight:`calc(var(--epr-emoji-fullsize) + var(--epr-category-label-height))`,position:`relative`},categoryContent:{
+:`0 30px`,
+:`0 var(--epr-horizontal-padding)`,
+:`15px var(--epr-horizontal-padding)`,
+:`calc(var(--epr-emoji-size) + var(--epr-emoji-padding) * 2)`,
+:`pointing-up`,transformOrigin:`center 0%`,transform:`scale(0.9)`},
+:{pointer:{top:`0`,transform:`rotate(180deg) translateY(100%) translateX(18px)`}},pointer:{
+:{visibleOnSearchOnly:Vi}},hiddenOnReactions:{transition:`all 0.5s ease-in-out`},
+<created or affected resource URL>
+<friendly first-person sentence>
+<task-specific output>
+@babel/helpers - typeof
+@media (prefers-color-scheme: dark)
+A VGS field did not finish loading
+Any App
+Approve for me
+Edited files, read files, and ran commands.
+Invalid props passed to EmbeddedCheckoutProvider: You must provide one of either `options.fetchClientSecret` or `options.clientSecret`.
+Last Turn
+Loaded tools, ran commands.
+M0 0h`+l+`v`+l+`H0z
+Ran commands and edited files.
+Read files and ran commands.
+Read files, loaded tools.
+Segoe UI
+Unsupported prop change on CheckoutProvider: You cannot change the `stripe` prop after setting it.
+Unsupported prop change on Elements: You cannot change the `stripe` prop after setting it.
+Unsupported prop change on EmbeddedCheckoutProvider: You cannot change the `stripe` prop after setting it.
+User attachment
+VGS Collect did not initialize
+VGS Collect failed to load
+VGS fields did not finish loading in time
+Wallet did not confirm the saved card
+\$(git rev-parse --show-toplevel)
+])(.*)\1$/,`$2`)}function nr(e,t){let n=t;for(let t=0;t<e.length;t+=1){let r=e[t];if(n!=null){if(n===`"""`||n===`
+`&&!a){i=!i;continue}if(s===t&&!a&&!i&&n(o))return o}return-1}function en(e){return e.startsWith(`
+aria-label
+aria-labelledby
+chatgpt.supportsNewChatMenu
+codex.turn_diff.state
+data-testid
+dotnet.native.nktwk6xqdw.wasm
+features.auth_elicitation
+features.tool_suggest
+github.pull_request
+linear.issue
+notion.data_source
+notion.page
+plugins.entrypoint
+plugins.page_kind
+review.repository_kind
+review.source
+s Location permission using the browser
+s app language ({locale}) using that locale
+s app permissions in Sign in with ChatGPT settings. Name is the site
+s computer.`}):(0,k.jsx)(r,{id:`composer.runLocation.cloud.description`,defaultMessage:`Can
+s details page. Name is the connected third-party app
+s display name`},limitsUpdateError:{id:`settings.usage.subscriptionSharing.apps.limitsUpdateError`,defaultMessage:`Couldn
+s login connection and tokens, including any plan or connector access. Name is the app
+s medical license`},numberLabel:{id:`cme.profile.numberLabel`,defaultMessage:`Medical license number`,description:`Label for the clinician
+s merge-commit strategy, which preserves the pull request
+s nickname`},renameSaveError:{id:`plugins.detail.accounts.saveError`,defaultMessage:`Couldn
+s or Business workspace
+s permission to use a connected app. Name is the connected app
+s permission to use the connected app in this row when the app
+s read permission controls whether ChatGPT can use its messages to respond to the user
+s renewal date, amount is the verified display price, period is the new cadence, and tax reflects the price
+s report modal for reporting another person
+s squash-merge strategy, which combines the pull request
+s subscription sharing limit; app is the app
+settings-subpage, h1, h2, [slot='title'], #title, .page-title
+slack.message
+t appear in your history, and ChatGPT won
+t appear in your history. Your custom instructions won
+t be added to memory.`,description:`Informational notice above a shared ChatGPT chat explaining that the copy will not be added to the viewer
+t be imported} other {# projects can
+t be processed`,description:`Error toast shown when an eligible user
+t be redefined.`);Object.assign(X,t),Ca(X,t)}else{if(typeof e!=`object`)throw Error(`Can
+t enabled additional data sources`,description:`Summary text when the user
+t exit the runtime.`),J.runtimeReady||K(!1,`.NET runtime didn
+t load config.toml, so this thread can
+t load your firm
+t open source`,description:`Error when a citation
+t update pinned GPT`,description:`Error toast shown when adding or removing a custom GPT from the user
+t update this skill. Try again`,description:`Error saving a plugin skill
+t update {app} limit. Please try again`,description:`Error toast when saving an app
+t use or update its memory. Your custom instructions won
+use forget
+use no memo

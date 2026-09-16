@@ -49,6 +49,8 @@ export function defaultSettings() {
     notifyScheduled: true,
     approvalPolicy: "ask",
     sandbox: "relaxed",
+    // Official model slider (T20d): low|medium|high|xhigh|ultra → 轻度/标准/深度/极高/Ultra
+    modelReasoningEffort: "xhigh",
   };
 }
 
