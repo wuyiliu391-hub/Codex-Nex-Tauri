@@ -1,5 +1,5 @@
-// Subscribe to Wails agent events and drive live turn UI + selective refresh.
-// Prefer runtime.EventsOn (direct) over Go callback bridges �?more reliable for EventsEmit.
+// Subscribe to agent events and drive live turn UI + selective refresh.
+// Prefer runtime.EventsOn (direct) over Go callback bridges — more reliable for EventsEmit.
 
 // Use the global Wails runtime directly; the generated wailsjs/runtime wrapper is outside the dev server root.
 const EventsOn = (eventName, callback) => window.runtime.EventsOnMultiple(eventName, callback, -1);
@@ -13,11 +13,14 @@ import {
   resetLiveTurn,
   liveTurn,
 } from "./live-turn.js";
+import { openModal } from "./modal.js";
 
 let refreshTimer = null;
 let composerDirty = false;
 let wired = false;
 let pollTimer = null;
+// approvalId -> close fn; one modal per pending server request
+const approvalModals = new Map();
 
 function field(ev, ...keys) {
   for (const k of keys) {
@@ -165,6 +168,10 @@ export function wireAgentEvents(api) {
       if (!ev) return;
       if (Array.isArray(ev)) ev = ev[0];
       applyQuestion(ev);
+      // Official user-input / elicitation are server→client requests with {id,method,params}
+      if (ev && typeof ev === "object" && (ev.id !== undefined && ev.id !== null) && ev.method) {
+        showUserInputModal(api, ev);
+      }
       document.dispatchEvent(new CustomEvent("codex:live-turn"));
     });
   } catch (e) {
@@ -199,36 +206,165 @@ export function wireAgentEvents(api) {
   }
 }
 
+/** Pull the JSON-RPC request id from an approval / user-input payload. */
+function extractRequestId(ev) {
+  return field(ev, "id", "Id", "approveId", "ApproveID", "ApproveId", "requestId", "RequestId");
+}
+
+/** Close any open approval modal for a given request id. */
+function dismissApprovalModal(id) {
+  const key = String(id ?? "");
+  const closer = approvalModals.get(key);
+  if (closer) {
+    approvalModals.delete(key);
+    closer("resolved");
+  }
+}
+
+/** Human-readable summary for the approval modal body. */
+function approvalSummaryText(ev) {
+  const params = ev.params || ev.Params || {};
+  const text =
+    field(ev, "text", "Text") ||
+    field(ev, "diff", "Diff") ||
+    field(ev, "args", "Args") ||
+    field(ev, "path", "Path") ||
+    (typeof params === "string" ? params : "") ||
+    (params.command ? (Array.isArray(params.command) ? params.command.join(" ") : String(params.command)) : "") ||
+    (params.path ? String(params.path) : "") ||
+    (params.text ? String(params.text) : "");
+  if (!text && params && typeof params === "object") {
+    try {
+      return JSON.stringify(params, null, 2).slice(0, 2000);
+    } catch {
+      return "";
+    }
+  }
+  return text.length > 2000 ? text.slice(0, 2000) + "…" : text;
+}
+
+/** Tool label from legacy tool field or official method path. */
+function approvalToolLabel(ev) {
+  const tool = field(ev, "tool", "Tool");
+  if (tool) return tool;
+  const method = field(ev, "method", "Method");
+  if (method) {
+    const parts = String(method).split("/");
+    return parts[parts.length - 2] || parts[parts.length - 1] || method;
+  }
+  return "tool call";
+}
+
 function showApproval(api, ev) {
   const status = field(ev, "status", "Status");
-  const approveId = field(ev, "approveId", "ApproveID", "ApproveId");
+  const requestId = extractRequestId(ev);
+  const key = String(requestId ?? field(ev, "approveId", "ApproveID", "ApproveId") ?? "");
+
   if (status && status !== "pending") {
+    dismissApprovalModal(key);
+    // Legacy toast cleanup if any leftover
     document.querySelectorAll(".approval-toast").forEach((el) => {
-      if (el.dataset.approveId === approveId) el.remove();
+      if (el.dataset.approveId === key) el.remove();
     });
     return;
   }
-  const existing = document.querySelector(`.approval-toast[data-approve-id="${approveId}"]`);
-  if (existing) return;
+  if (approvalModals.has(key)) return;
 
-  const tpl = document.getElementById("tpl-approval");
-  if (!tpl) return;
-  const toast = tpl.content.firstElementChild.cloneNode(true);
-  toast.hidden = false;
-  toast.dataset.approveId = approveId;
-  const tool = field(ev, "tool", "Tool") || "tool call";
-  toast.querySelector("#approval-title").textContent = `Approve ${tool}?`;
-  const summary = field(ev, "text", "Text") || field(ev, "diff", "Diff") || field(ev, "args", "Args") || field(ev, "path", "Path") || "";
-  toast.querySelector("#approval-summary").textContent = summary.length > 2000 ? summary.slice(0, 2000) + "..." : summary;
-  toast.querySelector("#approval-ok").onclick = () => {
-    api.ResolveApproval?.(approveId, true);
-    toast.remove();
+  const tool = approvalToolLabel(ev);
+  const summary = approvalSummaryText(ev);
+  const kind = field(ev, "kind", "Kind") || "";
+
+  store.pendingApproval = {
+    id: requestId,
+    kind,
+    method: field(ev, "method", "Method"),
   };
-  toast.querySelector("#approval-deny").onclick = () => {
-    api.ResolveApproval?.(approveId, false);
-    toast.remove();
-  };
-  document.body.appendChild(toast);
+
+  const handle = openModal({
+    title: `Approve ${tool}?`,
+    body: summary,
+    // Esc/backdrop still needs a server decision so the turn cannot hang.
+    dismissible: true,
+    actions: [
+      {
+        label: "Decline",
+        onClick: () => {
+          store.pendingApproval = null;
+          api?.ResolveApproval?.(requestId, false, kind || "decline");
+        },
+      },
+      {
+        label: "Accept for session",
+        onClick: () => {
+          store.pendingApproval = null;
+          api?.ResolveApproval?.(requestId, true, kind || undefined, true);
+        },
+      },
+      {
+        label: "Accept",
+        variant: "primary",
+        onClick: () => {
+          store.pendingApproval = null;
+          api?.ResolveApproval?.(requestId, true, kind || undefined, false);
+        },
+      },
+    ],
+    onClose: () => {
+      // If closed without an action button, decline so app-server unblocks.
+      if (store.pendingApproval && String(store.pendingApproval.id) === key) {
+        api?.ResolveApproval?.(requestId, false, kind || "decline");
+        store.pendingApproval = null;
+      }
+      approvalModals.delete(key);
+    },
+  });
+  approvalModals.set(key, handle.close);
+}
+
+/** Modal for official item/tool/requestUserInput + elicitation server requests. */
+function showUserInputModal(api, ev) {
+  const requestId = extractRequestId(ev);
+  const key = `q:${String(requestId ?? "")}`;
+  if (approvalModals.has(key)) return;
+  const method = field(ev, "method", "Method") || "user input";
+  const params = ev.params || ev.Params || {};
+  const question =
+    field(ev, "question", "text", "Text") ||
+    (typeof params === "object" && params ? String(params.question || params.text || params.prompt || "") : "") ||
+    method;
+
+  store.pendingApproval = { id: requestId, kind: "user_input", method };
+
+  const handle = openModal({
+    title: "Input requested",
+    body: question,
+    dismissible: true,
+    actions: [
+      {
+        label: "Decline",
+        onClick: () => {
+          store.pendingApproval = null;
+          api?.ResolveApproval?.(requestId, false, "decline");
+        },
+      },
+      {
+        label: "Accept",
+        variant: "primary",
+        onClick: () => {
+          store.pendingApproval = null;
+          api?.ResolveApproval?.(requestId, true, undefined, false);
+        },
+      },
+    ],
+    onClose: () => {
+      if (store.pendingApproval && String(store.pendingApproval.id) === String(requestId)) {
+        api?.ResolveApproval?.(requestId, false, "decline");
+        store.pendingApproval = null;
+      }
+      approvalModals.delete(key);
+    },
+  });
+  approvalModals.set(key, handle.close);
 }
 
 function showErrorToast(message) {

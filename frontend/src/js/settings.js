@@ -2,6 +2,7 @@
 import { store, updateSettings } from "./state.js";
 import { on, navigate } from "./router.js";
 import { t, languageOptions, LOCALES, normalizeLang } from "./i18n.js";
+import { createDropdown } from "./ui-controls.js";
 
 function $(id) {
   return document.getElementById(id);
@@ -315,13 +316,28 @@ function numberEl(name, value, min, max) {
 }
 
 function selectEl(name, value, options, cls = "", disabled = false) {
-  const opts = options
-    .map(
-      (o) =>
-        `<option value="${escapeHtml(o.value)}" ${o.value === value ? "selected" : ""}>${escapeHtml(o.label)}</option>`,
-    )
-    .join("");
-  return `<select class="settings-select ${cls}" data-select="${name}" ${disabled ? "disabled" : ""}>${opts}</select>`;
+  const label = options.find((o) => o.value === value)?.label || value || "";
+  const optsJson = escapeHtml(JSON.stringify(options));
+  return `<button type="button" class="ui-dropdown settings-select ${cls}" data-select="${name}" data-value="${escapeHtml(value)}" data-options="${optsJson}" ${disabled ? "disabled" : ""} aria-haspopup="listbox"><span class="ui-dropdown-label">${escapeHtml(label)}</span><span class="ui-dropdown-caret" aria-hidden="true"></span></button>`;
+}
+
+// Initialize all custom dropdowns inside root with createDropdown.
+function initSelectDropdowns(root) {
+  root.querySelectorAll("button.ui-dropdown[data-select]:not([disabled])").forEach((btn) => {
+    let items;
+    try { items = JSON.parse(btn.dataset.options); } catch { items = []; }
+    btn.value = btn.dataset.value || "";
+    createDropdown({
+      anchor: btn,
+      items,
+      value: btn.dataset.value,
+      // Dropdown fires change itself; only sync local dataset here.
+      onSelect: (val) => {
+        btn.value = val;
+        btn.dataset.value = val;
+      },
+    });
+  });
 }
 
 function switchEl(name, on, disabled = false) {
@@ -447,6 +463,8 @@ function wireInputs(root, save) {
       }),
     );
   });
+  // Mount custom dropdown popovers on all select buttons in this root.
+  initSelectDropdowns(root);
 }
 
 async function savePreferences(section, patch) {
@@ -672,8 +690,12 @@ function renderAppearance(root) {
     const contentFont = tc.contentFont || "system";
     const codeFont = tc.codeFont || "Cascadia Code";
     const contrast = tc.contrast ?? (isLight ? 45 : 60);
-    const fontOpts = (cur, list) => list.map((f) => `<option value="${escapeHtml(f.value)}" ${f.value === cur ? "selected" : ""}>${escapeHtml(f.label)}</option>`).join("");
-    const styleSel = (field) => `<select class="theme-font-select" data-tfont="${themeKey}|${field}Style" disabled aria-label="${escapeHtml(label + " " + t("appearance.uiFont") + t("appearance.style"))}"><option>${escapeHtml(t("appearance.regular"))}</option></select>`;
+    const styleSel = (field) => `<button type="button" class="ui-dropdown theme-font-select" data-tfont="${themeKey}|${field}Style" disabled aria-label="${escapeHtml(label + " " + t("appearance.uiFont") + t("appearance.style"))}"><span class="ui-dropdown-label">${escapeHtml(t("appearance.regular"))}</span><span class="ui-dropdown-caret" aria-hidden="true"></span></button>`;
+    const themeFontSel = (field, cur, list) => {
+      const label = list.find((f) => f.value === cur)?.label || cur;
+      const optsJson = escapeHtml(JSON.stringify(list));
+      return `<button type="button" class="ui-dropdown theme-font-select" data-tfont="${themeKey}|${field}" data-value="${escapeHtml(cur)}" data-options="${optsJson}" aria-haspopup="listbox" aria-label="${escapeHtml(label + " " + t("appearance." + (field === "codeTheme" ? "codeTheme" : field === "codeFont" ? "codeFont" : field === "contentFont" ? "contentFont" : "uiFont")))}"><span class="ui-dropdown-label">${escapeHtml(label)}</span><span class="ui-dropdown-caret" aria-hidden="true"></span></button>`;
+    };
     return `
     <div class="theme-card-block">
       <div class="theme-card-head">
@@ -685,7 +707,7 @@ function renderAppearance(root) {
       </div>
       <div class="theme-card-row">
         <span class="theme-card-field-label">${escapeHtml(t("appearance.codeTheme"))}</span>
-        <select class="theme-font-select" data-tfont="${themeKey}|codeTheme" aria-label="${escapeHtml(label + " " + t("appearance.codeTheme"))}"><option value="${escapeHtml(codeTheme)}" selected>${escapeHtml(codeTheme)}</option></select>
+        ${themeFontSel("codeTheme", codeTheme, [{ value: codeTheme, label: codeTheme }])}
       </div>
       <div class="theme-card-row">
         <span class="theme-card-field-label">${escapeHtml(t("appearance.accent"))}</span>
@@ -701,15 +723,15 @@ function renderAppearance(root) {
       </div>
       <div class="theme-card-row">
         <span class="theme-card-field-label">${escapeHtml(t("appearance.uiFont"))}</span>
-        <div class="theme-font-pair"><select class="theme-font-select" data-tfont="${themeKey}|uiFont" aria-label="${escapeHtml(label + " " + t("appearance.uiFont"))}">${fontOpts(uiFont, uiFontList)}</select>${styleSel("uiFont")}</div>
+        <div class="theme-font-pair">${themeFontSel("uiFont", uiFont, uiFontList)}${styleSel("uiFont")}</div>
       </div>
       <div class="theme-card-row">
         <span class="theme-card-field-label">${escapeHtml(t("appearance.contentFont"))}</span>
-        <div class="theme-font-pair"><select class="theme-font-select" data-tfont="${themeKey}|contentFont" aria-label="${escapeHtml(label + " " + t("appearance.contentFont"))}">${fontOpts(contentFont, uiFontList)}</select>${styleSel("contentFont")}</div>
+        <div class="theme-font-pair">${themeFontSel("contentFont", contentFont, uiFontList)}${styleSel("contentFont")}</div>
       </div>
       <div class="theme-card-row">
         <span class="theme-card-field-label">${escapeHtml(t("appearance.codeFont"))}</span>
-        <div class="theme-font-pair"><select class="theme-font-select" data-tfont="${themeKey}|codeFont" aria-label="${escapeHtml(label + " " + t("appearance.codeFont"))}">${fontOpts(codeFont, codeFontList)}</select>${styleSel("codeFont")}</div>
+        <div class="theme-font-pair">${themeFontSel("codeFont", codeFont, codeFontList)}${styleSel("codeFont")}</div>
       </div>
       <div class="theme-card-row">
         <span class="theme-card-field-label">${escapeHtml(t("appearance.contrast"))}</span>
@@ -764,6 +786,22 @@ function renderAppearance(root) {
       await savePreferences("appearance", { [parts[0]]: { ...tc, [parts[1]]: el.value } });
     })
   );
+  // Mount custom dropdowns for theme font selects.
+  root.querySelectorAll("button.ui-dropdown[data-tfont]:not([disabled])").forEach((btn) => {
+    let items;
+    try { items = JSON.parse(btn.dataset.options); } catch { items = []; }
+    btn.value = btn.dataset.value || "";
+    createDropdown({
+      anchor: btn,
+      items,
+      value: btn.dataset.value,
+      // Dropdown fires change itself; only sync local dataset here.
+      onSelect: (val) => {
+        btn.value = val;
+        btn.dataset.value = val;
+      },
+    });
+  });
   root.querySelectorAll("[data-tcolor]").forEach((el) =>
     el.addEventListener("change", async () => {
       const parts = el.dataset.tcolor.split("|");
@@ -1055,6 +1093,8 @@ function showModal(title, desc, body, actions) {
     if (e.target === wrap) wrap.remove();
   });
   document.body.appendChild(wrap);
+  // Mount custom dropdown popovers inside the modal.
+  initSelectDropdowns(wrap);
 }
 
 function renderConfiguration(root) {

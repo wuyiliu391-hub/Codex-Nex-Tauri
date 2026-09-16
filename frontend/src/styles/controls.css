@@ -1,0 +1,292 @@
+@charset "UTF-8";
+
+/* ==========================================================================
+   controls.css — shared UIA skin primitives (Agent A)
+   No hex. All visuals via tokens (--official-* / --bg-* / --fg-* / --border-*
+   / --accent-ring / --radius-* / --spacing-token-* / elevation/shadow).
+   Usable without JS; JS only toggles [hidden], [aria-expanded], placement.
+   ========================================================================== */
+
+/* Kill leftover native select arrow (Edge/IE) even if reset missed it */
+select::-ms-expand {
+  display: none;
+}
+
+/* --------------------------------------------------------------------------
+   Buttons
+   -------------------------------------------------------------------------- */
+.ui-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-token-2);
+  min-height: var(--height-toolbar-sm);
+  padding: 0 var(--spacing-token-3);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm-ui);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--leading-ui);
+  letter-spacing: var(--tracking-ui);
+  color: var(--fg-primary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: background var(--motion-fast) var(--ease-standard),
+              border-color var(--motion-fast) var(--ease-standard),
+              color var(--motion-fast) var(--ease-standard);
+}
+
+.ui-button:hover {
+  background: var(--bg-hover);
+}
+
+.ui-button:active {
+  background: var(--bg-active);
+}
+
+.ui-button:disabled,
+.ui-button[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.ui-button--primary {
+  color: var(--semantic-button-primary-text-light);
+  background: var(--semantic-button-primary-surface-light);
+  border-color: var(--semantic-button-primary-border-light);
+}
+
+.ui-button--primary:hover {
+  color: var(--semantic-button-primary-text-hover-light);
+  background: var(--semantic-button-primary-surface-hover-light);
+}
+
+html.theme-dark .ui-button--primary {
+  color: var(--semantic-button-primary-text-dark);
+  background: var(--semantic-button-primary-surface-dark);
+  border-color: var(--semantic-button-primary-border-dark);
+}
+
+html.theme-dark .ui-button--primary:hover {
+  color: var(--semantic-button-primary-text-hover-dark);
+  background: var(--semantic-button-primary-surface-hover-dark);
+}
+
+.ui-button--ghost {
+  background: transparent;
+  border-color: transparent;
+}
+
+.ui-button--ghost:hover {
+  background: var(--bg-hover);
+}
+
+/* --------------------------------------------------------------------------
+   Inputs
+   -------------------------------------------------------------------------- */
+.ui-input {
+  display: block;
+  width: 100%;
+  min-height: var(--height-toolbar-sm);
+  padding: 0 var(--spacing-token-3);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-body);
+  line-height: var(--leading-ui);
+  letter-spacing: var(--tracking-ui);
+  color: var(--fg-primary);
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-control);
+  box-shadow: none;
+  transition: border-color var(--motion-fast) var(--ease-standard);
+}
+
+.ui-input::placeholder {
+  color: var(--fg-muted);
+  opacity: 1;
+}
+
+.ui-input:hover {
+  border-color: var(--border-heavy);
+}
+
+.ui-input:focus {
+  border-color: var(--accent-ring);
+}
+
+.ui-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+textarea.ui-input {
+  min-height: calc(var(--spacing-token-8) * 2);
+  padding: var(--spacing-token-2) var(--spacing-token-3);
+  resize: vertical;
+}
+
+/* --------------------------------------------------------------------------
+   Toggle (switch)
+   -------------------------------------------------------------------------- */
+.ui-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 36px;
+  height: 20px;
+  padding: 2px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--semantic-settings-switch-track-surface-light);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--motion-fast) var(--ease-standard);
+}
+
+html.theme-dark .ui-toggle {
+  background: var(--semantic-settings-switch-track-surface-dark);
+}
+
+.ui-toggle[aria-checked="true"],
+.ui-toggle[aria-pressed="true"] {
+  background: var(--semantic-settings-switch-track-surface-active-light);
+}
+
+html.theme-dark .ui-toggle[aria-checked="true"],
+html.theme-dark .ui-toggle[aria-pressed="true"] {
+  background: var(--semantic-settings-switch-track-surface-active-dark);
+}
+
+.ui-toggle::after {
+  content: "";
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-pill);
+  background: var(--semantic-settings-switch-thumb-surface-light);
+  transform: translateX(0);
+  transition: transform var(--motion-fast) var(--ease-enter-snappy);
+}
+
+html.theme-dark .ui-toggle::after {
+  background: var(--semantic-settings-switch-thumb-surface-dark);
+}
+
+.ui-toggle[aria-checked="true"]::after,
+.ui-toggle[aria-pressed="true"]::after {
+  transform: translateX(16px);
+}
+
+.ui-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* --------------------------------------------------------------------------
+   Popover — floating panel (listbox host or generic)
+   -------------------------------------------------------------------------- */
+.ui-popover {
+  position: absolute;
+  z-index: 1000;
+  min-width: 160px;
+  max-width: min(320px, calc(100vw - var(--spacing-token-4)));
+  max-height: min(360px, 50vh);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--spacing-token-1);
+  color: var(--fg-primary);
+  background: var(--semantic-dropdown-menu-surface-light);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-overlay);
+  box-shadow: var(--elevation-menu);
+  scrollbar-width: thin;
+}
+
+html.theme-dark .ui-popover {
+  background: var(--semantic-dropdown-menu-surface-dark);
+}
+
+/* Placement: anchor bottom-start (default open downward, align left) */
+.ui-popover[data-placement="bottom-start"] {
+  top: calc(100% + var(--spacing-token-1));
+  left: 0;
+  right: auto;
+  bottom: auto;
+}
+
+/* Placement: flip top-start when viewport overflow */
+.ui-popover[data-placement="top-start"] {
+  top: auto;
+  bottom: calc(100% + var(--spacing-token-1));
+  left: 0;
+  right: auto;
+}
+
+/* --------------------------------------------------------------------------
+   Listbox / options
+   -------------------------------------------------------------------------- */
+.ui-listbox {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ui-option {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-token-2);
+  min-height: 30px;
+  padding: var(--spacing-token-1) var(--spacing-token-2);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  font-weight: var(--font-weight-body);
+  line-height: var(--leading-ui);
+  letter-spacing: var(--tracking-ui);
+  color: var(--fg-primary);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.ui-option:hover,
+.ui-option[data-active="true"] {
+  background: var(--bg-hover);
+}
+
+.ui-option[aria-selected="true"] {
+  color: var(--fg-primary);
+  background: var(--bg-active);
+  font-weight: var(--font-weight-medium);
+}
+
+.ui-option:disabled,
+.ui-option[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Combobox trigger that opens .ui-popover */
+.ui-combobox {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+}
+
+.ui-combobox > .ui-button {
+  width: 100%;
+  justify-content: space-between;
+}

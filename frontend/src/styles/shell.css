@@ -112,9 +112,9 @@ body.settings-open .app-toolbar { background: var(--bg-sidebar); }
   app-region: drag;
 }
 body.sidebar-collapsed .app-toolbar { background: var(--bg-canvas); }
-.toolbar-navigation, .desktop-menu-bar { display: flex; align-items: center; gap: 0; }
+.toolbar-navigation { display: flex; align-items: center; gap: 0; }
 /* Titlebar chrome: muted like official (ink ~48%, weight 400, 12px labels). */
-.toolbar-button, .desktop-menu-trigger {
+.toolbar-button {
   height: 28px;
   border: 0;
   border-radius: var(--radius-md);
@@ -142,16 +142,7 @@ body.sidebar-collapsed .app-toolbar { background: var(--bg-canvas); }
   opacity: 0.88;
 }
 .toolbar-forward { opacity: 0.42; }
-.desktop-menu-trigger {
-  padding: 0 9px;
-  font-size: var(--text-sm, 12px);
-  line-height: 1;
-  letter-spacing: 0;
-  font-weight: var(--font-weight-normal, 400);
-  color: var(--fg-titlebar, color-mix(in srgb, var(--fg-primary, #1a1c1f) 48%, transparent));
-  -webkit-font-smoothing: antialiased;
-}
-.toolbar-button:hover, .desktop-menu-trigger:hover, .desktop-menu-trigger.is-open {
+.toolbar-button:hover {
   background: var(--bg-hover);
   color: var(--fg-primary);
 }
@@ -190,8 +181,8 @@ body.sidebar-collapsed .app-toolbar { background: var(--bg-canvas); }
   transform: translateY(.25px);
 }
 
-/* ---------- Desktop menu panels (File/Edit/View/Help) ---------- */
-.desktop-menu-panel, .user-menu {
+/* ---------- User menu (profile) ---------- */
+.user-menu {
   position: absolute;
   z-index: 50;
   min-width: 260px;
@@ -200,38 +191,6 @@ body.sidebar-collapsed .app-toolbar { background: var(--bg-canvas); }
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   box-shadow: var(--elevation-menu);
-}
-.desktop-menu-item {
-  display: grid; grid-template-columns: 1fr auto;
-  align-items: center; gap: 8px;
-  width: 100%; padding: 7px 10px;
-  border: 0; background: transparent;
-  border-radius: var(--radius-md);
-  color: var(--fg-chrome, var(--fg-primary));
-  text-align: left;
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  font-weight: var(--font-weight-body);
-  letter-spacing: var(--tracking-ui);
-}
-.desktop-menu-item:hover, .desktop-menu-item.is-open { background: var(--bg-hover); }
-.desktop-menu-item kbd {
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  font-weight: 400;
-  color: var(--fg-meta, var(--fg-description));
-  background: transparent;
-  letter-spacing: 0;
-}
-.desktop-menu-trigger {
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  font-weight: var(--font-weight-body);
-  letter-spacing: var(--tracking-ui);
-}
-.desktop-menu-separator {
-  height: 1px; margin: 4px 6px;
-  background: var(--border-light);
 }
 .user-menu-head {
   display: grid;

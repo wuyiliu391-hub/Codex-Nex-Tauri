@@ -37,7 +37,7 @@
   border-right: 1px solid var(--border-default);
 }
 
-/* Session title 鈥?top-left of chat panel (official thread chrome). */
+/* Session title — top-left of chat panel (official thread chrome). */
 .chat-header {
   display: flex;
   align-items: center;
@@ -311,7 +311,7 @@
 .composer-shell:focus-within {
   box-shadow: var(--elevation-prominent-official, var(--elevation-prominent));
 }
-/* Official has no gray project 鈥渢ab鈥?above the shell in thread mode. */
+/* Official has no gray project "tab" above the shell in thread mode. */
 .home-main-col:not(.is-empty) .composer-project-tray {
   display: none;
 }
@@ -669,7 +669,7 @@ html.theme-dark .composer-project-tray { background: #2a2a2a; }
   min-width: 0;
   -webkit-font-smoothing: antialiased;
 }
-/* Narrative body 鈥?near-black, primary reading weight; sections separated by space */
+/* Narrative body — near-black, primary reading weight; sections separated by space */
 .message-body .part-text {
   margin: 0 0 14px;
   white-space: pre-wrap;
@@ -699,7 +699,7 @@ html.theme-dark .composer-project-tray { background: #2a2a2a; }
   letter-spacing: 0;
 }
 
-/* Turn header (elapsed) 鈥?soft tertiary gray, 13px */
+/* Turn header (elapsed) — soft tertiary gray, 13px */
 .turn-head {
   display: flex; align-items: center; gap: 10px;
   margin: 2px 0 10px;
@@ -714,7 +714,7 @@ html.theme-dark .composer-project-tray { background: #2a2a2a; }
 .turn-elapsed { color: var(--fg-meta, var(--fg-description)); font-weight: 400; }
 .turn-phase-tag { color: var(--fg-process, var(--fg-secondary)); font-weight: 400; }
 
-/* Process lines 鈥?horizontal rule separators, no role avatars / C badges */
+/* Process lines — horizontal rule separators, no role avatars / C badges */
 .proc-line {
   margin: 0;
   border-radius: 0;
@@ -1024,7 +1024,7 @@ html.theme-dark .composer-project-tray { background: #2a2a2a; }
   color: var(--fg-meta, var(--fg-description));
 }
 
-/* Plan mode 鈥?text-only, no role roundels */
+/* Plan mode — text-only, no role roundels */
 .proc-line.is-plan .proc-head { color: var(--accent); }
 
 /* Jump to latest button */
