@@ -76,26 +76,8 @@ jobs:
           # Also expose as `tauri` alias if anything still calls it bare.
           Copy-Item (Join-Path $env:TOOLS_DIR "cargo-tauri.exe") (Join-Path $env:TOOLS_DIR "tauri.exe") -Force
 
-      - name: Prepare icons (placeholder)
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path src-tauri/icons | Out-Null
-          Add-Type -AssemblyName System.Drawing
-          $bmp = New-Object System.Drawing.Bitmap 32,32
-          $g = [System.Drawing.Graphics]::FromImage($bmp)
-          $g.Clear([System.Drawing.Color]::FromArgb(242,242,242))
-          $g.FillEllipse([System.Drawing.Brushes]::Black, 6, 6, 20, 20)
-          $g.Dispose()
-          $bmp.Save("src-tauri/icons/32x32.png", [System.Drawing.Imaging.ImageFormat]::Png)
-          $bmp128 = New-Object System.Drawing.Bitmap 128,128
-          $g2 = [System.Drawing.Graphics]::FromImage($bmp128)
-          $g2.Clear([System.Drawing.Color]::FromArgb(242,242,242))
-          $g2.FillEllipse([System.Drawing.Brushes]::Black, 24, 24, 80, 80)
-          $g2.Dispose()
-          $bmp128.Save("src-tauri/icons/128x128.png", [System.Drawing.Imaging.ImageFormat]::Png)
-          $bmp.Save("src-tauri/icons/icon.ico", [System.Drawing.Imaging.ImageFormat]::Icon)
-          $bmp.Save("src-tauri/icons/icon.png", [System.Drawing.Imaging.ImageFormat]::Png)
-          Write-Host "icons ready"
+      # Icons are committed under src-tauri/icons/ (valid multi-size ICO).
+      # Do NOT regenerate with System.Drawing — RC.EXE rejects that fake ICO.
 
       # Binary is cargo-tauri; invoke as `cargo tauri` (cargo subcommand) or cargo-tauri.
       - name: cargo tauri build

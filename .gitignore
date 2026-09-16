@@ -8,7 +8,7 @@ src-tauri/binaries/*.exe
 src-tauri/binaries/*.dll
 !src-tauri/binaries/README.txt
 
-# Tauri / icons generated locally
+# Tauri generated
 src-tauri/gen/
 src-tauri/WixTools/
 
