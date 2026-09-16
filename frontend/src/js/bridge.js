@@ -529,6 +529,37 @@ export function installBridge() {
     runtimeSubs.delete(name);
   }
 
+  // ── Tauri window helpers (frameless chrome) ─────────────────────────────────
+  async function currentWindow() {
+    const tauri = window.__TAURI__ || window.tauri;
+    const windowMod = tauri?.window || tauri?.windowApi;
+    if (windowMod?.getCurrentWindow) return windowMod.getCurrentWindow();
+    if (windowMod?.getCurrent) return windowMod.getCurrent();
+    // Fallback: invoke core window commands by label "main"
+    return null;
+  }
+
+  async function windowCall(method, args = {}) {
+    const w = await currentWindow();
+    if (w && typeof w[method] === "function") {
+      return w[method](args);
+    }
+    // core:window allowlist commands (Tauri 2)
+    const label = "main";
+    const cmdMap = {
+      minimize: "plugin:window|minimize",
+      maximize: "plugin:window|maximize",
+      unmaximize: "plugin:window|unmaximize",
+      toggleMaximize: "plugin:window|toggle_maximize",
+      close: "plugin:window|close",
+      setFullscreen: "plugin:window|set_fullscreen",
+      startDragging: "plugin:window|start_dragging",
+    };
+    const cmd = cmdMap[method];
+    if (!cmd) throw new Error(`unknown window method ${method}`);
+    return invoke(cmd, { label, ...args });
+  }
+
   window.runtime = {
     EventsOn: eventsOn,
     EventsOnMultiple: (name, cb, max) => eventsOn(name, cb),
@@ -536,13 +567,22 @@ export function installBridge() {
     EventsEmit: (name, data) => {
       window.dispatchEvent(new CustomEvent(name, { detail: data }));
     },
-    // Minimal stubs for other Wails runtime methods
-    WindowMinimise: () => {},
-    WindowMaximise: () => {},
-    WindowUnmaximise: () => {},
-    WindowToggleMaximise: () => {},
-    WindowClose: () => {},
-    Quit: () => {},
+    WindowMinimise: () => windowCall("minimize").catch((e) => console.warn("[bridge] min", e)),
+    WindowMaximise: () => windowCall("maximize").catch((e) => console.warn("[bridge] max", e)),
+    WindowUnmaximise: () => windowCall("unmaximize").catch((e) => console.warn("[bridge] unmax", e)),
+    WindowToggleMaximise: () => windowCall("toggleMaximize").catch((e) => console.warn("[bridge] toggle", e)),
+    WindowIsMaximised: async () => {
+      try {
+        const w = await currentWindow();
+        if (w?.isMaximized) return await w.isMaximized();
+        return await invoke("plugin:window|is_maximized", { label: "main" });
+      } catch {
+        return false;
+      }
+    },
+    WindowSetFullscreen: (flag) => windowCall("setFullscreen", { fullscreen: !!flag }).catch(() => {}),
+    WindowClose: () => windowCall("close").catch((e) => console.warn("[bridge] close", e)),
+    Quit: () => windowCall("close").catch((e) => console.warn("[bridge] quit", e)),
   };
 
   // 3. Map codex:* Tauri events → agent:* CustomEvents

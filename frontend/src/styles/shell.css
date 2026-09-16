@@ -106,6 +106,9 @@ body.settings-open .app-toolbar { background: var(--bg-sidebar); }
   color: var(--fg-secondary);
   user-select: none;
   --wails-draggable: drag;
+  /* Tauri frameless drag region */
+  -webkit-app-region: drag;
+  app-region: drag;
 }
 body.sidebar-collapsed .app-toolbar { background: var(--bg-canvas); }
 .toolbar-navigation, .desktop-menu-bar { display: flex; align-items: center; gap: 0; }
@@ -118,6 +121,8 @@ body.sidebar-collapsed .app-toolbar { background: var(--bg-canvas); }
   color: var(--fg-titlebar, color-mix(in srgb, var(--fg-primary, #1a1c1f) 48%, transparent));
   font-weight: var(--font-weight-normal, 400);
   --wails-draggable: no-drag;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
 }
 .toolbar-button {
   width: 28px;
@@ -162,7 +167,7 @@ body.sidebar-collapsed .app-toolbar { background: var(--bg-canvas); }
   color: var(--fg-description);
 }
 .toolbar-version .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #10b981; }
-.window-controls { display: flex; align-self: stretch; margin: 0 -10px 0 2px; --wails-draggable: no-drag; }
+.window-controls { display: flex; align-self: stretch; margin: 0 -10px 0 2px; --wails-draggable: no-drag; -webkit-app-region: no-drag; app-region: no-drag; }
 .window-control {
   width: 46px;
   height: 36px;

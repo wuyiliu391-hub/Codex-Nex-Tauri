@@ -164,9 +164,7 @@ export function initShell() {
   });
   document.getElementById("window-maximise")?.addEventListener("click", async () => {
     try {
-      const max = await window.runtime?.WindowIsMaximised?.();
-      if (max) await window.runtime?.WindowUnmaximise?.();
-      else await window.runtime?.WindowMaximise?.();
+      await window.runtime?.WindowToggleMaximise?.();
     } catch { /* ignore */ }
   });
   document.getElementById("window-close")?.addEventListener("click", () => {
