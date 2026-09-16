@@ -27,7 +27,7 @@ pub fn run() {
             app.manage(engine);
 
             // Fan-out: sidecar notifications -> frontend events.
-            codex::events::spawn_event_bridge(app.handle());
+            codex::events::spawn_event_bridge(app.handle().clone());
 
             Ok(())
         })
