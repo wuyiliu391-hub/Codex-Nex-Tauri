@@ -1,0 +1,619 @@
+@charset "UTF-8";
+
+/* ==========================================================================
+   Codex 组件库 —— 所有控件自带样式，不依赖任何浏览器 UA 默认
+   设计原则：
+   1. 每个组件显式声明 font/color/background/border/radius/padding
+   2. 颜色全部引用 tokens.css 的语义化变量，自动支持 light/dark
+   3. 不使用裸标签选择器（button/input），统一用类名
+   4. 焦点状态统一用 :focus-visible
+   ========================================================================== */
+
+/* ==========================================================================
+   1. 按钮 .btn
+   ========================================================================== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm-ui, 13px);
+  font-weight: var(--font-weight-medium, 500);
+  line-height: 1;
+  letter-spacing: var(--tracking-ui, -0.006em);
+  color: var(--fg-primary, #1a1c1f);
+  background: var(--gray-50, #f9f9f9);
+  border: 1px solid var(--border-default, rgba(13, 13, 13, 0.08));
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: background var(--motion-fast, 140ms) var(--ease-standard, ease),
+              border-color var(--motion-fast, 140ms) var(--ease-standard, ease),
+              color var(--motion-fast, 140ms) var(--ease-standard, ease);
+}
+.btn:hover { background: var(--bg-hover, rgba(0, 0, 0, 0.045)); }
+.btn:active { background: var(--bg-active, rgba(0, 0, 0, 0.06)); transform: translateY(0.5px); }
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.btn:focus-visible {
+  outline: 2px solid var(--focus-outline-color-light, #d46b63);
+  outline-offset: 2px;
+}
+
+.btn-primary {
+  color: var(--semantic-button-primary-text-light, #ffffff);
+  background: var(--semantic-button-primary-surface-light, rgba(0, 0, 0, 0.83));
+  border-color: var(--semantic-button-primary-border-light, transparent);
+}
+.btn-primary:hover {
+  color: var(--semantic-button-primary-text-hover-light, #ffffff);
+  background: var(--semantic-button-primary-surface-hover-light, #000000);
+}
+html.theme-dark .btn-primary {
+  color: var(--semantic-button-primary-text-dark, #000000);
+  background: var(--semantic-button-primary-surface-dark, #ffffff);
+}
+html.theme-dark .btn-primary:hover {
+  color: var(--semantic-button-primary-text-hover-dark, #ffffff);
+  background: var(--semantic-button-primary-surface-hover-dark, #ffffff);
+}
+
+.btn-secondary {
+  color: var(--semantic-button-secondary-text-light, #1a1c1f);
+  background: var(--semantic-button-secondary-surface-light, #d6d6d6);
+  border-color: var(--semantic-button-secondary-border-light, transparent);
+}
+.btn-secondary:hover { background: var(--semantic-button-secondary-surface-hover-light, #a7a7a7); }
+html.theme-dark .btn-secondary {
+  color: var(--semantic-button-secondary-text-dark, #ffffff);
+  background: var(--semantic-button-secondary-surface-dark, #1e1e1e);
+}
+html.theme-dark .btn-secondary:hover { background: var(--semantic-button-secondary-surface-hover-dark, #2a2a2a); }
+
+.btn-danger {
+  color: var(--semantic-button-danger-text-light, #000000);
+  background: var(--semantic-button-danger-surface-light, rgba(157, 0, 0, 0.43));
+}
+.btn-danger:hover {
+  color: var(--semantic-button-danger-text-hover-light, #1d1c1c);
+  background: var(--semantic-button-danger-surface-hover-light, #e16f6f);
+}
+html.theme-dark .btn-danger {
+  color: var(--semantic-button-danger-text-dark, #e3e3e3);
+  background: var(--semantic-button-danger-surface-dark, rgba(157, 0, 0, 0.43));
+}
+html.theme-dark .btn-danger:hover {
+  color: var(--semantic-button-danger-text-hover-dark, #ffffff);
+  background: var(--semantic-button-danger-surface-hover-dark, #e16f6f);
+}
+
+.btn-ghost {
+  color: var(--fg-secondary, #5d5d5d);
+  background: transparent;
+  border-color: transparent;
+}
+.btn-ghost:hover {
+  color: var(--fg-primary, #1a1c1f);
+  background: var(--bg-hover, rgba(0, 0, 0, 0.045));
+}
+
+.btn-sm { height: 26px; padding: 0 10px; font-size: var(--text-xs, 12px); }
+.btn-lg { height: 40px; padding: 0 18px; font-size: var(--text-md, 14px); }
+.btn-icon { width: 32px; padding: 0; }
+.btn-icon.btn-sm { width: 26px; }
+.btn-icon.btn-lg { width: 40px; }
+
+/* ==========================================================================
+   2. 输入框 .input / .textarea
+   ========================================================================== */
+.input,
+.textarea {
+  display: block;
+  width: 100%;
+  height: 32px;
+  padding: 0 12px;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm-ui, 13px);
+  font-weight: var(--font-weight-body, 400);
+  line-height: var(--leading-ui, 1.35);
+  letter-spacing: var(--tracking-ui, -0.006em);
+  color: var(--fg-primary, #1a1c1f);
+  background: var(--ui-panel-light, #ffffff);
+  border: 1px solid var(--border-default, rgba(13, 13, 13, 0.08));
+  border-radius: var(--radius-md, 8px);
+  cursor: text;
+  transition: border-color var(--motion-fast, 140ms) var(--ease-standard, ease),
+              box-shadow var(--motion-fast, 140ms) var(--ease-standard, ease);
+}
+html.theme-dark .input,
+html.theme-dark .textarea {
+  color: var(--fg-primary, #ffffff);
+  background: var(--ui-panel-dark, #292524);
+}
+.input::placeholder,
+.textarea::placeholder {
+  color: var(--fg-muted, #9a9a9a);
+}
+.input:hover,
+.textarea:hover { border-color: var(--border-heavy, rgba(13, 13, 13, 0.12)); }
+.input:focus,
+.textarea:focus {
+  outline: none;
+  border-color: var(--accent, #339cff);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #339cff) 18%, transparent);
+}
+.input:focus-visible,
+.textarea:focus-visible { outline: none; }
+
+.textarea {
+  height: auto;
+  min-height: 80px;
+  padding: 8px 12px;
+  resize: vertical;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.input-sm { height: 26px; padding: 0 10px; font-size: var(--text-xs, 12px); }
+.input-lg { height: 40px; padding: 0 14px; font-size: var(--text-md, 14px); }
+
+/* ==========================================================================
+   3. 选择框 .select
+   ========================================================================== */
+.select {
+  display: block;
+  width: 100%;
+  height: 32px;
+  padding: 0 28px 0 12px;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm-ui, 13px);
+  font-weight: var(--font-weight-body, 400);
+  line-height: 1;
+  letter-spacing: var(--tracking-ui, -0.006em);
+  color: var(--fg-primary, #1a1c1f);
+  background: var(--ui-panel-light, #ffffff) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%235d5d5d' stroke-width='1.5'><path d='m3 4.5 3 3 3-3'/></svg>") no-repeat right 10px center / 12px;
+  border: 1px solid var(--border-default, rgba(13, 13, 13, 0.08));
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  transition: border-color var(--motion-fast, 140ms) var(--ease-standard, ease);
+}
+html.theme-dark .select {
+  color: var(--fg-primary, #ffffff);
+  background: var(--ui-panel-dark, #292524) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23a0a0a0' stroke-width='1.5'><path d='m3 4.5 3 3 3-3'/></svg>") no-repeat right 10px center / 12px;
+}
+.select:hover { border-color: var(--border-heavy, rgba(13, 13, 13, 0.12)); }
+.select:focus {
+  outline: none;
+  border-color: var(--accent, #339cff);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #339cff) 18%, transparent);
+}
+.select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.select-sm { height: 26px; padding: 0 26px 0 10px; font-size: var(--text-xs, 12px); }
+.select-lg { height: 40px; padding: 0 32px 0 14px; font-size: var(--text-md, 14px); }
+
+/* ==========================================================================
+   4. 卡片 .card
+   ========================================================================== */
+.card {
+  background: var(--ui-panel-light, #ffffff);
+  border: 1px solid var(--border-default, rgba(13, 13, 13, 0.08));
+  border-radius: var(--radius-xl, 12px);
+  overflow: hidden;
+}
+html.theme-dark .card {
+  background: var(--ui-panel-dark, #292524);
+  border-color: var(--border-default-dark, rgba(231, 229, 228, 0.29));
+}
+.card-pad { padding: 16px; }
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border-light, rgba(13, 13, 13, 0.05));
+}
+.card-body { padding: 16px; }
+.card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 0 16px;
+  border-top: 1px solid var(--border-light, rgba(13, 13, 13, 0.05));
+}
+.card-row:first-child { border-top: 0; }
+
+/* ==========================================================================
+   5. 开关 .switch
+   ========================================================================== */
+.switch {
+  position: relative;
+  display: inline-flex;
+  width: 36px;
+  height: 20px;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+.switch input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+}
+.switch-track {
+  position: absolute;
+  inset: 0;
+  background: var(--semantic-settings-switch-track-surface-light, #646464);
+  border-radius: var(--radius-pill, 999px);
+  transition: background var(--motion-base, 180ms) var(--ease-standard, ease);
+}
+html.theme-dark .switch-track {
+  background: var(--semantic-settings-switch-track-surface-dark, #a5a5a5);
+}
+.switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: var(--semantic-settings-switch-thumb-surface-light, #ffffff);
+  border-radius: 50%;
+  transition: transform var(--motion-base, 180ms) var(--ease-enter-snappy, cubic-bezier(.23, 1, .32, 1));
+}
+.switch input:checked ~ .switch-track {
+  background: var(--semantic-settings-switch-track-surface-active-light, rgba(60, 0, 255, 0.49));
+}
+html.theme-dark .switch input:checked ~ .switch-track {
+  background: var(--semantic-settings-switch-track-surface-active-dark, #ab8cff);
+}
+.switch input:checked ~ .switch-thumb {
+  transform: translateX(16px);
+}
+.switch input:focus-visible ~ .switch-track {
+  outline: 2px solid var(--focus-outline-color-light, #d46b63);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   6. 分段控件 .segmented
+   ========================================================================== */
+.segmented {
+  display: inline-flex;
+  background: var(--semantic-segmented-control-surface-light, #e5e5e5);
+  border-radius: var(--radius-md, 8px);
+  padding: 2px;
+  gap: 2px;
+}
+html.theme-dark .segmented {
+  background: rgba(255, 255, 255, 0.08);
+}
+.segmented-opt {
+  padding: 4px 12px;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs, 12px);
+  font-weight: var(--font-weight-body, 400);
+  line-height: 1;
+  letter-spacing: var(--tracking-ui, -0.006em);
+  color: var(--fg-secondary, #5d5d5d);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--motion-fast, 140ms) var(--ease-standard, ease),
+              color var(--motion-fast, 140ms) var(--ease-standard, ease);
+}
+.segmented-opt:hover {
+  background: var(--semantic-segmented-control-item-surface-hover-light, rgba(213, 213, 213, 0.86));
+  color: var(--fg-primary, #1a1c1f);
+}
+.segmented-opt.is-active {
+  background: var(--semantic-segmented-control-item-surface-active-light, #c5c5c5);
+  color: var(--fg-primary, #1a1c1f);
+  font-weight: var(--font-weight-medium, 500);
+}
+html.theme-dark .segmented-opt {
+  color: var(--fg-secondary, #a0a0a0);
+}
+html.theme-dark .segmented-opt:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--fg-primary, #ffffff);
+}
+html.theme-dark .segmented-opt.is-active {
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--fg-primary, #ffffff);
+}
+
+/* ==========================================================================
+   7. 键盘按键 .kbd
+   ========================================================================== */
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  font-family: var(--font-sans);
+  font-size: var(--text-2xs, 11px);
+  font-weight: var(--font-weight-body, 400);
+  line-height: 1;
+  color: var(--fg-primary, #1a1c1f);
+  background: var(--gray-50, #f9f9f9);
+  border: 1px solid var(--border-default, rgba(13, 13, 13, 0.1));
+  border-bottom-color: var(--border-heavy, rgba(13, 13, 13, 0.18));
+  border-radius: var(--radius-sm, 6px);
+  white-space: nowrap;
+}
+html.theme-dark .kbd {
+  color: var(--fg-primary, #ffffff);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--border-default-dark, rgba(231, 229, 228, 0.29));
+  border-bottom-color: var(--border-heavy, rgba(231, 229, 228, 0.4));
+}
+
+/* ==========================================================================
+   8. 药丸标签 .pill
+   ========================================================================== */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  font-family: var(--font-sans);
+  font-size: var(--text-2xs, 11px);
+  font-weight: var(--font-weight-medium, 500);
+  line-height: 1;
+  color: #ffffff;
+  background: var(--gray-1000, #0d0d0d);
+  border-radius: var(--radius-pill, 999px);
+  white-space: nowrap;
+}
+html.theme-dark .pill {
+  color: #000000;
+  background: #ffffff;
+}
+.pill-success { color: #ffffff; background: var(--green-500, #00a240); }
+.pill-warning { color: #ffffff; background: var(--orange-500, #e25507); }
+.pill-danger { color: #ffffff; background: var(--red-500, #e02e2a); }
+.pill-info { color: #ffffff; background: var(--accent, #339cff); }
+.pill-muted {
+  color: var(--fg-secondary, #5d5d5d);
+  background: var(--bg-hover, rgba(0, 0, 0, 0.045));
+}
+html.theme-dark .pill-muted {
+  color: var(--fg-secondary, #a0a0a0);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* ==========================================================================
+   9. 色块 .swatch
+   ========================================================================== */
+.swatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 10px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs, 12px);
+  font-weight: var(--font-weight-body, 400);
+  color: #ffffff;
+  border-radius: var(--radius-md, 8px);
+  white-space: nowrap;
+}
+.swatch-chip {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid var(--border-default, rgba(13, 13, 13, 0.1));
+  flex: 0 0 auto;
+}
+
+/* ==========================================================================
+   10. 滑块 .range
+   ========================================================================== */
+.range {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.range input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 140px;
+  height: 4px;
+  background: var(--border-default, rgba(13, 13, 13, 0.1));
+  border-radius: var(--radius-pill, 999px);
+  cursor: pointer;
+  outline: none;
+}
+.range input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--accent, #339cff);
+  border: 2px solid var(--ui-panel-light, #ffffff);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform var(--motion-fast, 140ms) var(--ease-standard, ease);
+}
+.range input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+.range input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: var(--accent, #339cff);
+  border: 2px solid var(--ui-panel-light, #ffffff);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+.range input[type="range"]:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--focus-outline-color-light, #d46b63);
+  outline-offset: 2px;
+}
+.range-value {
+  min-width: 28px;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs, 12px);
+  color: var(--fg-primary, #1a1c1f);
+  text-align: right;
+}
+html.theme-dark .range input[type="range"] { background: var(--border-default-dark, rgba(231, 229, 228, 0.29)); }
+html.theme-dark .range input[type="range"]::-webkit-slider-thumb {
+  border-color: var(--ui-panel-dark, #292524);
+}
+
+/* ==========================================================================
+   11. 复选框/单选框 .checkbox / .radio（自定义视觉，保留原生 input）
+   ========================================================================== */
+.checkbox,
+.radio {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  position: relative;
+  flex: 0 0 auto;
+}
+.checkbox input,
+.radio input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+}
+.checkbox-box,
+.radio-circle {
+  width: 16px;
+  height: 16px;
+  background: var(--ui-panel-light, #ffffff);
+  border: 1.5px solid var(--border-heavy, rgba(13, 13, 13, 0.22));
+  transition: background var(--motion-fast, 140ms) var(--ease-standard, ease),
+              border-color var(--motion-fast, 140ms) var(--ease-standard, ease);
+}
+.checkbox-box { border-radius: var(--radius-xs, 4px); }
+.radio-circle { border-radius: 50%; }
+html.theme-dark .checkbox-box,
+html.theme-dark .radio-circle {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--border-heavy, rgba(231, 229, 228, 0.4));
+}
+.checkbox input:checked ~ .checkbox-box {
+  background: var(--accent, #339cff);
+  border-color: var(--accent, #339cff);
+}
+.checkbox input:checked ~ .checkbox-box::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: solid #ffffff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.radio input:checked ~ .radio-circle {
+  border-color: var(--accent, #339cff);
+}
+.radio input:checked ~ .radio-circle::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  width: 8px;
+  height: 8px;
+  background: var(--accent, #339cff);
+  border-radius: 50%;
+}
+.checkbox input:focus-visible ~ .checkbox-box,
+.radio input:focus-visible ~ .radio-circle {
+  outline: 2px solid var(--focus-outline-color-light, #d46b63);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   12. 图标按钮 .icon-btn
+   ========================================================================== */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: var(--fg-secondary, #5d5d5d);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+  transition: background var(--motion-fast, 140ms) var(--ease-standard, ease),
+              color var(--motion-fast, 140ms) var(--ease-standard, ease);
+}
+.icon-btn:hover {
+  color: var(--fg-primary, #1a1c1f);
+  background: var(--bg-hover, rgba(0, 0, 0, 0.045));
+}
+.icon-btn:active { background: var(--bg-active, rgba(0, 0, 0, 0.06)); }
+.icon-btn:focus-visible {
+  outline: 2px solid var(--focus-outline-color-light, #d46b63);
+  outline-offset: 2px;
+}
+html.theme-dark .icon-btn { color: var(--fg-secondary, #a0a0a0); }
+html.theme-dark .icon-btn:hover {
+  color: var(--fg-primary, #ffffff);
+  background: rgba(255, 255, 255, 0.08);
+}
+html.theme-dark .icon-btn:active { background: rgba(255, 255, 255, 0.12); }
+.icon-btn-sm { width: 22px; height: 22px; }
+.icon-btn-lg { width: 36px; height: 36px; }
+
+/* ==========================================================================
+   13. 通用工具类
+   ========================================================================== */
+.flex { display: flex; }
+.flex-center { display: flex; align-items: center; justify-content: center; }
+.flex-between { display: flex; align-items: center; justify-content: space-between; }
+.flex-col { display: flex; flex-direction: column; }
+.gap-1 { gap: var(--space-1, 4px); }
+.gap-2 { gap: var(--space-2, 8px); }
+.gap-3 { gap: var(--space-3, 12px); }
+.gap-4 { gap: var(--space-4, 16px); }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.text-xs { font-size: var(--text-xs, 12px); }
+.text-sm { font-size: var(--text-sm-ui, 13px); }
+.text-md { font-size: var(--text-md, 14px); }
+.text-muted { color: var(--fg-muted, #9a9a9a); }
+.text-secondary { color: var(--fg-secondary, #5d5d5d); }
+.font-mono { font-family: var(--font-mono); }
+.font-medium { font-weight: var(--font-weight-medium, 500); }
+.font-bold { font-weight: var(--font-weight-bold, 700); }
+.rounded-sm { border-radius: var(--radius-sm, 6px); }
+.rounded-md { border-radius: var(--radius-md, 8px); }
+.rounded-lg { border-radius: var(--radius-lg, 10px); }
+.rounded-xl { border-radius: var(--radius-xl, 12px); }
+.rounded-pill { border-radius: var(--radius-pill, 999px); }
+.hidden { display: none !important; }

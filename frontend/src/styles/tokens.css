@@ -1,0 +1,634 @@
+@font-face {
+  font-family: "OpenAI Sans";
+  src: url("../assets/fonts/openai-sans-regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "OpenAI Sans";
+  src: url("../assets/fonts/openai-sans-medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Map heavier CSS weights to Medium face — official only ships 400/500 */
+@font-face {
+  font-family: "OpenAI Sans";
+  src: url("../assets/fonts/openai-sans-medium.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "OpenAI Sans";
+  src: url("../assets/fonts/openai-sans-medium.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Carlito";
+  src: url("../assets/fonts/carlito-latin-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Carlito";
+  src: url("../assets/fonts/carlito-latin-700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* Official Codex desktop tokens */
+  --official-spacing: 0.25rem; /* 4px */
+  --thread-content-max-width: 48rem; /* 768px */
+  --composer-inline-overhang: calc(var(--official-spacing) * 6); /* 24px */
+  --home-composer-inline-inset: calc(var(--official-spacing) * 3.25); /* 13px */
+  --composer-adjacent-max-width: calc(
+  var(--thread-content-max-width)
+  + var(--composer-inline-overhang)
+  + var(--composer-inline-overhang)
+  - var(--home-composer-inline-inset)
+  - var(--home-composer-inline-inset)
+  ); /* ~790px */
+  --padding-toolbar: calc(var(--official-spacing) * 4); /* 16px electron */
+  --thread-floating-content-bottom-inset: 16px;
+  --right-panel-composer-overlay-reserve: 118px; /* 102 + 16 from scroll-reserve module */
+  --radius-token-composer-single-line: calc(var(--official-spacing) * 5.5); /* 22px */
+  --radius-composer-multiline: calc(1.25rem * 1.25); /* radius-3xl-base * codex-corner-radius-scale */
+  --spacing-token-button-composer: calc(var(--official-spacing) * 7); /* 28px */
+  --elevation-prominent-official: 0 0 0 0.5px rgba(0, 0, 0, 0.08), 0 3px 7.5px rgba(0, 0, 0, 0.04), 0 0 20px rgba(0, 0, 0, 0.05);
+
+  color-scheme: light;
+
+  /* Official Codex UI font stack (--font-sans-default) */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Segoe UI Variable",
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei",
+    "Noto Sans SC", system-ui, sans-serif;
+  --font-brand: "OpenAI Sans", var(--font-sans);
+  --font-mono: "Carlito", "Cascadia Mono", "SF Mono", ui-monospace, Consolas, monospace;
+  font-family: var(--font-sans);
+  font-weight: var(--font-weight-body);
+  color: var(--fg-primary, #1a1c1f);
+  -webkit-font-smoothing: antialiased;
+
+  --font-weight-light: 300;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  /* Body/chrome reading weight — official default is 400, not 500 */
+  --font-weight-body: 400;
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+
+  /* Size scale — matched to official UI density */
+  --text-2xs: 11px;
+  --text-xs: 12px;              /* chrome labels / section heads */
+  --text-sm: 12px;              /* titlebar menu = official small chrome */
+  --text-sm-ui: 13px;           /* process lines / denser UI */
+  --text-md: 14px;              /* sidebar rows */
+  --text-base: 14px;            /* body / composer */
+  --text-code: 13px;
+  --text-lg: 16px;
+  --text-xl: 28px;              /* home hero heading-xl */
+  --text-heading-sm: 18px;
+  --text-heading-md: 20px;
+  --text-heading-lg: 24px;
+  --text-heading-xl: 28px;
+
+  /* Tracking */
+  --tracking-tight: -0.015em;
+  --tracking-title: -0.02em;
+  --tracking-normal: 0;
+  --tracking-body: -0.011em;
+  --tracking-ui: -0.006em;
+
+  /* Line heights */
+  --leading-tight: 1.25;
+  --leading-ui: 1.35;
+  --leading-body: 1.5;      /* official --leading-normal */
+  --leading-relaxed: 1.625;
+  --leading-heading: 1.2;   /* .heading-xl */
+
+  /* Radii */
+  --radius-control: 4px;
+  --radius-chip: 6px;
+  --radius-panel: 8px;
+  --radius-overlay: 12px;
+  --radius-window: 20px;
+  --radius-window-lg: 28px;
+  --radius-pill: 999px;
+
+  /* Aliases for existing components */
+  --radius-2xs: 2px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
+  --radius-4xl: 24px;
+  --radius-token-row: 9999px;
+
+  /* Motion */
+  --motion-fast: 140ms;
+  --motion-base: 180ms;
+  --motion-slow: 220ms;
+  --motion-xslow: 320ms;
+  --transition-duration-basic: .15s;
+  --transition-duration-relaxed: .3s;
+  --ease-standard: ease;
+  --ease-enter: cubic-bezier(.19, 1, .22, 1);
+  --ease-enter-snappy: cubic-bezier(.23, 1, .32, 1);
+
+  /* Toolbar heights */
+  --height-toolbar: 46px;       /* official */
+  --height-toolbar-sm: 36px;    /* official titlebar */
+  --height-toolbar-pane: 40px;
+  --height-token-nav-row: 30px; /* official sidebar row */
+
+  /* Classic theme surfaces (light) */
+  --surface-app-light: #ffffff; /* official surface */
+  --surface-shell-light: #ffffff;
+  --surface-panel-light: #ffffff;
+  --surface-panel-muted-light: #f5f5f6;
+  --surface-sidebar-light: #f3f3f3; /* ~gray-75 */
+  --surface-sidebar-strong-light: #f3f3f3;
+  --surface-user-bubble-light: #f2f2f7;
+  --surface-trace-light: #ffffff;
+  --surface-elevated-light: #e3e3e3;
+  --surface-overlay-light: rgba(41, 37, 36, 0.16);
+  --surface-code-light: #1c1c1c;
+  --surface-code-strong-light: #000000;
+
+  /* Text tokens (light) — official Codex theme ink #1A1C1F */
+  --codex-ink-light: #1a1c1f;
+  --codex-surface-light: #ffffff;
+  --codex-accent: #339cff;
+  --codex-contrast-light: 45;
+  --text-primary-light: var(--codex-ink-light);
+  /* official: color-mix(foreground 65%/70%, transparent) on white */
+  --text-secondary-light: color-mix(in srgb, var(--codex-ink-light) 65%, transparent);
+  --text-tertiary-light: color-mix(in srgb, var(--codex-ink-light) 55%, transparent);
+  --text-quaternary-light: color-mix(in srgb, var(--codex-ink-light) 42%, transparent);
+  --text-on-dark-light: #ffffff;
+
+  /* Border tokens (light) */
+  --border-subtle-light: #afafaf;
+  --border-default-light: rgba(13, 13, 13, 0.08);
+
+  /* Brand / accent (classic = grayscale) */
+  --brand-primary: #339cff; /* official accent */
+  --brand-primary-hover: #1a8fff;
+  --brand-accent-highlight: rgba(199, 199, 199, 0);
+  --brand-primary-soft: rgba(0, 0, 0, 0);
+  --brand-primary-soft-strong: #000000;
+
+  /* Classic dark surfaces */
+  --surface-app-dark: #181818; /* official dark surface */
+  --surface-shell-dark: #181818;
+  --surface-panel-dark: #181818;
+  --surface-panel-muted-dark: #212121;
+  --surface-sidebar-dark: #181818;
+  --surface-sidebar-strong-dark: #111111;
+  --surface-user-bubble-dark: rgba(0, 0, 0, 0.16);
+  --surface-trace-dark: #141414;
+  --surface-elevated-dark: #1e1e1e;
+  --surface-overlay-dark: rgba(12, 10, 9, 0.58);
+  --surface-code-dark: #27272a;
+  --surface-code-strong-dark: #14100f;
+
+  /* Text tokens (dark) */
+  --codex-ink-dark: #ffffff;
+  --codex-surface-dark: #181818;
+  --codex-contrast-dark: 60;
+  --text-primary-dark: var(--codex-ink-dark);
+  --text-secondary-dark: color-mix(in srgb, #ffffff 65%, transparent);
+  --text-tertiary-dark: color-mix(in srgb, #ffffff 50%, transparent);
+  --text-on-dark-dark: #ffffff;
+
+  /* Border tokens (dark) */
+  --border-subtle-dark: rgba(103, 103, 103, 0.56);
+  --border-default-dark: rgba(231, 229, 228, 0.29);
+
+  /* Brand (dark) */
+  --brand-primary-dark: #339cff;
+  --brand-primary-hover-dark: #5cb0ff;
+  --brand-accent-highlight-dark: rgba(97, 97, 97, 0);
+  --brand-primary-soft-dark: #ffffff;
+  --brand-primary-soft-strong-dark: #ffffff;
+
+  /* Semantic: accent icon */
+  --semantic-accent-icon-light: #1a1c1f;
+  --semantic-accent-icon-hover-light: #1a1c1f;
+  --semantic-accent-icon-active-light: #1a1c1f;
+  --semantic-accent-icon-dark: #ffffff;
+  --semantic-accent-icon-hover-dark: #ffffff;
+  --semantic-accent-icon-active-dark: #ffffff;
+
+  /* Semantic: buttons (classic) */
+  --semantic-button-primary-surface-light: rgba(0, 0, 0, 0.83);
+  --semantic-button-primary-surface-hover-light: #000000;
+  --semantic-button-primary-border-light: rgba(255, 0, 0, 0);
+  --semantic-button-primary-border-hover-light: rgba(0, 0, 0, 0);
+  --semantic-button-primary-text-light: #ffffff;
+  --semantic-button-primary-text-hover-light: #ffffff;
+  --semantic-button-primary-disabled-surface-light: #a9a9a9;
+  --semantic-button-primary-disabled-border-light: rgba(41, 37, 36, 0);
+  --semantic-button-primary-disabled-text-light: #ffffff;
+
+  --semantic-button-primary-surface-dark: #ffffff;
+  --semantic-button-primary-surface-hover-dark: #ffffff;
+  --semantic-button-primary-border-dark: rgba(207, 207, 207, 0);
+  --semantic-button-primary-border-hover-dark: rgba(255, 255, 255, 0);
+  --semantic-button-primary-text-dark: #000000;
+  --semantic-button-primary-text-hover-dark: #ffffff;
+  --semantic-button-primary-disabled-surface-dark: #2b2b2b;
+  --semantic-button-primary-disabled-border-dark: rgba(86, 86, 86, 0.32);
+  --semantic-button-primary-disabled-text-dark: #ffffff;
+
+  --semantic-button-secondary-surface-light: #d6d6d6;
+  --semantic-button-secondary-surface-hover-light: #a7a7a7;
+  --semantic-button-secondary-border-light: rgba(41, 37, 36, 0);
+  --semantic-button-secondary-border-hover-light: rgba(226, 200, 197, 0);
+  --semantic-button-secondary-text-light: #1a1c1f;
+  --semantic-button-secondary-disabled-surface-light: #d6d5d5;
+  --semantic-button-secondary-disabled-border-light: rgba(41, 37, 36, 0);
+
+  --semantic-button-secondary-surface-dark: #1e1e1e;
+  --semantic-button-secondary-surface-hover-dark: #2a2a2a;
+  --semantic-button-secondary-border-dark: rgba(231, 229, 228, 0);
+  --semantic-button-secondary-border-hover-dark: rgba(228, 163, 158, 0);
+  --semantic-button-secondary-text-dark: #ffffff;
+  --semantic-button-secondary-disabled-surface-dark: #878787;
+  --semantic-button-secondary-disabled-border-dark: rgba(231, 229, 228, 0);
+
+  --semantic-button-danger-surface-light: rgba(157, 0, 0, 0.43);
+  --semantic-button-danger-surface-hover-light: #e16f6f;
+  --semantic-button-danger-text-light: #000000;
+  --semantic-button-danger-text-hover-light: #1d1c1c;
+  --semantic-button-danger-disabled-surface-light: #a5a5a5;
+
+  --semantic-button-danger-surface-dark: rgba(157, 0, 0, 0.43);
+  --semantic-button-danger-surface-hover-dark: #e16f6f;
+  --semantic-button-danger-text-dark: #e3e3e3;
+  --semantic-button-danger-text-hover-dark: #ffffff;
+  --semantic-button-danger-disabled-surface-dark: #8c8c8c;
+
+  /* Semantic: icon buttons */
+  --semantic-icon-button-text-light: rgba(0, 0, 0, 0.9);
+  --semantic-icon-button-text-hover-light: #1a1c1f;
+  --semantic-icon-button-text-active-light: #1a1c1f;
+  --semantic-icon-button-surface-hover-light: rgba(130, 130, 130, 0.3);
+  --semantic-icon-button-surface-active-light: rgba(0, 0, 0, 0.21);
+
+  --semantic-icon-button-text-dark: #ffffff;
+  --semantic-icon-button-text-hover-dark: #ffffff;
+  --semantic-icon-button-text-active-dark: #ffffff;
+  --semantic-icon-button-surface-hover-dark: rgba(52, 45, 42, 0);
+  --semantic-icon-button-surface-active-dark: rgba(225, 112, 104, 0);
+
+  /* Semantic: status */
+  --semantic-success-light: #64a805;
+  --semantic-success-strong-light: #64a805;
+  --semantic-success-text-light: #64a805;
+  --semantic-info-light: #7a7ce2;
+  --semantic-info-surface-light: #c8c8f6;
+  --semantic-info-surface-strong-light: #0914dc;
+  --semantic-info-text-light: #7c7dc5;
+  --semantic-info-strong-light: #8283c3;
+  --semantic-warning-strong-light: #9e4c0d;
+  --semantic-error-strong-light: #8c1536;
+  --semantic-error-text-light: #911436;
+
+  /* Semantic: composer (classic) */
+  --semantic-composer-surface-light: #ffffff;
+  --semantic-composer-border-light: rgba(0, 0, 0, 0.2);
+  --semantic-composer-button-surface-light: rgba(197, 197, 197, 0.15);
+  --semantic-composer-button-surface-strong-light: rgba(0, 0, 0, 0.12);
+  --semantic-composer-button-text-light: #1a1c1f;
+  --semantic-composer-button-text-strong-light: #212121;
+  --semantic-composer-icon-button-surface-light: rgba(0, 0, 0, 0);
+  --semantic-composer-icon-button-surface-hover-light: rgba(197, 197, 197, 0.15);
+  --semantic-composer-icon-button-text-light: #1a1c1f;
+
+  --semantic-composer-surface-dark: #282828;
+  --semantic-composer-border-dark: rgba(231, 229, 228, 0);
+  --semantic-composer-button-surface-dark: rgba(255, 255, 255, 0.28);
+  --semantic-composer-button-text-dark: #ffffff;
+  --semantic-composer-button-text-strong-dark: #ffffff;
+  --semantic-composer-icon-button-surface-dark: rgba(0, 0, 0, 0);
+  --semantic-composer-icon-button-surface-hover-dark: rgba(255, 255, 255, 0.06);
+  --semantic-composer-icon-button-text-dark: #ffffff;
+
+  /* Semantic: dropdown menu */
+  --semantic-dropdown-menu-surface-light: #fafafa;
+  --semantic-dropdown-menu-surface-dark: #252525;
+
+  /* Semantic: popup panel */
+  --semantic-popup-panel-surface-light: #ffffff;
+  --semantic-popup-panel-surface-dark: #2b2b2b;
+
+  /* Semantic: settings switch */
+  --semantic-settings-switch-track-surface-light: #646464;
+  --semantic-settings-switch-track-surface-active-light: rgba(60, 0, 255, 0.49);
+  --semantic-settings-switch-thumb-surface-light: #ffffff;
+  --semantic-settings-switch-track-surface-dark: #a5a5a5;
+  --semantic-settings-switch-track-surface-active-dark: #ab8cff;
+  --semantic-settings-switch-thumb-surface-dark: #ffffff;
+
+  /* Semantic: segmented control */
+  --semantic-segmented-control-surface-light: #e5e5e5;
+  --semantic-segmented-control-item-surface-active-light: #c5c5c5;
+  --semantic-segmented-control-item-surface-hover-light: rgba(213, 213, 213, 0.86);
+
+  /* Semantic: sidebar tree row */
+  --semantic-sidebar-tree-row-text-light: #525252;
+  --semantic-sidebar-tree-row-text-active-light: #1a1c1f;
+  --semantic-sidebar-tree-row-surface-hover-light: #dedede;
+  --semantic-sidebar-tree-row-surface-active-light: #dedede;
+  --semantic-sidebar-tree-row-leading-active-light: #1a1c1f;
+
+  --semantic-sidebar-tree-row-text-dark: #ffffff;
+  --semantic-sidebar-tree-row-text-active-dark: #ffffff;
+  --semantic-sidebar-tree-row-surface-hover-dark: rgba(255, 255, 255, 0.12);
+  --semantic-sidebar-tree-row-surface-active-dark: rgba(255, 255, 255, 0.12);
+  --semantic-sidebar-tree-row-leading-active-dark: #ffffff;
+
+  /* Semantic: markdown */
+  --semantic-markdown-text-light: #1a1c1f;
+  --semantic-markdown-strong-text-light: #000000;
+  --semantic-markdown-muted-text-light: #000000;
+  --semantic-markdown-accent-light: #000000;
+  --semantic-markdown-border-light: rgba(177, 177, 177, 0.82);
+  --semantic-markdown-inline-code-surface-light: #ffffff;
+  --semantic-markdown-code-surface-light: #000000;
+  --semantic-markdown-table-head-surface-light: #949494;
+  --semantic-markdown-selection-background-light: #a9a9a9;
+  --semantic-markdown-selection-text-light: #000000;
+
+  --semantic-markdown-text-dark: #ffffff;
+  --semantic-markdown-strong-text-dark: #ffffff;
+  --semantic-markdown-border-strong-dark: rgba(255, 255, 255, 0.55);
+  --semantic-markdown-selection-background-dark: rgba(255, 255, 255, 0.118);
+  --semantic-markdown-quote-surface-dark: rgba(108, 108, 108, 0.381);
+  --semantic-markdown-inline-code-surface-dark: rgba(140, 138, 138, 0.312);
+  --semantic-markdown-table-head-surface-dark: #272727;
+  --semantic-markdown-table-row-alt-surface-dark: #363636;
+
+  /* Semantic: thread panel */
+  --semantic-thread-panel-surface-light: #ffffff;
+  --semantic-thread-panel-surface-muted-light: rgba(255, 255, 255, 0);
+  --semantic-thread-panel-surface-hover-light: rgba(0, 0, 0, 0.08);
+  --semantic-thread-response-text-light: #ffffff;
+  --semantic-thread-reasoning-text-light: rgba(0, 0, 0, 0.56);
+  --semantic-thread-divider-light: rgba(41, 37, 36, 0.12);
+
+  --semantic-thread-panel-surface-dark: #141414;
+  --semantic-thread-panel-surface-muted-dark: rgba(0, 0, 0, 0);
+  --semantic-thread-panel-surface-hover-dark: rgba(255, 255, 255, 0.08);
+
+  /* Shell chrome */
+  --semantic-shell-chrome-surface-light: rgba(0, 0, 0, 0);
+  --semantic-shell-chrome-surface-dark: rgba(34, 29, 26, 0);
+
+  /* Focus + selection */
+  --focus-outline-color-light: #d46b63;
+  --focus-outline-color-dark: #e17068;
+  --selection-background-light: #d46b63;
+  --selection-background-dark: #e17068;
+
+  /* Translucent panels */
+  --ui-panel-light: #ffffff;
+  --ui-panel-dark: #292524;
+  --ui-panel-subtle-light: #f7f1ee;
+  --ui-panel-subtle-dark: #342d2a;
+
+  /* Shadows */
+  --shadow-sm-light: 0 14px 30px rgba(41, 37, 36, 0.06);
+  --shadow-md-light: 0 20px 46px rgba(41, 37, 36, 0.08);
+  --shadow-lg-light: 0 28px 68px rgba(41, 37, 36, 0.12);
+  --shadow-sm-dark: 0 12px 28px rgba(12, 10, 9, 0.28);
+  --shadow-md-dark: 0 18px 40px rgba(12, 10, 9, 0.34);
+  --shadow-lg-dark: 0 28px 64px rgba(12, 10, 9, 0.42);
+
+  /* Legacy aliases for existing components */
+  --bg-canvas: var(--surface-app-light);
+  --bg-sidebar: var(--surface-sidebar-light);
+  --bg-elevated: var(--surface-elevated-light);
+  --bg-hover: color-mix(in srgb, var(--codex-ink-light, #1a1c1f) 4.5%, transparent);
+  --bg-active: color-mix(in srgb, var(--codex-ink-light, #1a1c1f) 6%, transparent);
+  --fg-primary: var(--text-primary-light);
+  --fg-secondary: var(--text-secondary-light);
+  --fg-description: var(--text-tertiary-light);
+  --fg-muted: var(--text-quaternary-light);
+  /* Semantic roles — prefer these over ad-hoc hex */
+  --fg-body: var(--text-primary-light);
+  --fg-chrome: var(--codex-ink-light);
+  --fg-meta: var(--text-tertiary-light);
+  --fg-process: color-mix(in srgb, var(--codex-ink-light) 55%, transparent);
+  --fg-process-active: color-mix(in srgb, var(--codex-ink-light) 70%, transparent);
+  --fg-thinking: color-mix(in srgb, var(--codex-ink-light) 48%, transparent);
+  /* Titlebar File/Edit/View/Help + nav icons — muted official look */
+  --fg-titlebar: color-mix(in srgb, var(--codex-ink-light, #1a1c1f) 48%, transparent);
+  --fg-title: var(--codex-ink-light);
+  --fg-settings-title: var(--codex-ink-light);
+  --fg-settings-row: var(--codex-ink-light);
+  --fg-settings-desc: color-mix(in srgb, var(--codex-ink-light) 55%, transparent);
+  --accent: var(--brand-primary);
+  --accent-soft: rgba(0, 0, 0, 0.05);
+  --accent-fg: var(--codex-ink-light);
+  --border-default: rgba(13, 13, 13, 0.08);
+  --border-light: rgba(13, 13, 13, 0.05);
+  --border-heavy: rgba(13, 13, 13, 0.12);
+  --success: #64a805;
+  --warning: #b45309;
+  --danger: #9f1239;
+
+  /* Color aliases for legacy components (prompt cards, swatches, etc.) */
+  --blue-50:  #e5f3ff;
+  --blue-100: #99ceff;
+  --blue-300: #339cff;
+  --blue-400: #0285ff;
+  --blue-900: #00284d;
+  --green-50:  #d9f4e4;
+  --green-300: #40c977;
+  --green-400: #04b84c;
+  --green-500: #00a240;
+  --green-700: #00692a;
+  --green-800: #004f1f;
+  --red-50:  #ffd9d9;
+  --red-300: #ff6764;
+  --red-400: #fa423e;
+  --red-500: #e02e2a;
+  --red-600: #ba2623;
+  --red-900: #4d100e;
+  --orange-50:  #ffe7d9;
+  --orange-300: #ff8549;
+  --orange-400: #fb6a22;
+  --orange-500: #e25507;
+  --yellow-300: #ffd240;
+  --yellow-400: #ffc300;
+  --purple-300: #ad7bf9;
+  --purple-400: #924ff7;
+  --pink-400:   #ff66ad;
+  --gray-0:   #fff;
+  --gray-50:  #f9f9f9;
+  --gray-75:  #f3f3f3;
+  --gray-100: #ededed;
+  --gray-300: #afafaf;
+  --gray-500: #5d5d5d;
+  --gray-550: #4f4f4f;
+  --gray-600: #414141;
+  --gray-700: #303030;
+  --gray-750: #282828;
+  --gray-800: #212121;
+  --gray-900: #181818;
+  --gray-1000:#0d0d0d;
+  --elevation-stroke: 0 0 0 .5px rgba(0,0,0,.08);
+  --elevation-prominent: var(--elevation-stroke), 0 3px 7.5px rgba(0,0,0,.04), 0 0 20px rgba(0,0,0,.05);
+  --elevation-sidebar: var(--elevation-stroke), 0 3px 7.5px rgba(0,0,0,.03), 0 0 16px rgba(0,0,0,.02);
+  --elevation-menu: 0 4px 16px rgba(0,0,0,.12), 0 0 0 .5px rgba(0,0,0,.06);
+  --elevation-toast: 0 8px 24px rgba(0,0,0,.16), 0 0 0 .5px rgba(0,0,0,.08);
+  --radius-md-base: 8px;
+  --radius-lg-base: 10px;
+  --radius-xl-base: 12px;
+  --radius-2xl-base: 16px;
+  --radius-3xl-base: 20px;
+  --radius-4xl-base: 24px;
+  --corner-radius-scale: 1.25;
+  --radius-md: calc(var(--radius-md-base) * var(--corner-radius-scale));
+  --radius-lg: calc(var(--radius-lg-base) * var(--corner-radius-scale));
+  --radius-xl: calc(var(--radius-xl-base) * var(--corner-radius-scale));
+  --radius-2xl: calc(var(--radius-2xl-base) * var(--corner-radius-scale));
+  --radius-3xl: calc(var(--radius-3xl-base) * var(--corner-radius-scale));
+  --radius-4xl: calc(var(--radius-4xl-base) * var(--corner-radius-scale));
+  --height-token-settings-row: 4rem;
+  --height-token-empty-state-page: 26.25rem;
+}
+
+/* Dark theme overrides */
+html.theme-dark {
+  --bg-canvas: var(--surface-app-dark);
+  --bg-sidebar: var(--surface-sidebar-dark);
+  --bg-elevated: var(--surface-elevated-dark);
+  --bg-hover: rgba(255, 255, 255, 0.12);
+  --bg-active: rgba(255, 255, 255, 0.16);
+  --fg-primary: var(--text-primary-dark);
+  --fg-secondary: var(--text-secondary-dark);
+  --fg-description: var(--text-tertiary-dark);
+  --fg-muted: var(--text-tertiary-dark);
+  --fg-body: var(--text-primary-dark);
+  --fg-chrome: #ffffff;
+  --fg-meta: color-mix(in srgb, #ffffff 50%, transparent);
+  --fg-process: #9a9a9a;
+  --fg-process-active: #c4c4c4;
+  --fg-thinking: #7a7a7a;
+  --fg-titlebar: color-mix(in srgb, #ffffff 48%, transparent);
+  --fg-title: #ffffff;
+  --fg-settings-title: #ffffff;
+  --fg-settings-row: #ffffff;
+  --fg-settings-desc: #9a9a9a;
+  --accent: var(--brand-primary-dark);
+  --accent-soft: rgba(255, 255, 255, 0.08);
+  --accent-fg: #ffffff;
+  --border-light: rgba(231, 229, 228, 0.06);
+  --border-heavy: rgba(231, 229, 228, 0.12);
+  --border-default: var(--border-default-dark);
+  --success: #65a30d;
+  --warning: #b45309;
+  --danger: #9f1239;
+}
+
+/* Font family switch hooks */
+html[data-font-family="system"] {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+html[data-font-family="segoe"] {
+  --font-sans: "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+}
+html[data-font-family="microsoft-yahei"] {
+  --font-sans: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif;
+}
+html[data-font-family="pingfang"] {
+  --font-sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+}
+
+/* Contrast overrides */
+html[data-contrast=more] {
+  --border-default: rgba(0, 0, 0, 0.22);
+  --border-heavy: rgba(0, 0, 0, 0.32);
+}
+html[data-contrast=more].theme-dark {
+  --border-default: rgba(231, 229, 228, 0.36);
+  --border-heavy: rgba(231, 229, 228, 0.48);
+}
+
+/* Reduce motion */
+html[data-reduce-motion=true] *, html[data-reduce-motion=true] *::before, html[data-reduce-motion=true] *::after {
+  animation-duration: .001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: .001ms !important;
+}
+
+
+html[data-pointer-cursors="off"] button,
+html[data-pointer-cursors="off"] a,
+html[data-pointer-cursors="off"] .settings-link,
+html[data-pointer-cursors="off"] .settings-button {
+  cursor: default;
+}
+
+html[data-reduce-motion="true"] * {
+  animation: none !important;
+  transition: none !important;
+}
+
+html[data-diff-markers="off"] .diff-line.del code::before,
+html[data-diff-markers="off"] .diff-line.add code::before {
+  content: none !important;
+}
+
+
+/* Solid fallbacks when color-mix is unavailable */
+@supports not (color: color-mix(in srgb, #000 50%, transparent)) {
+  :root {
+    --text-secondary-light: #6a6b6d;
+    --text-tertiary-light: #7a7b7d;
+    --text-quaternary-light: #949597;
+    --fg-settings-desc: #7a7b7d;
+    --fg-process: #7a7b7d;
+    --fg-process-active: #55575a;
+    --fg-thinking: #8e8f91;
+  }
+  html.theme-dark {
+    --text-secondary-dark: #a6a6a6;
+    --text-tertiary-dark: #808080;
+    --fg-meta: #808080;
+  }
+}
+
+/* titlebar fallback */
+@supports not (color: color-mix(in srgb, #000 50%, transparent)) {
+  :root { --fg-titlebar: #8a8b8d; }
+  html.theme-dark { --fg-titlebar: #8a8a8a; }
+}
