@@ -9,14 +9,15 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  # Skip sidecar-dependent runtime; still produce a runnable shell exe.
   TAURI_SKIP_SIDECAR_CHECK: "1"
+  # Keep install path stable for binary cache.
+  TAURI_CLI_VERSION: "2.1.1"
 
 jobs:
   build:
     name: Windows exe (Tauri)
     runs-on: windows-latest
-    timeout-minutes: 60
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
@@ -27,20 +28,43 @@ jobs:
         with:
           targets: x86_64-pc-windows-msvc
 
-      - name: Cache cargo
+      # Registry + target/ incremental. Key on lockfile so deps only rebuild when deps change.
+      - name: Cache cargo registry & target
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
+          shared-key: tauri-win-release
+          cache-on-failure: true
+          # Also cache ~/.cargo/bin so tauri.exe survives between runs.
+          cache-bin: true
 
-      - name: Install Tauri CLI
-        run: cargo install tauri-cli --version "^2" --locked
+      # Dedicated cache for the tauri CLI binary (cargo install is the slow part).
+      - name: Cache tauri-cli binary
+        id: cache-tauri-cli
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.CARGO_HOME }}/bin/tauri.exe
+            ${{ env.USERPROFILE }}/.cargo/bin/tauri.exe
+          key: tauri-cli-${{ runner.os }}-v${{ env.TAURI_CLI_VERSION }}
+
+      - name: Install Tauri CLI (only if missing)
         shell: pwsh
+        run: |
+          $tauri = Get-Command tauri -ErrorAction SilentlyContinue
+          if ($tauri -and $tauri.Source) {
+            Write-Host "tauri CLI already at $($tauri.Source) — skip install"
+            & $tauri.Source --version
+            exit 0
+          }
+          Write-Host "installing tauri-cli $env:TAURI_CLI_VERSION"
+          cargo install tauri-cli --version $env:TAURI_CLI_VERSION --locked
+          tauri --version
 
       - name: Prepare icons (placeholder)
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path src-tauri/icons | Out-Null
-          # Minimal 32x32 PNG (valid header + IHDR + IDAT + IEND) via .NET
           Add-Type -AssemblyName System.Drawing
           $bmp = New-Object System.Drawing.Bitmap 32,32
           $g = [System.Drawing.Graphics]::FromImage($bmp)
@@ -55,25 +79,15 @@ jobs:
           $g2.Dispose()
           $bmp128.Save("src-tauri/icons/128x128.png", [System.Drawing.Imaging.ImageFormat]::Png)
           $bmp.Save("src-tauri/icons/icon.ico", [System.Drawing.Imaging.ImageFormat]::Icon)
-          # 256 for store-style
           $bmp.Save("src-tauri/icons/icon.png", [System.Drawing.Imaging.ImageFormat]::Png)
           Write-Host "icons ready"
 
-      - name: cargo check
+      # Single compile path: tauri build runs rustc under release and produces the exe.
+      # Do NOT cargo check + cargo build + tauri build (that triples cold work).
+      - name: tauri build
         working-directory: src-tauri
-        run: cargo check --message-format=short
         shell: pwsh
-
-      - name: cargo build (release binary)
-        working-directory: src-tauri
-        run: cargo build --release
-        shell: pwsh
-
-      - name: tauri build (NSIS/MSI bundle)
-        working-directory: src-tauri
         run: cargo tauri build
-        shell: pwsh
-        continue-on-error: true
 
       - name: Upload Codex.exe
         uses: actions/upload-artifact@v4
