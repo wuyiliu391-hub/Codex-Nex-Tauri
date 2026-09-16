@@ -1,0 +1,52 @@
+[package]
+name = "codex-tauri"
+version = "0.1.0"
+description = "Codex desktop shell (Tauri) powered by official codex-app-server sidecar"
+authors = ["Codex Contributors"]
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+name = "codex_tauri_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-dialog = "2"
+tauri-plugin-shell = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-store = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "process", "io-util", "net"] }
+tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
+futures-util = "0.3"
+uuid = { version = "1", features = ["v4", "serde"] }
+thiserror = "1"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+dirs = "5"
+chrono = { version = "0.4", features = ["serde"] }
+notify-rust = "4"
+cron = "0.12"
+walkdir = "2"
+regex = "1"
+
+# Optional: embed official protocol types when building with feature.
+# Default path is JSON passthrough to keep the shell decoupled.
+# codex-app-server-protocol = { path = "../../codex-rust-v0.154.0/codex-rs/app-server-protocol", optional = true }
+
+[features]
+default = []
+# in-process = ["dep:codex-app-server-protocol", "dep:codex-app-server-client"]
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

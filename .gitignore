@@ -1,0 +1,32 @@
+# Rust
+src-tauri/target/
+**/*.rs.bk
+Cargo.lock.bak
+
+# Sidecar binary (large; built in CI or dropped in locally)
+src-tauri/binaries/*.exe
+src-tauri/binaries/*.dll
+!src-tauri/binaries/README.txt
+
+# Tauri / icons generated locally
+src-tauri/gen/
+src-tauri/WixTools/
+
+# Node (if ever added)
+node_modules/
+
+# Logs / OS
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Local secrets
+.env
+.env.*
+!.env.example

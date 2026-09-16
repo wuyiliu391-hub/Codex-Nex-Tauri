@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Codex</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: #f2f2f2;
+      color: #111;
+    }
+    html.theme-dark body { background: #141414; color: #eee; }
+    main { padding: 28px; max-width: 860px; }
+    h1 { margin: 0 0 6px; font-size: 22px; font-weight: 600; }
+    p { margin: 0 0 16px; opacity: 0.72; }
+    pre {
+      background: rgba(127,127,127,0.12);
+      padding: 14px;
+      border-radius: 10px;
+      overflow: auto;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: rgba(127,127,127,0.18);
+      margin-left: 8px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Codex Tauri Shell <span class="badge" id="engine-badge">…</span></h1>
+    <p>P0 骨架。接入官方 <code>codex-app-server</code> sidecar 后，Agent 能力全走 Rust 后端。</p>
+    <pre id="out">booting…</pre>
+  </main>
+  <script type="module">
+    import { installBridge, api } from "./js/bridge.js";
+
+    installBridge();
+
+    async function boot() {
+      const out = document.getElementById("out");
+      const badge = document.getElementById("engine-badge");
+      try {
+        const state = await api.GetState();
+        const status = await api.EngineStatus().catch((e) => ({ error: String(e) }));
+        badge.textContent = status?.connected ? "engine online" : "engine offline";
+        out.textContent = JSON.stringify({ state, status }, null, 2);
+      } catch (e) {
+        badge.textContent = "error";
+        out.textContent = "boot error: " + e;
+      }
+    }
+
+    boot();
+  </script>
+</body>
+</html>
