@@ -1,14 +1,20 @@
 ---
 feature: uia-skin-parity
-status: designed
+status: delivered
 updated: 2026-09-16
 branch: feat/uia-skin-parity
-commits: 5cf0bba..5cf0bba
+commits: 5cf0bba..7ef351d
 ---
 
 # UIA Skin Parity (Design Tokens + Components + IPC)
 
 ## Report
+
+**What was built** — UIA skeleton is no longer treated as a finished UI. A Design Token + CSS Reset baseline (`reset.css`, `tokens.css`, `official-tokens.css`, new `controls.css`) kills native UA chrome and exposes `.ui-popover` / `.ui-listbox` primitives that only reference CSS variables. Components: all settings ComboBoxes became custom dropdowns (`createDropdown`); the fake in-page File/Edit/View/Help MenuBar was replaced by a Tauri native menu (`menu.rs`) that emits `menu` events; Lucide-style icons ship in `icons.js` and the titlebar sidebar uses them. IPC/business: scheduled / plugins / PR lists re-fetch on route enter; MCP approval and user-input server requests open a token modal that always answers `ResolveApproval` (including Esc/backdrop decline) so the turn cannot hang.
+
+**Verification** — `node --check` on all modified JS: PASS. `rg '<select'` / `desktop-menu*`: empty. `verify-agent-a-hex.cjs`: PASS (hex only in token definition files). `scripts/smoke-frontend-uia.cjs`: PASS. Independent review of `5cf0bba..576fa69` found 6 majors; fixed in `7ef351d`; focused re-review: 6/6 PASS, no remaining critical/major. Cloud Tauri build is GitHub Actions `build-windows` (local `tauri dev` forbidden).
+
+**Journey log** — UIA ≠ skin: control trees have zero CSS, so tokens are mandatory. Agent B initially left `icons.js` dead and native menu incomplete; review caught it. Double `change` events from dropdown + settings listeners caused duplicate SavePreferences — emit once from `ui-controls`. Approval modal Esc must still ResolveApproval or MCP turn hangs. Mojibake cleanup was JS-first; CSS comments needed a second pass.
 
 ## [S1] Problem
 
@@ -109,13 +115,13 @@ Wire, with **frontend state first** then backend:
 
 ## Tasks
 
-- [ ] T1: Design Token + CSS Reset + controls.css primitives — acceptance: reset kills UA chrome; `.ui-popover` styles exist; official hex only (covers: S2.2)
-- [ ] T2: Shared ui-controls.js + Lucide icons.js — acceptance: dropdown helper open/close/keyboard; icons module exports used nav icons (covers: S2.3; depends: T1)
-- [ ] T3: Replace settings native selects with custom dropdowns — acceptance: no `<select>` in frontend/src (covers: S2.3; depends: T2)
-- [ ] T4: Tauri native MenuBar + remove fake DOM menu — acceptance: Rust Menu registered; HTML has no desktop-menu-trigger; actions emit menu events (covers: S2.3)
-- [ ] T5: Sidebar toggle persistence — acceptance: expand/collapse reflects in body class + settings (covers: S2.3; depends: T1)
-- [ ] T6: Fix mojibake / pet-page UTF-8 — acceptance: bridge.js comments readable; no U+FFFD in src (covers: S2.3)
-- [ ] T7: Scheduled + Plugins + PR IPC/state + page-switch refresh — acceptance: discovery pages paint and refresh after navigate (covers: S2.4; depends: T2)
-- [ ] T8: MCP approval modal + resolve_approval — acceptance: approval event opens modal; accept/decline invokes IPC (covers: S2.4; depends: T1)
-- [ ] T9: Model panel / intensity persistence already present — acceptance: SaveSettings round-trip keeps modelReasoningEffort (covers: S2.4)
-- [ ] T10: Closed-loop verify (node --check + smoke script + CI-ready) — acceptance: all checks PASS recorded (covers: S2.5)
+- [x] T1: Design Token + CSS Reset + controls.css primitives — acceptance: reset kills UA chrome; `.ui-popover` styles exist; official hex only (covers: S2.2)
+- [x] T2: Shared ui-controls.js + Lucide icons.js — acceptance: dropdown helper open/close/keyboard; icons module exports used nav icons (covers: S2.3; depends: T1)
+- [x] T3: Replace settings native selects with custom dropdowns — acceptance: no `<select>` in frontend/src (covers: S2.3; depends: T2)
+- [x] T4: Tauri native MenuBar + remove fake DOM menu — acceptance: Rust Menu registered; HTML has no desktop-menu-trigger; actions emit menu events (covers: S2.3)
+- [x] T5: Sidebar toggle persistence — acceptance: expand/collapse reflects in body class + settings (covers: S2.3; depends: T1)
+- [x] T6: Fix mojibake / pet-page UTF-8 — acceptance: bridge.js comments readable; no U+FFFD in src (covers: S2.3)
+- [x] T7: Scheduled + Plugins + PR IPC/state + page-switch refresh — acceptance: discovery pages paint and refresh after navigate (covers: S2.4; depends: T2)
+- [x] T8: MCP approval modal + resolve_approval — acceptance: approval event opens modal; accept/decline invokes IPC (covers: S2.4; depends: T1)
+- [x] T9: Model panel / intensity persistence already present — acceptance: SaveSettings round-trip keeps modelReasoningEffort (covers: S2.4)
+- [x] T10: Closed-loop verify (node --check + smoke script + CI-ready) — acceptance: all checks PASS recorded (covers: S2.5)
