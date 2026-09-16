@@ -1413,13 +1413,16 @@ export function currentLang() {
 
 export function t(key, fallback = "", vars = null) {
   const lang = currentLang();
-  let value = DICT[lang]?.[key] || DICT.en[key] || fallback || key;
+  // Empty string is a valid translation — do not fall through to the key.
+  let value = DICT[lang]?.[key];
+  if (value === undefined) value = DICT.en[key];
+  if (value === undefined || value === null) value = fallback !== "" ? fallback : key;
   if (vars && typeof value === "string") {
     for (const [k, v] of Object.entries(vars)) {
       value = value.replaceAll(`{${k}}`, String(v ?? ""));
     }
   }
-  return value;
+  return value ?? key;
 }
 
 export function languageOptions() {

@@ -37,7 +37,7 @@
   font-size: 12px;
   text-align: left;
 }
-.settings-back::before { content: "�?; font-size: 16px; font-weight: 300; }
+.settings-back::before { content: "\2190"; font-size: 16px; font-weight: 300; }
 .settings-back:hover { background: rgba(0, 0, 0, .045); color: var(--fg-primary); }
 
 .settings-search {

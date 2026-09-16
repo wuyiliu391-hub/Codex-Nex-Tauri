@@ -1,12 +1,147 @@
-// Titlebar navigation, window controls, native menu event bridge, sidebar wiring.
+// Titlebar navigation, window controls, in-titlebar menus, sidebar wiring.
 
 import { navigate } from "./router.js";
 import { iconSvg } from "./icons.js";
+import { t } from "./i18n.js";
 
-// ── Native menu event listener ──────────────────────────────────────────────
-// Listens for `menu` events emitted by Rust (src-tauri/src/menu.rs) and
-// dispatches the matching action through handleAction.
+// ── In-titlebar File/Edit/View/Help (official frameless chrome) ─────────────
+// OS native menus are invisible with decorations:false; official draws them here.
 
+// Menu tree: action id + i18n key + optional accelerator label.
+const MENU_TREE = {
+  file: [
+    { action: "new-window", key: "menu.newWindow", keys: "Ctrl+Shift+N" },
+    { action: "new-task", key: "menu.newTask", keys: "Ctrl+N" },
+    { action: "new-projectless-task", key: "menu.newProjectlessTask", keys: "Ctrl+Alt+O" },
+    { sep: true },
+    { action: "open-folder", key: "menu.openFolder", keys: "Ctrl+O" },
+    { sep: true },
+    { action: "close", key: "menu.close", keys: "Ctrl+W" },
+    { sep: true },
+    { action: "settings", key: "menu.settings", keys: "Ctrl+," },
+    { sep: true },
+    { action: "logout", key: "menu.logout" },
+    { action: "exit", key: "menu.exit", keys: "Ctrl+Q" },
+  ],
+  edit: [
+    { action: "undo", key: "menu.undo", keys: "Ctrl+Z" },
+    { action: "redo", key: "menu.redo", keys: "Ctrl+Y" },
+    { sep: true },
+    { action: "cut", key: "menu.cut", keys: "Ctrl+X" },
+    { action: "copy", key: "menu.copy", keys: "Ctrl+C" },
+    { action: "paste", key: "menu.paste", keys: "Ctrl+V" },
+    { sep: true },
+    { action: "delete", key: "menu.delete", keys: "Del" },
+    { action: "select-all", key: "menu.selectAll", keys: "Ctrl+A" },
+  ],
+  view: [
+    { action: "toggle-sidebar", key: "menu.toggleSidebar", keys: "Ctrl+B" },
+    { action: "toggle-bottom-panel", key: "menu.toggleBottomPanel", keys: "Ctrl+J" },
+    { action: "toggle-file-tree", key: "menu.toggleFileTree" },
+    { sep: true },
+    { action: "open-terminal", key: "menu.openTerminal", keys: "Ctrl+`" },
+    { action: "find", key: "menu.find", keys: "Ctrl+F" },
+    { sep: true },
+    { action: "previous-task", key: "menu.previousTask" },
+    { action: "next-task", key: "menu.nextTask" },
+    { sep: true },
+    { action: "zoom-in", key: "menu.zoomIn", keys: "Ctrl+=" },
+    { action: "zoom-out", key: "menu.zoomOut", keys: "Ctrl+-" },
+    { action: "actual-size", key: "menu.actualSize", keys: "Ctrl+0" },
+    { sep: true },
+    { action: "toggle-fullscreen", key: "menu.toggleFullscreen", keys: "F11" },
+  ],
+  help: [
+    { action: "documentation", key: "menu.documentation" },
+    { action: "whats-new", key: "menu.whatsNew" },
+    { action: "keyboard-shortcuts", key: "menu.keyboardShortcuts", keys: "Ctrl+Shift+/" },
+    { sep: true },
+    { action: "troubleshooting", key: "menu.troubleshooting" },
+    { action: "system-status", key: "menu.systemStatus" },
+    { action: "send-feedback", key: "menu.sendFeedback" },
+    { sep: true },
+    { action: "about", key: "menu.about" },
+  ],
+};
+
+let openMenuPanel = null;
+
+// Close any open titlebar menu panel.
+function closeDesktopMenus() {
+  openMenuPanel?.remove();
+  openMenuPanel = null;
+  document.querySelectorAll(".desktop-menu-trigger.is-open").forEach((b) => b.classList.remove("is-open"));
+}
+
+// Build and position a dropdown under the File/Edit/View/Help trigger.
+function openDesktopMenu(trigger, name) {
+  closeDesktopMenus();
+  const items = MENU_TREE[name];
+  if (!items) return;
+  const panel = document.createElement("div");
+  panel.className = "desktop-menu-panel";
+  panel.dataset.menuPanel = name;
+  for (const item of items) {
+    if (item.sep) {
+      const sep = document.createElement("div");
+      sep.className = "desktop-menu-separator";
+      panel.appendChild(sep);
+      continue;
+    }
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "desktop-menu-item";
+    btn.innerHTML = `<span>${escapeHtmlText(t(item.key, item.key))}</span>${item.keys ? `<kbd>${escapeHtmlText(item.keys)}</kbd>` : ""}`;
+    btn.addEventListener("click", () => {
+      closeDesktopMenus();
+      handleAction(item.action);
+    });
+    panel.appendChild(btn);
+  }
+  document.body.appendChild(panel);
+  const r = trigger.getBoundingClientRect();
+  panel.style.left = `${Math.round(r.left)}px`;
+  panel.style.top = `${Math.round(r.bottom + 2)}px`;
+  trigger.classList.add("is-open");
+  openMenuPanel = panel;
+}
+
+function escapeHtmlText(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+}
+
+// Wire titlebar menu triggers (idempotent).
+function initTitlebarMenus() {
+  const bar = document.querySelector(".desktop-menu-bar");
+  if (!bar || bar.dataset.wired === "1") return;
+  bar.dataset.wired = "1";
+  bar.querySelectorAll(".desktop-menu-trigger").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const name = btn.dataset.menu;
+      if (openMenuPanel?.dataset.menuPanel === name) {
+        closeDesktopMenus();
+        return;
+      }
+      openDesktopMenu(btn, name);
+    });
+  });
+  document.addEventListener("pointerdown", (e) => {
+    if (e.target.closest(".desktop-menu-panel, .desktop-menu-trigger")) return;
+    closeDesktopMenus();
+  }, true);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeDesktopMenus();
+  });
+  // Relabel on language change
+  document.addEventListener("codex:language-applied", () => {
+    bar.querySelectorAll("[data-i18n]").forEach((el) => {
+      el.textContent = t(el.dataset.i18n, el.textContent);
+    });
+  });
+}
+
+// ── Native menu event listener (optional; OS menu may not show frameless) ───
 // Subscribe to Tauri menu events and route them to handleAction.
 function initNativeMenuListener() {
   const listen =
@@ -59,6 +194,33 @@ function handleAction(action) {
       break;
     case "toggle-sidebar":
       toggleSidebar();
+      break;
+    case "undo":
+      document.execCommand?.("undo");
+      break;
+    case "redo":
+      document.execCommand?.("redo");
+      break;
+    case "cut":
+      document.execCommand?.("cut");
+      break;
+    case "copy":
+      document.execCommand?.("copy");
+      break;
+    case "paste":
+      document.execCommand?.("paste");
+      break;
+    case "delete":
+      document.execCommand?.("delete");
+      break;
+    case "select-all":
+      document.execCommand?.("selectAll");
+      break;
+    case "new-window":
+      window.runtime?.WindowMinimise?.();
+      break;
+    case "close":
+      window.runtime?.Quit?.();
       break;
     case "exit":
       window.runtime?.Quit?.();
@@ -148,6 +310,9 @@ export function initShell() {
   if (sidebarBtn && !sidebarBtn.querySelector("svg")) {
     sidebarBtn.innerHTML = iconSvg("panel-left", 15);
   }
+
+  // In-titlebar File/Edit/View/Help (visible on frameless Windows).
+  initTitlebarMenus();
 
   // Restore sidebar state from persisted settings.
   const api = window.go?.main?.App;

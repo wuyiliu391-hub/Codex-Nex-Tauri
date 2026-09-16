@@ -267,7 +267,7 @@ function renderMainHome() {
               </button>
               </div>
             </div>
-          <div class="composer-footer-tip">${escapeHtml(t("home.disclaimer"))}</div>
+          <div class="composer-footer-tip" ${t("home.disclaimer") ? "" : "hidden"}>${escapeHtml(t("home.disclaimer"))}</div>
         </div>
       </div>
       <aside class="review-panel" id="review-panel" ${reviewOpen ? "" : "hidden"}></aside>

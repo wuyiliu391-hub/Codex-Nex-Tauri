@@ -119,6 +119,13 @@
         <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m8.5 5.5 4.5 4.5-4.5 4.5"/></svg>
       </button>
     </div>
+    <!-- Official frameless chrome draws File/Edit/View/Help in the titlebar -->
+    <nav class="desktop-menu-bar" aria-label="Application menu">
+      <button class="desktop-menu-trigger" type="button" data-menu="file" data-i18n="app.menu.file">File</button>
+      <button class="desktop-menu-trigger" type="button" data-menu="edit" data-i18n="app.menu.edit">Edit</button>
+      <button class="desktop-menu-trigger" type="button" data-menu="view" data-i18n="app.menu.view">View</button>
+      <button class="desktop-menu-trigger" type="button" data-menu="help" data-i18n="app.menu.help">Help</button>
+    </nav>
     <div class="toolbar-spacer"></div>
     <div class="window-controls">
       <button class="window-control" id="window-minimise" type="button" aria-label="Minimise"><span class="caption-glyph">&#xE921;</span></button>

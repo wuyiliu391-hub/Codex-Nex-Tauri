@@ -113,6 +113,73 @@ body.settings-open .app-toolbar { background: var(--bg-sidebar); }
 }
 body.sidebar-collapsed .app-toolbar { background: var(--bg-canvas); }
 .toolbar-navigation { display: flex; align-items: center; gap: 0; }
+/* Titlebar File/Edit/View/Help — official frameless chrome (not OS menu). */
+.desktop-menu-bar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-left: 6px;
+  --wails-draggable: no-drag;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+.desktop-menu-trigger {
+  height: 28px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg-titlebar, color-mix(in srgb, var(--fg-primary, #1a1c1f) 72%, transparent));
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1;
+  cursor: pointer;
+}
+.desktop-menu-trigger:hover,
+.desktop-menu-trigger.is-open {
+  background: color-mix(in srgb, var(--fg-primary) 6%, transparent);
+  color: var(--fg-primary);
+}
+.desktop-menu-panel {
+  position: fixed;
+  z-index: 200;
+  min-width: 220px;
+  padding: 4px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--bg-canvas);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14), 0 0 0 1px color-mix(in srgb, var(--fg-primary) 6%, transparent);
+}
+.desktop-menu-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg-primary);
+  text-align: left;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  cursor: pointer;
+}
+.desktop-menu-item:hover { background: color-mix(in srgb, var(--fg-primary) 6%, transparent); }
+.desktop-menu-item kbd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-muted);
+  background: transparent;
+}
+.desktop-menu-separator {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border-subtle);
+}
 /* Titlebar chrome: muted like official (ink ~48%, weight 400, 12px labels). */
 .toolbar-button {
   height: 28px;
