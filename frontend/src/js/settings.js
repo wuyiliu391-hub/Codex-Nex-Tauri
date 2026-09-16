@@ -43,7 +43,7 @@ function sectionsDef() {
       labelKey: "settings.group.personal",
       children: [
         { id: "general", labelKey: "settings.general", icon: "general" },
-        { id: "language", labelKey: "settings.language", icon: "language" },
+        { id: "import", labelKey: "settings.import", icon: "import" },
         {
           id: "appearance",
           labelKey: "settings.appearance",
@@ -69,9 +69,10 @@ function sectionsDef() {
       id: "integrations",
       labelKey: "settings.group.integrations",
       children: [
+        { id: "computer-use", labelKey: "settings.computer", icon: "computer" },
+        { id: "appshot", labelKey: "settings.appshot", icon: "appshot" },
         { id: "plugins", labelKey: "settings.plugins", icon: "plugins" },
         { id: "browser", labelKey: "settings.browser", icon: "browser" },
-        { id: "computer-use", labelKey: "settings.computer", icon: "computer" },
       ],
     },
     {
@@ -136,6 +137,8 @@ function iconSvg(name) {
     worktrees: `<path d="M4 4h10M4 9h10M4 14h10"/><path d="M6 4v10"/>`,
     archived: `<path d="M3 5h12v2H3zM4 7h10v8H4zM7 11h4"/>`,
     language: `<path d="M3 5h12M9 5v10M6 15h6M5 8.5h8"/><path d="M12.5 11.5c1.2 0 2.2.9 2.2 2s-1 2-2.2 2c-.7 0-1.3-.3-1.7-.8"/>`,
+    import: `<path d="M9 3v8M6 8l3 3 3-3M4 14h10v2H4z"/>`,
+    appshot: `<rect x="3.5" y="4.5" width="11" height="8" rx="1.5"/><circle cx="9" cy="8.5" r="2"/><path d="M6.5 15.5h5"/>`,
   };
   return `<svg viewBox="0 0 18 18" aria-hidden="true">${ico[name] || ""}</svg>`;
 }
@@ -299,8 +302,8 @@ function row(label, desc, control, cls = "") {
   return `<div class="settings-row ${cls}"><div class="settings-row-copy"><div class="settings-row-title">${escapeHtml(label)}</div>${desc ? `<div class="settings-row-description">${escapeHtml(desc)}</div>` : ""}</div><div class="settings-row-control">${control}</div></div>`;
 }
 
-function button(label, action, kind = "") {
-  return `<button class="settings-button ${kind}" type="button" data-action="${action}">${escapeHtml(label)}</button>`;
+function button(label, action, kind = "", disabled = false) {
+  return `<button class="settings-button ${kind}" type="button" data-action="${action}" ${disabled ? "disabled" : ""}>${escapeHtml(label)}</button>`;
 }
 
 function inputEl(name, value, placeholder = "") {
@@ -311,18 +314,49 @@ function numberEl(name, value, min, max) {
   return `<input type="number" class="settings-input" data-input="${name}" value="${escapeHtml(String(value))}" min="${min}" max="${max}" />`;
 }
 
-function selectEl(name, value, options, cls = "") {
+function selectEl(name, value, options, cls = "", disabled = false) {
   const opts = options
     .map(
       (o) =>
         `<option value="${escapeHtml(o.value)}" ${o.value === value ? "selected" : ""}>${escapeHtml(o.label)}</option>`,
     )
     .join("");
-  return `<select class="settings-select ${cls}" data-select="${name}">${opts}</select>`;
+  return `<select class="settings-select ${cls}" data-select="${name}" ${disabled ? "disabled" : ""}>${opts}</select>`;
 }
 
-function switchEl(name, on) {
-  return `<label class="settings-switch"><input type="checkbox" data-switch="${name}" ${on ? "checked" : ""} /><span></span></label>`;
+function switchEl(name, on, disabled = false) {
+  return `<label class="settings-switch"><input type="checkbox" data-switch="${name}" ${on ? "checked" : ""} ${disabled ? "disabled" : ""} /><span></span></label>`;
+}
+
+function wireCaptureButton(root, action, save, key) {
+  root.querySelector("[data-action='" + action + "']")?.addEventListener("click", (e) => {
+    const btn = e.currentTarget;
+    const orig = btn.textContent;
+    btn.textContent = "\u2026";
+    const once = (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const parts = [];
+      if (ev.ctrlKey) parts.push("Ctrl");
+      if (ev.altKey) parts.push("Alt");
+      if (ev.shiftKey) parts.push("Shift");
+      if (!["Control", "Alt", "Shift", "Meta"].includes(ev.key)) parts.push(ev.key.length === 1 ? ev.key.toUpperCase() : ev.key);
+      const combo = parts.join("+");
+      document.removeEventListener("keydown", once, true);
+      btn.textContent = orig;
+      if (combo) {
+        save({ [key]: combo });
+        const scope = btn.closest(".settings-row");
+        const v = scope ? scope.querySelector("[data-capture-value]") : null;
+        if (v) v.textContent = combo;
+      }
+    };
+    document.addEventListener("keydown", once, true);
+  });
+}
+
+function rowHtml(label, descHtml, control, cls = "") {
+  return `<div class="settings-row ${cls}"><div class="settings-row-copy"><div class="settings-row-title">${escapeHtml(label)}</div><div class="settings-row-description">${descHtml}</div></div><div class="settings-row-control">${control}</div></div>`;
 }
 
 function rangeEl(name, value, min, max) {
@@ -477,6 +511,8 @@ function applyTheme() {
 
 const RENDERERS = {
   general: renderGeneral,
+  import: renderImport,
+  appshot: renderAppshot,
   language: renderLanguage,
   account: renderAccount,
   appearance: renderAppearance,
@@ -500,137 +536,78 @@ function renderGeneral(root) {
   const s = store.settings;
   root.innerHTML = `
     ${pageHead(t("general.title"))}
-    ${block(t("general.mcp"), [
-      row(
-        t("general.mcp"),
-        t("general.mcpDesc"),
-        switchEl("mcpServer", !!s.mcpServer),
-      ),
-      row(
-        t("general.mcpPort"),
-        t("general.mcpPortDesc"),
-        numberEl("mcpServerPort", s.mcpServerPort || 1455, 1, 65535),
-      ),
+    ${block(t("general.permissions"), [
+      row(t("general.defaultPermissions"), t("general.defaultPermissionsDesc"), switchEl("defaultPermissions", true, true)),
+      rowHtml(t("general.fullAccess"), '<span>' + escapeHtml(t("general.fullAccessDesc")) + '</span> <button type="button" class="link" data-action="sandboxing-docs">' + escapeHtml(t("general.learnMore")) + '</button> <span>' + escapeHtml(t("general.fullAccessRisk")) + '</span>', switchEl("fullAccess", !!s.fullAccess)),
     ])}
-    ${block(t("general.appBehavior"), [
-      row(
-        t("general.fileOpen"),
-        t("general.fileOpenDesc"),
-        selectEl(
-          "fileOpenDestination",
-          s.fileOpenDestination || "editor",
-          [
-            { value: "editor", label: t("label.editor") },
-            { value: "current-window", label: t("label.currentWindow") },
-            { value: "new-window", label: t("label.newWindow") },
-          ],
-          "wide",
-        ),
-      ),
-      row(
-        t("general.terminalShell"),
-        t("general.terminalShellDesc"),
-        selectEl(
-          "terminalShell",
-          s.terminalShell || s.shell || "powershell",
-          [
-            { value: "powershell", label: t("label.powershell") },
-            { value: "cmd", label: t("label.cmd") },
-            { value: "bash", label: t("label.bash") },
-          ],
-          "wide",
-        ),
-      ),
-      row(
-        t("general.language"),
-        t("general.languageDesc"),
-        selectEl(
-          "language",
-          normalizeLang(s.language || "en"),
-          languageOptions(),
-          "wide",
-        ),
-      ),
-      row(
-        t("general.bottomPanel"),
-        t("general.bottomPanelDesc"),
-        switchEl("bottomPanel", s.bottomPanel !== false),
-      ),
-      row(
-        t("general.import"),
-        t("general.importDesc"),
-        button(t("action.import"), "import-settings"),
-      ),
-      row(
-        t("general.export"),
-        t("general.exportDesc"),
-        button(t("action.export"), "export-settings"),
-      ),
-      row(
-        t("general.licenses"),
-        t("general.licensesDesc"),
-        button(t("action.view"), "licenses"),
-      ),
-      row(
-        t("general.testNotify"),
-        t("general.testNotifyDesc"),
-        button(t("action.send"), "test-notification"),
-      ),
+    ${block(t("general.generalSection"), [
+      rowHtml(t("general.noProjectFolder"), '<span>' + escapeHtml(t("general.noProjectFolderDesc")) + '</span> <span class="settings-path">' + escapeHtml(s.noProjectFolder || "") + '</span>', button(t("general.change"), "change-no-project-folder")),
+      row(t("general.defaultFileOpen"), t("general.defaultFileOpenDesc"), selectEl("fileOpenDestination", s.fileOpenDestination || "default-app", [{ value: "default-app", label: t("general.defaultApp") }], "wide")),
+      row(t("general.terminalShell"), t("general.terminalShellDesc"), selectEl("terminalShell", s.terminalShell || s.shell || "powershell", [{ value: "powershell", label: t("label.powershell") }, { value: "cmd", label: t("label.cmd") }, { value: "bash", label: t("label.bash") }], "wide")),
+      row(t("general.language"), t("general.languageDesc"), selectEl("language", s.language || "auto", [{ value: "auto", label: t("general.autoDetect") }].concat(languageOptions()), "wide")),
+      row(t("general.bottomPanel"), t("general.bottomPanelDesc"), switchEl("bottomPanel", !!s.bottomPanel)),
+      row(t("general.suggestions"), t("general.suggestionsDesc"), switchEl("contextualSuggestions", s.contextualSuggestions !== false)),
+      row(t("general.licenses"), t("general.licensesDesc"), button(t("action.view"), "licenses")),
+      row(t("general.plugins"), t("general.pluginsDesc"), switchEl("pluginsEnabled", s.pluginsEnabled !== false)),
     ])}
-    ${block(t("general.followUp"), [
-      row(
-        t("general.followUpMode"),
-        t("general.followUpModeDesc"),
-        segmented("followUpMode", s.followUpMode || "ask", [
-          { value: "ask", label: t("label.ask") },
-          { value: "auto", label: t("label.auto") },
-          { value: "off", label: t("label.off") },
-        ]),
-      ),
-      row(
-        t("general.suggested"),
-        t("general.suggestedDesc"),
-        switchEl("suggestedPrompts", s.suggestedPrompts !== false),
-      ),
+    ${block(t("general.editor"), [
+      row(t("general.plainText"), t("general.plainTextDesc"), switchEl("plainTextEditor", !!s.plainTextEditor)),
+      row(t("general.contextUsage"), "", switchEl("showContextUsage", !!s.showContextUsage)),
+      row(t("general.sendShortcut"), t("general.sendShortcutDesc"), selectEl("sendShortcut", s.sendShortcut || "enter", [{ value: "enter", label: t("general.sendOnEnter") }], "wide")),
+      row(t("general.followUp"), t("general.followUpDesc"), segmented("followUpMode", s.followUpMode || "steer", [{ value: "queue", label: t("general.queue") }, { value: "steer", label: t("general.steer") }])),
+    ])}
+    ${block(t("general.popup"), [
+      rowHtml(t("general.popupShortcut"), '<span>' + escapeHtml(t("general.popupShortcutDesc")) + '</span> <span class="settings-value" data-capture-value>' + escapeHtml(s.popupShortcut || t("label.off")) + '</span>', button(t("general.setShortcut"), "capture-popup-shortcut")),
+      row(t("general.defaultDetached"), t("general.defaultDetachedDesc"), switchEl("popupDetachedDefault", !!s.popupDetachedDefault)),
     ])}
     ${block(t("general.notifications"), [
-      row(
-        t("general.taskUpdates"),
-        t("general.taskUpdatesDesc"),
-        switchEl("notifyTaskUpdates", s.notifyTaskUpdates !== false),
-      ),
-      row(
-        t("general.scheduledRuns"),
-        t("general.scheduledRunsDesc"),
-        switchEl("notifyScheduled", s.notifyScheduled !== false),
-      ),
+      row(t("general.turnComplete"), t("general.turnCompleteDesc"), selectEl("turnCompleteNotify", s.turnCompleteNotify || "unfocused", [{ value: "always", label: t("general.alwaysNotify") }, { value: "unfocused", label: t("general.onlyUnfocused") }, { value: "never", label: t("general.neverNotify") }], "wide")),
+      row(t("general.enablePermNotify"), t("general.enablePermNotifyDesc"), switchEl("notifyPermissions", s.notifyPermissions !== false)),
+      row(t("general.enableQuestionNotify"), t("general.enableQuestionNotifyDesc"), switchEl("notifyQuestions", s.notifyQuestions !== false)),
+    ])}
+    ${block(t("general.fun"), [
+      row(t("general.confetti"), t("general.confettiDesc"), switchEl("confetti", !!s.confetti)),
     ])}`;
   wireInputs(root, saveSettings);
-  root
-    .querySelector("[data-action='import-settings']")
-    ?.addEventListener("click", async () => {
-      const snap = await callAction(t("toast.imported"), () =>
-        requireApi("ImportSettingsFromFile").then((fn) => fn()),
-      );
-      if (snap) await refreshStore();
-    });
-  root
-    .querySelector("[data-action='export-settings']")
-    ?.addEventListener("click", () => {
-      callAction(t("toast.exported"), () =>
-        requireApi("ExportSettingsToFile").then((fn) => fn()),
-      );
-    });
-  root
-    .querySelector("[data-action='licenses']")
-    ?.addEventListener("click", () => openExternal("assets/LICENSES.md"));
-  root
-    .querySelector("[data-action='test-notification']")
-    ?.addEventListener("click", () => {
-      callAction(t("toast.notified"), () =>
-        requireApi("SendTestNotification").then((fn) => fn()),
-      );
-    });
+  root.querySelector("[data-action='licenses']")?.addEventListener("click", () => openExternal("assets/LICENSES.md"));
+  root.querySelector("[data-action='sandboxing-docs']")?.addEventListener("click", () => openExternal("https://developers.openai.com/codex/sandboxing"));
+  root.querySelector("[data-action='change-no-project-folder']")?.addEventListener("click", async () => {
+    const picked = await api()?.SelectProjectDirectory?.();
+    if (picked) {
+      saveSettings({ noProjectFolder: picked });
+      const label = root.querySelector(".settings-path");
+      if (label) label.textContent = picked;
+    }
+  });
+  wireCaptureButton(root, "capture-popup-shortcut", saveSettings, "popupShortcut");
+}
+
+function renderImport(root) {
+  const s = store.settings;
+  root.innerHTML = `
+    ${pageHead(t("import.title"), t("import.desc"))}
+    ${block(t("import.autoSync"), [
+      row(t("import.keepSync"), t("import.keepSyncDesc"), switchEl("importKeepSync", !!s.importKeepSync)),
+      row(t("import.content"), t("import.contentDesc"), selectEl("importContent", s.importContent || "custom", [{ value: "custom", label: t("import.custom") }], "wide", true)),
+    ])}
+    ${block(t("import.fromApps"), [
+      row(t("import.fromApps"), t("import.noSettings"), button(t("import.importBtn"), "import-from-apps", "", true)),
+    ])}`;
+  wireInputs(root, saveSettings);
+}
+
+function renderAppshot(root) {
+  const s = store.settings;
+  root.innerHTML = `
+    ${pageHead(t("appshot.title"), t("appshot.desc"))}
+    <p class="settings-page-sub">${escapeHtml(t("appshot.lede"))}</p>
+    ${block("", [
+      row(t("appshot.shortcut"), t("appshot.shortcutDesc"), selectEl("appshotShortcut", s.appshotShortcut || "alt-alt", [{ value: "alt-alt", label: t("appshot.altAlt") }], "wide")),
+      row(t("appshot.target"), t("appshot.targetDesc"), selectEl("appshotTarget", s.appshotTarget || "auto", [{ value: "auto", label: t("appshot.auto") }], "wide")),
+      row(t("appshot.sound"), "", switchEl("appshotSound", s.appshotSound !== false)),
+      '<div class="settings-row is-disabled"><div class="settings-row-copy"><div class="settings-row-title">' + escapeHtml(t("appshot.noMedia")) + '</div></div></div>',
+    ])}`;
+  wireInputs(root, saveSettings);
 }
 
 function renderLanguage(root) {
@@ -671,53 +648,77 @@ function renderAppearance(root) {
     return `<div class="theme-options">${themes.map((th) => `<button class="theme-option ${currentTheme === th.id ? "is-active" : ""}" data-theme="${th.id}" type="button">${themePreview(th.id)}<div>${escapeHtml(th.label)}</div></button>`).join("")}</div>`;
   };
   const diffPreview = `<div class="diff-preview"><div class="diff-pane"><div class="diff-line del"><span class="line-no">1</span><code>const themePreview: ThemeConfig = {</code></div><div class="diff-line del"><span class="line-no">2</span><code>  surface: "sidebar",</code></div><div class="diff-line del"><span class="line-no">3</span><code>  accent: "#2563eb",</code></div><div class="diff-line del"><span class="line-no">4</span><code>  contrast: 42,</code></div><div class="diff-line del"><span class="line-no">5</span><code>};</code></div></div><div class="diff-pane"><div class="diff-line add"><span class="line-no">1</span><code>const themePreview: ThemeConfig = {</code></div><div class="diff-line add"><span class="line-no">2</span><code>  surface: "sidebar-elevated",</code></div><div class="diff-line add"><span class="line-no">3</span><code>  accent: "#0ea5e9",</code></div><div class="diff-line add"><span class="line-no">4</span><code>  contrast: 68,</code></div><div class="diff-line add"><span class="line-no">5</span><code>};</code></div></div></div>`;
+  const uiFontList = [
+    { value: "system", label: t("appearance.fontSystem") },
+    { value: "Segoe UI", label: "Segoe UI" },
+    { value: "Microsoft YaHei", label: "Microsoft YaHei" },
+    { value: "PingFang SC", label: "PingFang SC" },
+    { value: "OpenAI Sans", label: "OpenAI Sans" },
+  ];
+  const codeFontList = [
+    { value: "Cascadia Code", label: "Cascadia Code" },
+    { value: "Consolas", label: "Consolas" },
+    { value: "JetBrains Mono", label: "JetBrains Mono" },
+    { value: "Fira Code", label: "Fira Code" },
+  ];
   const themeCard = (label, themeKey) => {
     const tc = a[themeKey] || {};
-    const accent = tc.accent || "#339CFF";
-    const bg = tc.background || (themeKey === "lightTheme" ? "#FFFFFF" : "#1B1B1B");
-    const fg = tc.foreground || (themeKey === "lightTheme" ? "#1A1C1F" : "#FFFFFF");
-    const font = tc.uiFont || "-apple-system, BlinkM";
-    const contrast = tc.contrast || (themeKey === "lightTheme" ? 45 : 60);
-    const isDark = themeKey === "darkTheme";
+    const isLight = themeKey === "lightTheme";
+    const accent = tc.accent || (isLight ? "#2563eb" : "#0ea5e9");
+    const bg = tc.background || (isLight ? "#FFFFFF" : "#181818");
+    const fg = tc.foreground || (isLight ? "#1A1C1F" : "#FFFFFF");
+    const codeTheme = tc.codeTheme || "Codex";
+    const uiFont = tc.uiFont || "system";
+    const contentFont = tc.contentFont || "system";
+    const codeFont = tc.codeFont || "Cascadia Code";
+    const contrast = tc.contrast ?? (isLight ? 45 : 60);
+    const fontOpts = (cur, list) => list.map((f) => `<option value="${escapeHtml(f.value)}" ${f.value === cur ? "selected" : ""}>${escapeHtml(f.label)}</option>`).join("");
+    const styleSel = (field) => `<select class="theme-font-select" data-tfont="${themeKey}|${field}Style" disabled aria-label="${escapeHtml(label + " " + t("appearance.uiFont") + t("appearance.style"))}"><option>${escapeHtml(t("appearance.regular"))}</option></select>`;
     return `
     <div class="theme-card-block">
       <div class="theme-card-head">
         <span class="theme-card-label">${escapeHtml(label)}</span>
         <div class="theme-card-actions">
-          <button type="button" class="theme-card-btn">${escapeHtml(t("appearance.importTheme"))}</button>
-          <button type="button" class="theme-card-btn">${escapeHtml(t("appearance.copyTheme"))}</button>
-          <select class="theme-font-select"><option>Aa</option></select>
-          <span class="theme-font-name">${escapeHtml("Codex")}</span>
+          <button type="button" class="theme-card-btn" data-theme-import="${themeKey}">${escapeHtml(t(isLight ? "appearance.importLight" : "appearance.importDark"))}</button>
+          <button type="button" class="theme-card-btn" data-theme-copy="${themeKey}">${escapeHtml(t(isLight ? "appearance.copyLight" : "appearance.copyDark"))}</button>
         </div>
       </div>
       <div class="theme-card-row">
+        <span class="theme-card-field-label">${escapeHtml(t("appearance.codeTheme"))}</span>
+        <select class="theme-font-select" data-tfont="${themeKey}|codeTheme" aria-label="${escapeHtml(label + " " + t("appearance.codeTheme"))}"><option value="${escapeHtml(codeTheme)}" selected>${escapeHtml(codeTheme)}</option></select>
+      </div>
+      <div class="theme-card-row">
         <span class="theme-card-field-label">${escapeHtml(t("appearance.accent"))}</span>
-        <div class="theme-color-swatch" style="background:${accent}"><span>${accent}</span></div>
+        <div class="theme-color-wrap" data-tcolor-wrap><label class="theme-color-swatch" style="background:${accent}"><input type="color" data-tcolor="${themeKey}|accent" value="${accent}" aria-label="${escapeHtml(label + " " + t("appearance.accent"))}" /><span>${accent}</span></label></div>
       </div>
       <div class="theme-card-row">
         <span class="theme-card-field-label">${escapeHtml(t("appearance.background"))}</span>
-        <div class="theme-color-swatch ${isDark ? "dark-swatch" : ""}" style="background:${bg};color:${isDark ? "#fff" : "#333"}"><span>${bg}</span></div>
+        <div class="theme-color-wrap" data-tcolor-wrap><label class="theme-color-swatch" style="background:${bg}"><input type="color" data-tcolor="${themeKey}|background" value="${bg}" aria-label="${escapeHtml(label + " " + t("appearance.background"))}" /><span>${bg}</span></label><input type="text" class="theme-hex-input" data-tcolor="${themeKey}|background" value="${bg}" /></div>
       </div>
       <div class="theme-card-row">
         <span class="theme-card-field-label">${escapeHtml(t("appearance.foreground"))}</span>
-        <div class="theme-color-swatch ${isDark ? "dark-swatch" : ""}" style="background:${fg};color:${isDark ? "#000" : "#fff"}"><span>${fg}</span></div>
+        <div class="theme-color-wrap" data-tcolor-wrap><label class="theme-color-swatch" style="background:${fg}"><input type="color" data-tcolor="${themeKey}|foreground" value="${fg}" aria-label="${escapeHtml(label + " " + t("appearance.foreground"))}" /><span>${fg}</span></label><input type="text" class="theme-hex-input" data-tcolor="${themeKey}|foreground" value="${fg}" /></div>
       </div>
       <div class="theme-card-row">
         <span class="theme-card-field-label">${escapeHtml(t("appearance.uiFont"))}</span>
-        <span class="theme-card-field-value">${escapeHtml(font)}</span>
+        <div class="theme-font-pair"><select class="theme-font-select" data-tfont="${themeKey}|uiFont" aria-label="${escapeHtml(label + " " + t("appearance.uiFont"))}">${fontOpts(uiFont, uiFontList)}</select>${styleSel("uiFont")}</div>
+      </div>
+      <div class="theme-card-row">
+        <span class="theme-card-field-label">${escapeHtml(t("appearance.contentFont"))}</span>
+        <div class="theme-font-pair"><select class="theme-font-select" data-tfont="${themeKey}|contentFont" aria-label="${escapeHtml(label + " " + t("appearance.contentFont"))}">${fontOpts(contentFont, uiFontList)}</select>${styleSel("contentFont")}</div>
+      </div>
+      <div class="theme-card-row">
+        <span class="theme-card-field-label">${escapeHtml(t("appearance.codeFont"))}</span>
+        <div class="theme-font-pair"><select class="theme-font-select" data-tfont="${themeKey}|codeFont" aria-label="${escapeHtml(label + " " + t("appearance.codeFont"))}">${fontOpts(codeFont, codeFontList)}</select>${styleSel("codeFont")}</div>
       </div>
       <div class="theme-card-row">
         <span class="theme-card-field-label">${escapeHtml(t("appearance.contrast"))}</span>
-        <div class="theme-contrast-row"><input type="range" class="settings-range theme-contrast-range" min="0" max="100" value="${contrast}" data-theme-contrast="${themeKey}" /><span class="theme-contrast-value">${contrast}</span></div>
+        <div class="theme-contrast-row"><input type="range" class="settings-range theme-contrast-range" min="0" max="100" value="${contrast}" data-theme-contrast="${themeKey}" aria-label="${escapeHtml(label + " " + t("appearance.contrast"))}" /><span class="theme-contrast-value">${contrast}</span></div>
       </div>
     </div>`;
   };
-  const segmentedEl = (name, value, options) => {
-    const opts = options.map((o) => `<button type="button" class="segmented-opt ${value === o.value ? "is-active" : ""}" data-segmented="${name}" data-value="${o.value}">${escapeHtml(o.label)}</button>`).join("");
-    return `<div class="segmented">${opts}</div>`;
-  };
   const reduceMotionValue = a.reduceMotion === "on" ? "on" : a.reduceMotion === "off" ? "off" : "system";
-  const diffMarkersValue = a.diffMarkers === "color" ? "color" : a.diffMarkers === "plusminus" ? "plusminus" : "color";
+  const diffMarkersValue = a.diffMarkers === "plusminus" ? "plusminus" : "color";
   root.innerHTML = `
     ${pageHead(t("appearance.title"))}
     ${block(t("appearance.theme"), [themeOptions()])}
@@ -725,53 +726,19 @@ function renderAppearance(root) {
     ${blockCustom("", themeCard(t("appearance.lightTheme"), "lightTheme"))}
     ${blockCustom("", themeCard(t("appearance.darkTheme"), "darkTheme"))}
     ${block(t("appearance.prefs"), [
-      row(
-        t("appearance.pointer"),
-        t("appearance.pointerDesc"),
-        switchEl("pointerCursors", a.pointerCursors !== false),
-      ),
-      row(
-        t("appearance.reduceMotion"),
-        t("appearance.reduceMotionDesc"),
-        segmentedEl("reduceMotion", reduceMotionValue, [
-          { value: "system", label: t("appearance.system") },
-          { value: "on", label: t("appearance.on") },
-          { value: "off", label: t("appearance.off") },
-        ]),
-      ),
-      row(
-        t("appearance.uiFontSize"),
-        t("appearance.uiFontSizeDesc"),
-        `<div class="fontsize-input-row"><input type="number" class="fontsize-input" data-fontsize="uiFontSize" value="${a.uiFontSize || 14}" min="10" max="24" /><span class="fontsize-unit">px</span></div>`,
-      ),
-      row(
-        t("appearance.diffMarkers"),
-        t("appearance.diffMarkersDesc"),
-        segmentedEl("diffMarkers", diffMarkersValue, [
-          { value: "color", label: t("appearance.color") },
-          { value: "plusminus", label: "+/-" },
-        ]),
-      ),
+      row(t("appearance.pointer"), t("appearance.pointerDesc"), switchEl("pointerCursors", a.pointerCursors === true)),
+      row(t("appearance.reduceMotion"), t("appearance.reduceMotionDesc"), segmented("reduceMotion", reduceMotionValue, [{ value: "system", label: t("appearance.system") }, { value: "on", label: t("appearance.on") }, { value: "off", label: t("appearance.off") }])),
+      row(t("appearance.uiFontSize"), t("appearance.uiFontSizeDesc"), '<div class="fontsize-input-row"><input type="number" class="fontsize-input" data-fontsize="uiFontSize" aria-label="' + escapeHtml(t("appearance.sansSize")) + '" value="' + (a.uiFontSize || 14) + '" min="10" max="24" /><span class="fontsize-unit">px</span></div>'),
+      row(t("appearance.codeFontSize"), t("appearance.codeFontSizeDesc"), '<div class="fontsize-input-row"><input type="number" class="fontsize-input" data-fontsize="codeFontSize" aria-label="' + escapeHtml(t("appearance.codeFontSize")) + '" value="' + (a.codeFontSize || 13) + '" min="10" max="24" /><span class="fontsize-unit">px</span></div>'),
+      row(t("appearance.diffMarkers"), t("appearance.diffMarkersDesc"), segmented("diffMarkers", diffMarkersValue, [{ value: "color", label: t("appearance.color") }, { value: "plusminus", label: t("appearance.plusminus") }])),
     ])}`;
   root.querySelectorAll("[data-theme]").forEach((btn) =>
     btn.addEventListener("click", async () => {
-      root
-        .querySelectorAll("[data-theme]")
-        .forEach((b) => b.classList.toggle("is-active", b === btn));
+      root.querySelectorAll("[data-theme]").forEach((b) => b.classList.toggle("is-active", b === btn));
       await savePreferences("appearance", { theme: btn.dataset.theme });
       updateSettings({ theme: btn.dataset.theme });
       applyTheme();
-    }),
-  );
-  root.querySelectorAll("[data-segmented]").forEach((btn) =>
-    btn.addEventListener("click", async () => {
-      const name = btn.dataset.segmented;
-      const value = btn.dataset.value;
-      root
-        .querySelectorAll(`[data-segmented="${name}"]`)
-        .forEach((b) => b.classList.toggle("is-active", b === btn));
-      await savePreferences("appearance", { [name]: value });
-    }),
+    })
   );
   root.querySelectorAll("[data-fontsize]").forEach((input) =>
     input.addEventListener("change", async () => {
@@ -779,57 +746,125 @@ function renderAppearance(root) {
       if (val >= 10 && val <= 24) {
         await savePreferences("appearance", { [input.dataset.fontsize]: val });
       }
-    }),
+    })
   );
   root.querySelectorAll("[data-theme-contrast]").forEach((input) => {
     const valSpan = input.parentElement.querySelector(".theme-contrast-value");
-    input.addEventListener("input", () => {
-      if (valSpan) valSpan.textContent = input.value;
-    });
+    input.addEventListener("input", () => { if (valSpan) valSpan.textContent = input.value; });
     input.addEventListener("change", async () => {
       const key = input.dataset.themeContrast;
       const tc = a[key] || {};
       await savePreferences("appearance", { [key]: { ...tc, contrast: parseInt(input.value, 10) } });
     });
   });
+  root.querySelectorAll("[data-tfont]:not([disabled])").forEach((el) =>
+    el.addEventListener("change", async () => {
+      const parts = el.dataset.tfont.split("|");
+      const tc = a[parts[0]] || {};
+      await savePreferences("appearance", { [parts[0]]: { ...tc, [parts[1]]: el.value } });
+    })
+  );
+  root.querySelectorAll("[data-tcolor]").forEach((el) =>
+    el.addEventListener("change", async () => {
+      const parts = el.dataset.tcolor.split("|");
+      const tc = a[parts[0]] || {};
+      let val = el.value.trim();
+      if (el.type === "text" && !val.startsWith("#")) val = "#" + val;
+      await savePreferences("appearance", { [parts[0]]: { ...tc, [parts[1]]: val } });
+      const wrap = el.closest("[data-tcolor-wrap]");
+      if (wrap) {
+        const sw = wrap.querySelector(".theme-color-swatch");
+        if (sw) {
+          sw.style.background = val;
+          const sp = sw.querySelector("span");
+          if (sp) sp.textContent = val;
+        }
+        const hex = wrap.querySelector('input[type="text"]');
+        if (hex && hex !== el) hex.value = val;
+        const pick = wrap.querySelector('input[type="color"]');
+        if (pick && pick !== el && /^#[0-9a-fA-F]{6}$/.test(val)) pick.value = val;
+      }
+    })
+  );
+  root.querySelectorAll("[data-theme-import]").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      const key = btn.dataset.themeImport;
+      const inp = document.createElement("input");
+      inp.type = "file";
+      inp.accept = "application/json,.json";
+      inp.onchange = async () => {
+        const f = inp.files && inp.files[0];
+        if (!f) return;
+        try {
+          const obj = JSON.parse(await f.text());
+          await savePreferences("appearance", { [key]: { ...(a[key] || {}), ...obj } });
+          renderAppearance(root);
+        } catch (e) {
+          toast(String((e && e.message) || e));
+        }
+      };
+      inp.click();
+    })
+  );
+  root.querySelectorAll("[data-theme-copy]").forEach((btn) =>
+    btn.addEventListener("click", async () => {
+      const tc = a[btn.dataset.themeCopy] || {};
+      try {
+        await navigator.clipboard.writeText(JSON.stringify(tc, null, 2));
+        toast(t("toast.copied", "Copied"));
+      } catch (e) {
+        toast(String((e && e.message) || e));
+      }
+    })
+  );
   wireInputs(root, (patch) => savePreferences("appearance", patch));
 }
 
 function renderVoice(root) {
   const v = pref("voice", {});
+  const mics = [{ value: "default", label: t("voice.systemDefault") }].concat(
+    (store.audioDevices || []).filter((d) => d && d !== t("common.default")).map((d) => ({ value: d, label: d }))
+  );
+  const dict = Array.isArray(v.dictEntries) ? v.dictEntries : [""];
+  const dictRows = dict.map((w, i) => '<div class="settings-row dict-row"><input type="text" class="settings-input" data-dict="' + i + '" value="' + escapeHtml(w) + '" aria-label="' + escapeHtml(t("voice.dictEntry") + " " + (i + 1)) + '" /><button type="button" class="settings-button" data-dict-remove="' + i + '" aria-label="' + escapeHtml(t("voice.removeEntry") + " " + (i + 1)) + '"' + (dict.length <= 1 ? " disabled" : "") + '>' + escapeHtml(t("voice.remove")) + '</button></div>').join("");
   root.innerHTML = `
     ${pageHead(t("voice.title"))}
-    ${block(t("voice.input"), [
-      row(
-        t("voice.microphone"),
-        t("voice.microphoneDesc"),
-        selectEl(
-          "microphone",
-          v.microphone || t("common.default"),
-          (store.audioDevices || [t("common.default")]).map((d) => ({
-            value: d,
-            label: d,
-          })),
-          "wide",
-        ),
-      ),
-      row(
-        t("voice.hotkey"),
-        t("voice.hotkeyDesc"),
-        inputEl("hotkey", v.hotkey || "Ctrl+Shift+Space"),
-      ),
-      row(
-        t("voice.keepBar"),
-        t("voice.keepBarDesc"),
-        switchEl("keepBar", v.keepBar !== false),
-      ),
-      row(
-        t("voice.dictionary"),
-        t("voice.dictionaryDesc"),
-        inputEl("dictionary", v.dictionary || ""),
-      ),
+    ${block(t("voice.general"), [
+      row(t("voice.mic"), t("voice.micDesc"), selectEl("microphone", v.microphone || "default", mics, "wide")),
+    ])}
+    ${block(t("voice.chat"), [
+      row(t("voice.chatUnavailable"), t("voice.chatUnavailableDesc"), ""),
+    ])}
+    ${block(t("voice.dictation"), [
+      rowHtml(t("voice.holdKey"), '<span>' + escapeHtml(t("voice.holdKeyDesc")) + '</span> <span class="settings-value" data-capture-value>' + escapeHtml(v.holdKey || t("label.off")) + '</span>', button(t("voice.setHoldKey"), "capture-hold-key")),
+      rowHtml(t("voice.toggleKey"), '<span>' + escapeHtml(t("voice.toggleKeyDesc")) + '</span> <span class="settings-value" data-capture-value>' + escapeHtml(v.toggleKey || t("label.off")) + '</span>', button(t("voice.setToggleKey"), "capture-toggle-key")),
+      row(t("voice.dictionary"), t("voice.dictionaryDesc"), button(t("voice.addEntry"), "dict-add")),
+      dictRows,
+      row(t("voice.recent"), t("voice.recentDesc"), ""),
     ])}`;
-  wireInputs(root, (patch) => savePreferences("voice", patch));
+  const save = (patch) => savePreferences("voice", patch);
+  wireInputs(root, save);
+  wireCaptureButton(root, "capture-hold-key", save, "holdKey");
+  wireCaptureButton(root, "capture-toggle-key", save, "toggleKey");
+  root.querySelector("[data-action='dict-add']")?.addEventListener("click", async () => {
+    await savePreferences("voice", { dictEntries: dict.concat([""]) });
+    renderVoice(root);
+  });
+  root.querySelectorAll("[data-dict]").forEach((el) =>
+    el.addEventListener("change", () => {
+      const next = dict.slice();
+      next[Number(el.dataset.dict)] = el.value;
+      savePreferences("voice", { dictEntries: next });
+    })
+  );
+  root.querySelectorAll("[data-dict-remove]").forEach((btn) =>
+    btn.addEventListener("click", async () => {
+      const next = dict.slice();
+      next.splice(Number(btn.dataset.dictRemove), 1);
+      await savePreferences("voice", { dictEntries: next.length ? next : [""] });
+      renderVoice(root);
+    })
+  );
 }
 
 function renderAccount(root) {
@@ -1031,35 +1066,28 @@ function renderConfiguration(root) {
 
 function renderPersonalization(root) {
   const p = pref("personalization", {});
+  const agents = p.agents ?? "";
   root.innerHTML = `
-    ${pageHead(t("personalization.title"))}
-    ${block(t("personalization.personality"), [
-      row(
-        t("personalization.personality"),
-        t("personalization.personalityDesc"),
-        selectEl(
-          "personality",
-          p.personality || "friendly",
-          [
-            { value: "friendly", label: t("personality.friendly") },
-            { value: "concise", label: t("personality.concise") },
-            { value: "thorough", label: t("personality.thorough") },
-          ],
-          "wide",
-        ),
-      ),
-      row(
-        t("personalization.instructions"),
-        t("personalization.instructionsDesc"),
-        `<textarea class="settings-input" data-input="customInstructions" rows="4">${escapeHtml(p.customInstructions || "")}</textarea>`,
-      ),
-      row(
-        t("personalization.memory"),
-        t("personalization.memoryDesc"),
-        switchEl("memoryEnabled", p.memoryEnabled !== false),
-      ),
-    ])}`;
+    ${pageHead(t("personal.title"))}
+    ${blockCustom(t("personal.instructions"), '<p class="settings-page-sub">' + escapeHtml(t("personal.instructionsDesc")) + ' <button type="button" class="link" data-action="agents-docs">' + escapeHtml(t("personal.learnMore")) + '</button></p><textarea class="settings-textarea" data-agents aria-label="' + escapeHtml(t("personal.instructions")) + '">' + escapeHtml(agents) + '</textarea>', button(t("action.save"), "save-agents", "", true))}
+    ${blockCustom(t("personal.memory"), '<p class="settings-page-sub">' + escapeHtml(t("personal.memoryDesc")) + ' <button type="button" class="link" data-action="memory-docs">' + escapeHtml(t("personal.learnMore")) + '</button></p><div class="settings-card">' + row(t("personal.localMemory"), t("personal.localMemoryDesc"), switchEl("localMemory", !!p.localMemory)) + row(t("personal.toolMemory"), t("personal.toolMemoryDesc"), switchEl("toolMemory", true, true)) + row(t("personal.deleteMemory"), t("personal.deleteMemoryDesc"), button(t("action.delete"), "delete-memory")) + '</div>')}`;
   wireInputs(root, (patch) => savePreferences("personalization", patch));
+  const editor = root.querySelector("[data-agents]");
+  const saveBtn = root.querySelector("[data-action='save-agents']");
+  editor?.addEventListener("input", () => { if (saveBtn) saveBtn.disabled = editor.value === agents; });
+  saveBtn?.addEventListener("click", async () => {
+    await savePreferences("personalization", { agents: editor ? editor.value : agents });
+    if (saveBtn) saveBtn.disabled = true;
+    toast(t("toast.saved", "Saved"));
+  });
+  root.querySelector("[data-action='agents-docs']")?.addEventListener("click", () => openExternal("https://developers.openai.com/codex/guides/agents-md"));
+  root.querySelector("[data-action='memory-docs']")?.addEventListener("click", () => openExternal("https://developers.openai.com/codex/memories"));
+  root.querySelector("[data-action='delete-memory']")?.addEventListener("click", async () => {
+    try { await api()?.DeleteLocalMemories?.(); } catch (e) {}
+    await savePreferences("personalization", { localMemory: false });
+    toast(t("personal.deleted"));
+    renderPersonalization(root);
+  });
 }
 
 function petThumbUrl(pet) {
@@ -1070,66 +1098,42 @@ function petThumbUrl(pet) {
 }
 
 function renderPets(root) {
+  const PETS = [
+    { id: "mini", name: "杩蜂綘", desc: "杞婚噺绾?Codex 浼欎即" },
+    { id: "codex", name: "Codex", desc: "The original Codex companion." },
+    { id: "dewey", name: "Dewey", desc: "A calm companion for focused workspace days" },
+    { id: "fireball", name: "Fireball", desc: "Hot path energy for fast iteration." },
+    { id: "hoots", name: "Hoots", desc: "A sharp-eyed owl for polished work in a blink." },
+    { id: "rocky", name: "Rocky", desc: "A steady rock when the diff gets large." },
+    { id: "seedy", name: "Seedy", desc: "Small green shoots for new ideas." },
+    { id: "stacky", name: "Stacky", desc: "A balanced stack for deep work." },
+    { id: "bsod", name: "BSOD", desc: "A tiny blue-screen gremlin." },
+    { id: "null-signal", name: "Null Signal", desc: "Quiet signal from the void." },
+  ];
   const p = pref("pets", {});
-  const selected = p.selected || "codex";
-  const pets = store.pets || [];
-  const asleep = !!p.asleep;
-  const petRows = pets
-    .map((pet) => {
-      const isSelected = pet.id === selected;
-      const url = petThumbUrl(pet);
-      return `<div class="pet-item" data-pet-id="${escapeHtml(pet.id)}">
-        <div class="pet-sprite" style="${url ? `background-image:url('${escapeHtml(url)}')` : ""}"></div>
-        <div>
-          <div class="pet-item-name">${escapeHtml(pet.name || pet.id)}</div>
-          <div class="pet-item-desc">${escapeHtml(pet.desc || "")}</div>
-        </div>
-        <button type="button" class="settings-button ${isSelected ? "subtle" : ""}" data-select-pet="${escapeHtml(pet.id)}" ${isSelected ? "disabled" : ""}>${escapeHtml(isSelected ? t("pets.selected") || "Selected" : t("action.select") || "Select")}</button>
-      </div>`;
-    })
-    .join("");
+  const active = p.active || "codex";
+  const customs = Array.isArray(p.custom) ? p.custom : [];
+  const all = PETS.concat(customs);
+  const cards = all.map((pet) => '<button type="button" class="pet-card' + (active === pet.id ? " is-active" : "") + '" data-pet="' + pet.id + '" aria-pressed="' + (active === pet.id) + '"><span class="pet-name">' + escapeHtml(pet.name) + '</span><span class="pet-desc">' + escapeHtml(pet.desc) + '</span></button>').join("");
   root.innerHTML = `
-    ${pageHead(t("pets.title"))}
-    ${block(
-      t("pets.pick") || "Pick a pet",
-      [
-        `<div class="pet-list">${petRows || `<div class="settings-card site-empty">${escapeHtml(t("pets.empty") || "No pets")}</div>`}</div>`,
-      ],
-      `<div class="pet-toolbar">
-        <button type="button" class="settings-button" data-action="pet-create">${escapeHtml(t("pets.create") || "Create")}</button>
-        <button type="button" class="settings-button" data-action="pet-wake">${escapeHtml(asleep ? t("pets.wake") || "Wake Pet" : t("pets.tuck") || "Tuck Away")}</button>
-      </div>`,
-    )}
-    ${block(t("pets.custom") || "Custom pets", [
-      row(
-        t("pets.directory") || "Directory",
-        t("pets.directoryDesc") || "",
-        button(t("action.open") || "Open folder", "pet-open-folder"),
-      ),
-      row(t("pets.size"), t("pets.sizeDesc") || "", rangeEl("size", p.size || 100, 50, 200)),
-    ])}`;
+    ${pageHead(t("pets.title"), t("pets.desc"))}
+    ${blockCustom("", '<div class="pet-top-row">' + button(t("pets.show"), "show-pet", "primary") + selectEl("petVariant", p.variant || "custom", [{ value: "custom", label: t("pets.custom") }], "") + '</div>')}
+    ${blockCustom(t("pets.mine"), '<div class="pet-actions-row">' + button(t("pets.refresh"), "pets-refresh") + button(t("pets.create"), "pet-create") + '</div><div class="pet-grid">' + cards + '</div>')}`;
   wireInputs(root, (patch) => savePreferences("pets", patch));
-  root.querySelectorAll("[data-select-pet]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      await savePreferences("pets", { selected: btn.dataset.selectPet, asleep: false });
-      renderPets(root);
-    });
-  });
-  root.querySelector("[data-action='pet-wake']")?.addEventListener("click", async () => {
-    await savePreferences("pets", { asleep: !asleep });
-    toast(asleep ? t("pets.awake") : t("pets.tucked"));
-    renderPets(root);
-  });
+  root.querySelector("[data-action='show-pet']")?.addEventListener("click", () => document.dispatchEvent(new CustomEvent("codex:show-pet")));
+  root.querySelector("[data-action='pets-refresh']")?.addEventListener("click", () => renderPets(root));
   root.querySelector("[data-action='pet-create']")?.addEventListener("click", async () => {
-    const file = await api()?.PickPetSpritesheet?.();
-    if (!file) return;
-    toast(t("pets.registered"));
-    await refreshStore();
+    const n = customs.length + 1;
+    await savePreferences("pets", { custom: customs.concat([{ id: "custom-" + Date.now(), name: t("pets.custom") + " " + n, desc: "" }]) });
     renderPets(root);
   });
-  root.querySelector("[data-action='pet-open-folder']")?.addEventListener("click", async () => {
-    await api()?.OpenPetsFolder?.();
-  });
+  root.querySelectorAll("[data-pet]").forEach((btn) =>
+    btn.addEventListener("click", async () => {
+      await savePreferences("pets", { active: btn.dataset.pet });
+      document.dispatchEvent(new CustomEvent("codex:pet-changed", { detail: btn.dataset.pet }));
+      renderPets(root);
+    })
+  );
 }
 
 function renderShortcuts(root) {

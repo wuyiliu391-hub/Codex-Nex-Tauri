@@ -66,16 +66,27 @@
   --radius-token-composer-single-line: calc(var(--official-spacing) * 5.5); /* 22px */
   --radius-composer-multiline: calc(1.25rem * 1.25); /* radius-3xl-base * codex-corner-radius-scale */
   --spacing-token-button-composer: calc(var(--official-spacing) * 7); /* 28px */
-  --elevation-prominent-official: 0 0 0 0.5px rgba(0, 0, 0, 0.08), 0 3px 7.5px rgba(0, 0, 0, 0.04), 0 0 20px rgba(0, 0, 0, 0.05);
+  --elevation-prominent-official: 0 0 0 0.5px #00000008, 0 3px 7.5px #0000000a, 0 0 20px #0000000d;
 
   color-scheme: light;
 
-  /* Official Codex UI font stack (--font-sans-default) */
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Segoe UI Variable",
+  /* Official Codex font stacks (app-dddf03d14541.css)
+     --font-sans-default / --font-mono-default are the non-VS Code fallbacks.
+     Official also defines --font-openai-sans: "OpenAI Sans", var(--font-sans-default).
+     --font-ui-family is the runtime UI stack (vscode bridge | inherit | sans-default).
+     Codex-Tauri resolves --font-ui-family to bundled OpenAISans + CJK-safe fallbacks. */
+  --font-sans-default: -apple-system-body, ui-sans-serif, -apple-system, system-ui,
+    "Segoe UI", "Helvetica", "Arial", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+  --font-mono-default: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+  --font-openai-sans: "OpenAI Sans", var(--font-sans-default);
+  --font-ui-family: "OpenAI Sans", "Segoe UI Variable", "Segoe UI",
     "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei",
-    "Noto Sans SC", system-ui, sans-serif;
-  --font-brand: "OpenAI Sans", var(--font-sans);
-  --font-mono: "Carlito", "Cascadia Mono", "SF Mono", ui-monospace, Consolas, monospace;
+    "Noto Sans SC", var(--font-sans-default);
+  --font-code-family: "Carlito", "Cascadia Mono", "SF Mono", var(--font-mono-default);
+  --font-sans: var(--font-ui-family, var(--font-sans-default));
+  --font-brand: var(--font-openai-sans);
+  --font-mono: var(--font-code-family, var(--font-mono-default));
   font-family: var(--font-sans);
   font-weight: var(--font-weight-body);
   color: var(--fg-primary, #1a1c1f);
@@ -160,11 +171,26 @@
   --ease-enter: cubic-bezier(.19, 1, .22, 1);
   --ease-enter-snappy: cubic-bezier(.23, 1, .32, 1);
 
-  /* Toolbar heights */
-  --height-toolbar: 46px;       /* official */
-  --height-toolbar-sm: 36px;    /* official titlebar */
+  /* Toolbar heights (official app-dddf03d14541.css) */
+  --height-toolbar: 46px;       /* electron chrome */
+  --height-toolbar-sm: 36px;    /* titlebar / extension */
   --height-toolbar-pane: 40px;
-  --height-token-nav-row: 30px; /* official sidebar row */
+  --inset-toolbar: var(--height-toolbar);
+  --inset-toolbar-sm: var(--height-toolbar-sm);
+  --height-token-nav-row: 30px; /* official .sidebar-navigation */
+  --height-token-row: var(--height-token-nav-row);
+  --radius-token-row: 10px;     /* official .sidebar-navigation default */
+
+  /* Sidebar width (official --spacing-token-sidebar) */
+  --codex-sidebar-preferred-width: 275px;
+  --spacing-token-sidebar: clamp(
+    240px,
+    var(--codex-sidebar-preferred-width, 275px),
+    min(520px, calc(100vw - 320px))
+  );
+
+  /* Official elevation (app-*.css --elevation-*) */
+  --elevation-stroke-official: 0 0 0 0.5px #00000008;
 
   /* Classic theme surfaces (light) */
   --surface-app-light: #ffffff; /* official surface */
@@ -340,6 +366,13 @@
   --semantic-composer-icon-button-surface-hover-dark: rgba(255, 255, 255, 0.06);
   --semantic-composer-icon-button-text-dark: #ffffff;
 
+  /* Theme-resolved composer aliases (prefer these in component CSS) */
+  --semantic-composer-surface: var(--semantic-composer-surface-light);
+  --semantic-composer-border: var(--semantic-composer-border-light);
+  --semantic-composer-button-surface: var(--semantic-composer-button-surface-light);
+  --semantic-composer-button-text: var(--semantic-composer-button-text-light);
+  --semantic-composer-icon-button-text: var(--semantic-composer-icon-button-text-light);
+
   /* Semantic: dropdown menu */
   --semantic-dropdown-menu-surface-light: #fafafa;
   --semantic-dropdown-menu-surface-dark: #252525;
@@ -495,7 +528,10 @@
   --gray-50:  #f9f9f9;
   --gray-75:  #f3f3f3;
   --gray-100: #ededed;
+  --gray-150: #dfdfdf; /* official --gray-fixed-150 */
+  --gray-200: #cdcdcd;
   --gray-300: #afafaf;
+  --gray-400: #8f8f8f;
   --gray-500: #5d5d5d;
   --gray-550: #4f4f4f;
   --gray-600: #414141;
@@ -503,10 +539,13 @@
   --gray-750: #282828;
   --gray-800: #212121;
   --gray-900: #181818;
+  --gray-950: #131313; /* official dark canvas floor */
   --gray-1000:#0d0d0d;
   --elevation-stroke: 0 0 0 .5px rgba(0,0,0,.08);
-  --elevation-prominent: var(--elevation-stroke), 0 3px 7.5px rgba(0,0,0,.04), 0 0 20px rgba(0,0,0,.05);
-  --elevation-sidebar: var(--elevation-stroke), 0 3px 7.5px rgba(0,0,0,.03), 0 0 16px rgba(0,0,0,.02);
+  /* Official: var(--elevation-stroke), 0 3px 7.5px #0000000a, 0 0 20px #0000000d */
+  --elevation-prominent: 0 0 0 0.5px #00000008, 0 3px 7.5px #0000000a, 0 0 20px #0000000d;
+  /* Official: var(--elevation-stroke), 0 3px 7.5px #00000008, 0 0 16px #00000005 */
+  --elevation-sidebar: 0 0 0 0.5px #00000008, 0 3px 7.5px #00000008, 0 0 16px #00000005;
   --elevation-menu: 0 4px 16px rgba(0,0,0,.12), 0 0 0 .5px rgba(0,0,0,.06);
   --elevation-toast: 0 8px 24px rgba(0,0,0,.16), 0 0 0 .5px rgba(0,0,0,.08);
   --radius-md-base: 8px;
@@ -557,20 +596,43 @@ html.theme-dark {
   --success: #65a30d;
   --warning: #b45309;
   --danger: #9f1239;
+  /* Dark dual of light-gray scale (official lightningcss dual) */
+  --gray-0: #0d0d0d;
+  --gray-50: #131313;
+  --gray-75: #161616;
+  --gray-100: #181818;
+  --gray-200: #212121;
+  --gray-300: #303030;
+  --gray-400: #414141;
+  --gray-600: #8f8f8f;
+  --gray-700: #afafaf;
+  --gray-800: #cdcdcd;
+  --gray-900: #ededed;
+  --gray-950: #f3f3f3;
+  --gray-1000: #ffffff;
+  /* Theme-resolved composer */
+  --semantic-composer-surface: var(--semantic-composer-surface-dark);
+  --semantic-composer-border: var(--semantic-composer-border-dark);
+  --semantic-composer-button-surface: var(--semantic-composer-button-surface-dark);
+  --semantic-composer-button-text: var(--semantic-composer-button-text-dark);
+  --semantic-composer-icon-button-text: var(--semantic-composer-icon-button-text-dark);
 }
 
-/* Font family switch hooks */
+/* Font family switch hooks — rewrite --font-ui-family only */
 html[data-font-family="system"] {
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-ui-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 html[data-font-family="segoe"] {
-  --font-sans: "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+  --font-ui-family: "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
 }
 html[data-font-family="microsoft-yahei"] {
-  --font-sans: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif;
+  --font-ui-family: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif;
 }
 html[data-font-family="pingfang"] {
-  --font-sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+  --font-ui-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+}
+html[data-font-family="openai"] {
+  --font-ui-family: var(--font-openai-sans);
 }
 
 /* Contrast overrides */

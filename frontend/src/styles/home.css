@@ -1,4 +1,4 @@
-﻿/* Home / Composer / Project picker */
+/* Home / Composer / Project picker */
 
 .view-home {
   align-items: stretch;
@@ -18,13 +18,15 @@
   flex-direction: column;
   overflow: hidden;
 }
-/* Empty state: hero + composer centered together as one vertical block. */
+/* Empty state: hero + composer centered together as one vertical block.
+   Official empty-state page floor: --height-token-empty-state-page = 26.25rem. */
 .home-main-col.is-empty {
   /* official: mx-auto max-w-3xl flex-col justify-center gap-3 px-panel py-6 */
   justify-content: center;
   align-items: center;
   gap: 12px;
   padding: 24px var(--padding-panel, 20px);
+  min-height: var(--height-token-empty-state-page, 26.25rem);
   box-sizing: border-box;
 }
 /* History / live chat: pin messages to top, never reserve hero space. */
@@ -79,7 +81,7 @@
 
 .home-center {
   width: 100%;
-  max-width: 48rem; /* max-w-3xl / thread-content-max-width */
+  max-width: var(--thread-content-max-width, 48rem); /* official electron --thread-content-max-width */
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -118,10 +120,10 @@
   opacity: 0.4;
 }
 .home-title {
-  /* official: heading-xl font-normal text-token-foreground */
+  /* official .heading-xl: font-size var(--text-xl), font-weight medium, line-height 1.2 */
   font-size: var(--text-xl, 28px);
-  line-height: var(--leading-heading, 1.2);
-  font-weight: var(--font-weight-normal, 400);
+  line-height: 1.2;
+  font-weight: var(--font-weight-medium, 500);
   letter-spacing: -0.01em;
   margin: 0;
   color: var(--fg-primary, #1a1c1f);
@@ -287,7 +289,7 @@
 .composer-shell {
   position: relative;
   z-index: 2;
-  background: var(--semantic-composer-surface-light, #fff);
+  background: var(--semantic-composer-surface, var(--semantic-composer-surface-light, #fff));
   /* Electron: border via elevation stroke, not 1px solid */
   border: 0;
   border-radius: var(--radius-token-composer-single-line, 22px);
@@ -323,7 +325,7 @@
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-bottom: 0;
   border-radius: 16px 16px 0 0;
-  background: color-mix(in srgb, var(--semantic-composer-surface-light, #fff) 70%, transparent);
+  background: color-mix(in srgb, var(--semantic-composer-surface, var(--semantic-composer-surface-light, #fff)) 70%, transparent);
   backdrop-filter: blur(8px);
   box-sizing: border-box;
 }

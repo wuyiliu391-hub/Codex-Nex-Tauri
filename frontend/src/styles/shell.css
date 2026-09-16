@@ -79,7 +79,8 @@ html.theme-dark :focus-visible {
 #app {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(240px, 275px) minmax(0, 1fr);
+  /* official --spacing-token-sidebar; fallback minmax matches preferred 240–275 */
+  grid-template-columns: var(--spacing-token-sidebar, minmax(240px, 275px)) minmax(0, 1fr);
   grid-template-rows: 1fr;
   width: 100vw;
   height: calc(100vh - var(--height-toolbar-sm));
@@ -521,7 +522,8 @@ html.theme-dark .brand-title {
   letter-spacing: 0;
 }
 .task-section-head { margin-top: 6px; }
-.task-list-empty {
+.task-list-empty,
+.project-list-empty {
   padding: 4px 10px;
   font-size: var(--text-sm);
   font-weight: 400;

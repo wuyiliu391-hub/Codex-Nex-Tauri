@@ -1,0 +1,515 @@
+
+############ t24b-appear ############
+== uia-tree-20260916-163507-t24b-appear.json nodes=214
+12:Text '外观'
+11:Text '主题'
+11:Group '主题'
+  12:RadioButton '系统'
+  12:Text '系统'
+  12:RadioButton '浅色'
+  12:Text '浅色'
+  12:RadioButton '深色'
+  12:Text '深色'
+12:Text '1'
+12:Text '2'
+12:Text '3'
+12:Text '4'
+12:Text '5'
+12:Text 'const'
+12:Text ' themePreview'
+12:Text ':'
+12:Text ' ThemeConfig'
+12:Text ' =' OFF
+12:Text ' {' OFF
+12:Text '  surface'
+12:Text ':'
+12:Text ' "sidebar"'
+12:Text ','
+12:Text '  accent'
+12:Text ':'
+12:Text ' "#2563eb"'
+12:Text ','
+12:Text '  contrast'
+12:Text ':'
+12:Text ' 42'
+12:Text ','
+12:Text '};'
+12:Text '1'
+12:Text '2'
+12:Text '3'
+12:Text '4'
+12:Text '5'
+12:Text 'const'
+12:Text ' themePreview'
+12:Text ':'
+12:Text ' ThemeConfig'
+12:Text ' =' OFF
+12:Text ' {' OFF
+12:Text '  surface'
+12:Text ':'
+12:Text ' "sidebar-elevated"'
+12:Text ',' OFF
+12:Text '  accent'
+12:Text ':'
+12:Text ' "#0ea5e9"'
+12:Text ','
+12:Text '  contrast'
+12:Text ':'
+12:Text ' 68'
+12:Text ','
+12:Text '};'
+11:Group '浅色主题'
+  12:Text '浅色主题' #_r_1pi_
+  12:Button '导入浅色主题'
+  12:Button '复制浅色主题'
+  12:Button '浅色 代码主题' #radix-_r_1pk_ exp=Collapsed
+  12:Text '强调色' OFF
+  12:Button '浅色 强调色' #radix-_r_1pn_ exp=Collapsed OFF
+  12:Text '背景' OFF
+  12:Button '浅色 背景颜色' exp=Collapsed OFF
+  12:Edit '浅色 背景颜色' val="#FFFFFF" OFF
+  12:Text '前景' OFF
+  12:Button '浅色 墨迹颜色' exp=Collapsed OFF
+  12:Edit '浅色 墨迹颜色' val="#1A1C1F" OFF
+  12:Text 'UI 字体' OFF
+  12:Button '浅色 UI 字体' #radix-_r_1qr_ exp=Collapsed OFF
+  12:Button '浅色 UI 字体样式' #radix-_r_1qt_ exp=Collapsed OFF DIS
+  12:Text '内容字体' OFF
+  12:Button '浅色 内容字体' #radix-_r_1qv_ exp=Collapsed OFF
+  12:Button '浅色 内容字体样式' #radix-_r_1r1_ exp=Collapsed OFF DIS
+  12:Text '代码字体' OFF
+  12:Button '浅色 代码字体' #radix-_r_1r3_ exp=Collapsed OFF
+  12:Button '浅色 代码字体样式' #radix-_r_1r5_ exp=Collapsed OFF DIS
+  12:Text '对比度' OFF
+  12:Slider '浅色 对比度' val="45" OFF
+  12:Text '45' OFF
+11:Group '深色主题' OFF
+  12:Text '深色主题' #_r_1q4_ OFF
+  12:Button '导入深色主题' OFF
+  12:Button '复制深色主题' OFF
+  12:Button '深色 代码主题' #radix-_r_1q6_ exp=Collapsed OFF
+  12:Text '强调色' OFF
+  12:Button '深色 强调色' #radix-_r_1q9_ exp=Collapsed OFF
+  12:Text '背景' OFF
+  12:Button '深色 背景颜色' exp=Collapsed OFF
+  12:Edit '深色 背景颜色' val="#181818" OFF
+  12:Text '前景' OFF
+  12:Button '深色 墨迹颜色' exp=Collapsed OFF
+  12:Edit '深色 墨迹颜色' val="#FFFFFF" OFF
+  12:Text 'UI 字体' OFF
+  12:Button '深色 UI 字体' #radix-_r_1r7_ exp=Collapsed OFF
+  12:Button '深色 UI 字体样式' #radix-_r_1r9_ exp=Collapsed OFF DIS
+  12:Text '内容字体' OFF
+  12:Button '深色 内容字体' #radix-_r_1rb_ exp=Collapsed OFF
+  12:Button '深色 内容字体样式' #radix-_r_1rd_ exp=Collapsed OFF DIS
+  12:Text '代码字体' OFF
+  12:Button '深色 代码字体' #radix-_r_1rf_ exp=Collapsed OFF
+  12:Button '深色 代码字体样式' #radix-_r_1rh_ exp=Collapsed OFF DIS
+  12:Text '对比度' OFF
+  12:Slider '深色 对比度' val="60" OFF
+  12:Text '60' OFF
+11:Text '偏好设置' OFF
+11:Text '使用指针光标' OFF
+11:Text '悬停交互元素时切换为指针光标' OFF
+11:Button '使用指针光标' tog=Off OFF
+11:Text '减少动态效果' OFF
+11:Text '减少动画效果或匹配系统设置' OFF
+12:Button '系统' tog=On OFF
+12:Button '开启' tog=Off OFF
+12:Button '关闭' tog=Off OFF
+11:Text 'UI 字号' OFF
+11:Text '调整 ChatGPT 界面使用的基准字号' OFF
+11:Spinner '无衬线字体大小' val="14" OFF
+11:Text 'px' OFF
+11:Text '代码字体大小' OFF
+11:Text '调整聊天和差异视图中代码使用的基础字号' OFF
+11:Spinner '代码字体大小' val="13" OFF
+11:Text 'px' OFF
+11:Text '差异标记' OFF
+11:Text '使用颜色或 +/− 标记显示更改' OFF
+12:Button '颜色差异标记' tog=On OFF
+12:Button '加号/减号差异标记' tog=Off OFF
+11:StatusBar '' #DndLiveRegion-15 OFF
+-- lines=129
+
+############ t24c-voice ############
+== uia-tree-20260916-163519-t24c-voice.json nodes=111
+12:Text '语音'
+11:Text '常规'
+11:Text '麦克风'
+11:Text '用于语音聊天和听写'
+11:Button '系统默认' #radix-_r_1rk_ exp=Collapsed
+11:Text '语音聊天'
+11:Text '语音聊天不可用'
+11:Text '你的账户或工作空间无法使用语音聊天'
+11:Text '听写'
+11:Text '按住听写快捷键'
+11:Text '在桌面任意位置按住，即可在光标处听写'
+11:Text '关闭'
+11:Button '为 按住听写快捷键 设置快捷键'
+11:Text '切换听写快捷键' OFF
+11:Text '在桌面任意位置按一次开始听写，再按一次停止' OFF
+11:Text '关闭' OFF
+11:Button '为 切换听写快捷键 设置快捷键' OFF
+11:Text '听写词典' OFF
+11:Text '听写应能识别的单词或短语' OFF
+11:Button '添加条目' OFF
+11:Edit '词典条目 1' OFF
+11:Button '移除词典条目 1' OFF DIS
+11:Text '最近录音' OFF
+11:Text '你最近的 20 段录音会保存在此设备上' OFF
+11:StatusBar '' #DndLiveRegion-15 OFF
+-- lines=25
+
+############ t24d-config ############
+== uia-tree-20260916-163531-t24d-config.json nodes=126
+12:Text '配置'
+12:Text '配置新聊天的权限、网页访问和智能体回复 '
+12:Hyperlink '了解更多' val="https://developers.openai.com/codex/config-basic"
+11:Text '智能体默认设置'
+11:Button '用户配置' #radix-_r_1s3_ exp=Collapsed
+11:Button '打开 config.toml'
+11:Text '批准策略'
+11:Text '选择 ChatGPT 何时请求批准'
+11:Button '按请求' #radix-_r_1s6_ exp=Collapsed
+11:Text '沙盒设置'
+11:Text '选择 ChatGPT 运行命令时的权限范围'
+11:Button '只读' #radix-_r_1s9_ exp=Collapsed
+11:Text '网页搜索'
+11:Text '选择 ChatGPT 访问网络的方式'
+11:Button '网页搜索' #radix-_r_1sc_ exp=Collapsed
+11:Text '输出详细程度'
+11:Text '选择 ChatGPT 回复包含细节的详细程度'
+11:Button '输出详细程度' #radix-_r_1sf_ exp=Collapsed
+11:Text '推理摘要'
+11:Text '选择 ChatGPT 总结其推理的方式' OFF
+11:Button '推理摘要' #radix-_r_1si_ exp=Collapsed
+11:Text '模型功能' OFF
+11:Text '可用推理强度' OFF
+11:Text '选择在模型控件中显示哪些推理强度级别。可用性因模型而异' OFF
+11:Button '已选择 5 个' #radix-_r_1sl_ exp=Collapsed OFF
+11:Text '模型选择器滑块中的 Ultra' OFF
+11:Text '将 Ultra 显示为滑块最高档选项' OFF
+11:Button '在模型选择器滑块中显示 Ultra' tog=Off OFF DIS
+11:Text '工作空间依赖项' OFF
+11:Text 'Codex 依赖项' OFF
+11:Text '允许 ChatGPT 安装并提供随附的 Node.js 和 Python 工具' OFF
+11:Button '启用 Codex 依赖项' tog=On OFF
+11:Text '诊断 Codex 工作空间中的问题' OFF
+11:Text '检查当前捆绑包并记录诊断日志' OFF
+11:Button '诊断' OFF
+11:Text '重置并安装工作空间' OFF
+11:Text '下载新的软件包并安装，然后重新加载工具' OFF
+11:Button '重新安装' OFF
+11:Text '当前版本：' OFF
+11:Text '26.905.11957' OFF
+11:StatusBar '' #DndLiveRegion-15 OFF
+-- lines=41
+
+############ t24e-personal ############
+== uia-tree-20260916-163543-t24e-personal.json nodes=101
+12:Text '个性化'
+11:Text 'Codex 说明'
+11:Text '为所有聊天向 Codex 提供额外说明和上下文。代码仓库说明也可能适用。'
+11:Hyperlink '了解更多' val="https://developers.openai.com/codex/guides/agents-md/#create.."
+11:Button '保存' DIS
+11:Edit 'Codex 说明' #personal-agents-editor
+11:Text 'Codex 记忆'
+11:Text '配置 Codex 如何管理此计算机上的记忆。'
+11:Hyperlink '了解更多' val="https://developers.openai.com/codex/memories"
+11:Text '启用本地记忆'
+11:Text '根据此电脑上的聊天创建记忆，并用于个性化该电脑上的后续聊天'
+11:Button '启用本地记忆' tog=Off
+11:Text '允许基于工具辅助聊天生成本地记忆'
+11:Text '从使用过 MCP 工具或网页搜索的聊天生成记忆' OFF
+11:Button '允许基于工具辅助聊天生成本地记忆' tog=On OFF DIS
+11:Text '删除本地记忆' OFF
+11:Text '删除存储在此电脑本地的所有记忆' OFF
+11:Button '删除' OFF
+11:StatusBar '' #DndLiveRegion-15 OFF
+-- lines=19
+
+############ t24f-pet ############
+== uia-tree-20260916-163554-t24f-pet.json nodes=121
+12:Text '宠物'
+12:Text '虚拟宠物可让你快速访问 ChatGPT。按下 Alt+Win+P 即可显示并聚焦你的虚拟宠物。'
+12:Button '显示虚拟宠物'
+11:Button '自定义' exp=Collapsed
+11:Text '我的宠物'
+11:Button '刷新'
+11:Button '创建虚拟宠物'
+11:Button '迷你 轻量级 Codex 伙伴' tog=Off
+  12:Text '迷你' OFF
+  12:Text '轻量级 Codex 伙伴' OFF
+11:Button 'Codex The original Codex companion.' tog=On
+  12:Text 'Codex' OFF
+  12:Text 'The original Codex companion.' OFF
+11:Button 'Dewey A calm companion for focused workspace days' tog=Off OFF
+  12:Text 'Dewey' OFF
+  12:Text 'A calm companion for focused workspace days' OFF
+11:Button 'Fireball Hot path energy for fast iteration.' tog=Off OFF
+  12:Text 'Fireball' OFF
+  12:Text 'Hot path energy for fast iteration.' OFF
+11:Button 'Hoots A sharp-eyed owl for polished work in a blink.' tog=Off OFF
+  12:Text 'Hoots' OFF
+  12:Text 'A sharp-eyed owl for polished work in a blink.' OFF
+11:Button 'Rocky A steady rock when the diff gets large.' tog=Off OFF
+  12:Text 'Rocky' OFF
+  12:Text 'A steady rock when the diff gets large.' OFF
+11:Button 'Seedy Small green shoots for new ideas.' tog=Off OFF
+  12:Text 'Seedy' OFF
+  12:Text 'Small green shoots for new ideas.' OFF
+11:Button 'Stacky A balanced stack for deep work.' tog=Off OFF
+  12:Text 'Stacky' OFF
+  12:Text 'A balanced stack for deep work.' OFF
+11:Button 'BSOD A tiny blue-screen gremlin.' tog=Off OFF
+  12:Text 'BSOD' OFF
+  12:Text 'A tiny blue-screen gremlin.' OFF
+11:Button 'Null Signal Quiet signal from the void.' tog=Off OFF
+  12:Text 'Null Signal' OFF
+  12:Text 'Quiet signal from the void.' OFF
+11:StatusBar '' #DndLiveRegion-15 OFF
+-- lines=38
+
+############ t25a-cua ############
+== uia-tree-20260916-163707-t25a-cua.json nodes=102
+12:Text '电脑操控'
+12:Text '管理 ChatGPT 如何使用你电脑上的其他应用程序'
+11:Text '控制'
+11:Button 'Computer Use 任意应用 允许 ChatGPT 控制您电脑上的应用'
+11:Button '切换 Computer Use' tog=On
+11:Text 'Google Chrome'
+11:Text '未安装浏览器扩展程序'
+11:Button '安装'
+11:Text 'Microsoft Edge'
+11:Text '未安装浏览器扩展程序'
+11:Button '安装'
+11:Text 'Microsoft Excel'
+11:Text '允许 ChatGPT 使用 Microsoft Excel 加载项以获得更多控制权限'
+11:Button '切换 Microsoft Excel 实时控制' tog=On
+11:Text '始终允许的应用'
+11:Text '暂无' OFF
+11:StatusBar '' #DndLiveRegion-15 OFF
+-- lines=17
+
+############ t25b-snap ############
+== uia-tree-20260916-163721-t25b-snap.json nodes=96
+12:Text '应用快照'
+12:Text '截取应用快照，向 ChatGPT 展示你最前端的窗口'
+12:Text '智能快照包含视觉和文本内容，包括滚动到屏幕外的文本。'
+11:Text '快捷键'
+11:Text '同时按下两个 Alt 键'
+11:Button 'Alt + Alt' #radix-_r_2k2_ exp=Collapsed
+11:Text 'Appshot 发送目标'
+11:Text '选择使用快捷键时将 appshots 发送到哪里'
+11:Button '自动' #radix-_r_2k5_ exp=Collapsed
+11:Text '播放音效'
+11:Button '播放 Appshot 音效' tog=On
+11:Group '无法播放媒体。' DIS
+11:StatusBar '' #DndLiveRegion-15 OFF
+-- lines=13
+
+############ t25c-plugins ############
+== uia-tree-20260916-163732-t25c-plugins.json nodes=117
+12:Text '插件'
+12:Text '管理插件、技能和 MCP'
+12:Button '浏览目录'
+12:Button '添加' #radix-_r_2k8_ exp=Collapsed
+  13:Text '添加'
+11:Group '管理扩展程序'
+  12:Button '插件 7' tog=On
+    13:Text '插件'
+    13:Text '7'
+  12:Button 'MCP 1' tog=Off
+    13:Text 'MCP'
+    13:Text '1'
+11:Button 'Documents Documents Create and edit documents 切换插件启用状态'
+  12:Button '切换插件启用状态' tog=On
+11:Button 'PDF PDF Read, create, and verify PDFs 切换插件启用状态'
+  12:Button '切换插件启用状态' tog=On
+11:Button 'Spreadsheets Spreadsheets Create and edit spreadsheets 切换插件启用状态'
+  12:Button '切换插件启用状态' tog=On
+11:Button 'Presentations Presentations Create and edit presentations 切换插件启用状态'
+  12:Button '切换插件启用状态' tog=On
+11:Button 'Template Creator Template Creator Create or update reusable templates from reference content 切换插件启用状态'
+  12:Button '切换插件启用状态' tog=On
+11:Button 'Computer Use Computer Use Control Windows apps 切换插件启用状态' OFF
+  12:Button '切换插件启用状态' tog=On OFF
+11:Button 'Visualize Visualize Create interactive visuals 切换插件启用状态' OFF
+  12:Button '切换插件启用状态' tog=On OFF
+11:StatusBar '' #DndLiveRegion-15 OFF
+-- lines=27
+
+############ t25d-browser ############
+== uia-tree-20260916-163744-t25d-browser.json nodes=160
+12:Text '浏览器'
+12:Text '管理你的 Browser Use 偏好设置和网站访问权限。'
+11:Button '浏览器 让 ChatGPT 控制内置浏览器'
+11:Button '切换 Browser' tog=On
+11:Text '常规'
+11:Button '导入…'
+11:Text '网页 URL 和链接打开位置'
+11:Text '链接默认打开位置'
+11:Button 'ChatGPT' #radix-_r_2lg_ exp=Collapsed
+11:Text '本地 URL 打开位置'
+11:Text '本地开发站点默认打开位置'
+11:Button 'ChatGPT' #radix-_r_2lj_ exp=Collapsed
+11:Text '显示完整网址'
+11:Text '在地址栏中显示路径、查询参数和片段'
+11:Button '显示完整网址' tog=Off
+11:Text '浏览数据'
+11:Text '清除应用内浏览器中的浏览历史记录、网站数据、缓存和下载历史记录' OFF
+11:Button '清除浏览数据'
+11:Text '浏览历史' OFF
+11:Text '查看和管理在内置浏览器中访问过的页面' OFF
+11:Button '管理' OFF
+11:Text '批注截图' OFF
+11:Text '截图可帮助 ChatGPT 更好地理解和处理评论，但会增加套餐用量' OFF
+11:Button '始终包含' #radix-_r_2lp_ exp=Collapsed OFF
+11:Text '自动填充和密码' OFF
+11:Text '密码管理器' OFF
+11:Text '添加、删除和编辑已保存的密码' OFF
+11:Button '管理' OFF
+11:Text '联系信息' OFF
+11:Text '添加、删除和编辑已保存的地址、电话号码和电子邮箱地址' OFF
+11:Button '管理' OFF
+11:Text '下载' OFF
+11:Text '位置' OFF
+11:Text '系统下载文件夹' OFF
+11:Button '更改' OFF
+11:Text '下载前询问保存位置' OFF
+11:Text '对在内置浏览器中发起的下载显示保存对话框' OFF
+11:Button '下载前询问保存位置' tog=Off OFF
+11:Text '下载历史记录' OFF
+11:Text '查看和管理从内置浏览器下载的文件' OFF
+11:Button '管理下载历史记录' OFF
+11:Text '浏览器权限' OFF
+11:Text '网站设置' OFF
+11:Text '管理内置浏览器中的摄像头和麦克风权限' OFF
+11:Button '管理' OFF
+11:Text '历史记录' OFF
+11:Text '选择 ChatGPT 是否可访问你的内置浏览器历史记录' OFF
+11:Button '始终询问' #radix-_r_2mb_ exp=Collapsed OFF
+11:Text '启用站点工具' OFF
+11:Text '允许 ChatGPT 发现并调用网站公开的站点工具，包括 WebMCP' OFF
+11:Button '切换 WebMCP' tog=On OFF
+11:Text '智能体权限' OFF
+11:Text '选择默认权限，并为特定网站添加例外' OFF
+11:Button '添加' OFF
+11:Table '' OFF
+  12:DataItem '' OFF
+    13:DataItem '网站或模式' OFF
+    13:DataItem '浏览' #browser-use-site-permissions-column-origin OFF
+    13:DataItem '下载' #browser-use-site-permissions-column-download OFF
+    13:DataItem '上传' #browser-use-site-permissions-column-upload OFF
+    13:DataItem '操作' OFF
+  12:DataItem '' OFF
+    13:DataItem '默认' OFF
+    13:DataItem '默认 浏览' OFF
+      14:Button '默认 浏览' #radix-_r_2mf_ exp=Collapsed OFF
+    13:DataItem '默认 下载' OFF
+      14:Button '默认 下载' #radix-_r_2mh_ exp=Collapsed OFF
+    13:DataItem '默认 上传' OFF
+      14:Button '默认 上传' #radix-_r_2mj_ exp=Collapsed OFF
+11:Text '开发者模式' OFF
+11:Text '风险升高' OFF
+11:Text '启用完整 CDP 访问权限' OFF
+11:Text '允许 ChatGPT 在已连接的 Browser Use 会话中使用完整的 Chrome DevTools Protocol (CDP) 访问权限。完整 CDP 访问权限可让 ChatGPT 检查并控制敏感的浏览器内部功能，可能使你的数据面临风险。' OFF
+11:Button '切换完整 CDP 访问权限' tog=Off OFF
+11:StatusBar '' #DndLiveRegion-15 OFF
+-- lines=75
+
+############ t25e-hooks ############
+== uia-tree-20260916-163755-t25e-hooks.json nodes=90
+12:Text '钩子'
+12:Text '通过配置和已启用的插件管理生命周期钩子。'
+12:Hyperlink '了解更多' val="https://developers.openai.com/codex/hooks"
+12:Button '重新加载钩子' DIS
+11:Text '未找到钩子'
+11:Text '已配置的钩子将显示在此处'
+11:StatusBar '' #DndLiveRegion-15 OFF
+-- lines=7
+
+############ t25f-connect ############
+== uia-tree-20260916-163805-t25f-connect.json nodes=88
+12:Text '连接'
+11:Text '来自此电脑的 SSH 连接'
+11:Text '通过 SSH 连接到远程设备'
+11:Button '添加'
+11:StatusBar '' #DndLiveRegion-15 OFF
+-- lines=5
+
+############ t25g-git ############
+== uia-tree-20260916-163816-t25g-git.json nodes=114
+12:Text 'Git'
+11:Text '分支前缀'
+11:Text 'ChatGPT 创建新分支时使用的前缀'
+11:Edit '分支前缀' val="codex/"
+11:Text 'Pull Request 合并方法'
+11:Text '选择 ChatGPT 合并 Pull Request 的方式'
+11:Group 'Pull Request 合并方法'
+  12:Button '合并' tog=On
+  12:Button '压缩合并' tog=Off
+11:Text '始终强制推送'
+11:Text '从 ChatGPT 推送时使用 --force-with-lease'
+11:Button '始终强制推送' tog=Off
+11:Text '创建草稿 Pull Request'
+11:Text '从 ChatGPT 创建 PR 时默认使用草稿 Pull Request'
+11:Button '创建草稿 Pull Request' tog=On
+11:Text '审查结果呈现方式'
+11:Text '尽可能在当前聊天中启动 /review，或启动单独的审查聊天'
+12:Button '内联' tog=On
+12:Button '单独' tog=Off
+11:Text '监控并修复 Pull Request'
+11:Text '准备就绪时自动合并' OFF
+11:Text '继续监控，直到 Pull Request 合并' OFF
+11:Button '准备就绪后自动合并' tog=Off OFF
+11:Edit 'Pull Request 监控说明' OFF
+11:Text '提交说明' OFF
+11:Text '将添加到提交信息生成提示中' OFF
+11:Edit '提交指令' OFF
+11:Text 'Pull Request 说明' OFF
+11:Text '将添加到 PR 标题/描述生成提示中' OFF
+11:Edit 'Pull Request 说明' OFF
+11:StatusBar '' #DndLiveRegion-15 OFF
+-- lines=31
+
+############ t25h-env ############
+== uia-tree-20260916-163826-t25h-env.json nodes=90
+12:Text '环境'
+12:Text '本地环境会告诉 ChatGPT 如何为项目设置工作树。'
+12:Hyperlink '了解更多。' val="https://developers.openai.com/codex/app/local-environments"
+11:Text '选择项目'
+11:Button '添加项目'
+11:Text '尚无项目。添加一个项目以配置本地环境。'
+11:Button '添加项目'
+11:StatusBar '' #DndLiveRegion-15 OFF
+-- lines=8
+
+############ t25i-worktree ############
+== uia-tree-20260916-163837-t25i-worktree.json nodes=100
+12:Text 'Worktrees'
+11:Text '工作树根目录'
+11:Text 'ChatGPT 创建托管工作树的目录。留空则使用默认位置'
+11:Edit '工作树根目录'
+11:Text '创建工作树前始终获取上游更新'
+11:Text 'Codex 通常会在常规 Git 操作中获取分支更新。此设置还会在创建每个新工作树前获取上游更新。'
+11:Button '创建工作树前始终获取上游更新' tog=Off
+11:Text '自动删除旧工作树'
+11:Text '推荐大多数用户启用。仅当你需要手动管理旧工作树和磁盘使用空间时，再关闭此功能。'
+11:Button '自动删除旧工作树' tog=On
+11:Text '自动删除限制'
+11:Text '要保留的托管工作树数量；超过后，较旧的工作树会自动被清理。ChatGPT 会在删除工作树前创建快照，因此被清理的工作树应始终可以恢复。'
+11:Spinner '自动删除限制' val="15"
+11:Text '尚无工作树'
+11:Button '刷新'
+11:Text 'ChatGPT 创建的工作树将显示在此处' OFF
+11:StatusBar '' #DndLiveRegion-15 OFF
+-- lines=17
+
+############ t25j-archived ############
+== uia-tree-20260916-163847-t25j-archived.json nodes=85
+12:Text '已归档的聊天'
+11:Text '暂无已归档的聊天'
+11:StatusBar '' #DndLiveRegion-15 OFF
+-- lines=3

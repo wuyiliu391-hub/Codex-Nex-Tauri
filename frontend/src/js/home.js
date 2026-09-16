@@ -60,11 +60,7 @@ export function renderProjectList() {
   if (!wrap) return;
   wrap.innerHTML = "";
   if (!store.projects.length) {
-    const hint = document.createElement("button");
-    hint.className = "project-row";
-    hint.innerHTML = `<span class="ico"><svg viewBox="0 0 18 18"><path d="M9 3v12M3 9h12"/></svg></span><span class="name">${escapeHtml(t("home.addProject"))}</span>`;
-    hint.onclick = () => addProjectViaDialog();
-    wrap.appendChild(hint);
+    wrap.innerHTML = `<div class="project-list-empty">${escapeHtml(t("nav.noProjects"))}</div>`;
     return;
   }
   for (const p of store.projects) {
@@ -108,7 +104,7 @@ export function renderTaskList() {
     return title && !/^[?？\s]+$/.test(title);
   }).slice(0, 20);
   if (!list.length) {
-    wrap.innerHTML = '<div class="task-list-empty">No tasks</div>';
+    wrap.innerHTML = `<div class="task-list-empty">${escapeHtml(t("nav.noChats"))}</div>`;
     return;
   }
   for (const s of list) {
@@ -198,11 +194,15 @@ function renderMainHome() {
   const modelLabel = currentModelLabel();
   const permission = permissionPresentation();
   const unconfigured = modelLabel === t("home.modelUnconfigured");
-  const title = t("home.title", "", { project: projectLabel });
+  const hasProject = projectLabel !== t("home.chooseProject") && !!projectLabel;
+  // Official empty-state: "我们要构建什么？" (no project) / project-scoped title.
+  const title = hasProject
+    ? t("home.titleWithProject", "", { project: projectLabel })
+    : t("home.title");
   const titleHtml = (() => {
     const escTitle = escapeHtml(title);
     const escProj = escapeHtml(projectLabel || "");
-    if (escProj && escTitle.includes(escProj)) {
+    if (hasProject && escProj && escTitle.includes(escProj)) {
       return escTitle.replace(escProj, `<span class="project-name">${escProj}</span>`);
     }
     return escTitle;
@@ -219,7 +219,6 @@ function renderMainHome() {
         <div class="home-center" id="home-empty">
           ${HERO_ICON}
           <h1 class="home-title">${titleHtml}</h1>
-          ${renderPromptCards()}
         </div>
         <div class="thread" id="thread" hidden></div>
         <div class="composer" id="composer-wrap">

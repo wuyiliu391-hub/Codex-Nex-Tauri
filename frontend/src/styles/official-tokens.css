@@ -1,0 +1,116 @@
+/* Official Codex CDP-resolved tokens (Electron harness, light + dark).
+   Source: docs/official-ui/cdp-resolved.json — do not invent values. */
+
+@font-face {
+  font-family: "OpenAI Sans";
+  src: url("../assets/fonts/OpenAISans-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "OpenAI Sans";
+  src: url("../assets/fonts/OpenAISans-Medium.woff2") format("woff2");
+  font-weight: 500 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root,
+html.theme-light {
+  /* CDP light */
+  --official-surface: #ffffff;
+  --official-sidebar: #f9f9f9;
+  --official-text-emphasis: #1a1c1f;
+  --official-text-primary: #1a1c1f;
+  --official-gray-50: #f9f9f9;
+  --official-gray-100: #ededed;
+  --official-gray-150: #dfdfdf;
+  --official-gray-200: #cdcdcd;
+  --official-gray-300: #afafaf;
+  --official-gray-400: #8f8f8f;
+  --official-gray-500: #5d5d5d;
+  --official-gray-600: #414141;
+  --official-gray-700: #303030;
+  --official-gray-800: #212121;
+  --official-gray-900: #181818;
+  --official-gray-950: #131313;
+  --official-gray-1000: #0d0d0d;
+  --official-ring: #339cff;
+  --official-solid: #1a1c1f;
+
+  --height-toolbar-sm: 36px;
+  --height-toolbar: 46px;
+  --codex-sidebar-preferred-width: 275px;
+  --spacing-token-sidebar: clamp(
+    240px,
+    var(--codex-sidebar-preferred-width, 275px),
+    min(520px, calc(100vw - 320px))
+  );
+  --radius-token-composer-single-line: 22px;
+  --radius-lg: 12.5px;
+  --radius-md: 10px;
+  --font-openai-sans: "OpenAI Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-ui-family: var(--font-openai-sans);
+
+  --bg-canvas: var(--official-surface);
+  --bg-sidebar: var(--official-sidebar);
+  --bg-elevated: var(--official-surface);
+  --fg-primary: var(--official-text-emphasis);
+  --fg-secondary: var(--official-gray-600);
+  --fg-muted: var(--official-gray-500);
+  --border-default: var(--official-gray-200);
+  --border-subtle: var(--official-gray-150);
+  --accent-ring: var(--official-ring);
+  --accent: #2563eb;
+  --accent-soft: rgba(37, 99, 235, 0.12);
+}
+
+html.theme-dark,
+:root[data-theme="dark"] {
+  --official-surface: #181818;
+  --official-sidebar: #000000;
+  --official-text-emphasis: #dfdfdf;
+  --official-text-primary: #dfdfdf;
+  --official-gray-50: #131313;
+  --official-gray-100: #181818;
+  --official-gray-150: #1c1c1c;
+  --official-gray-200: #212121;
+  --official-gray-300: #303030;
+  --official-gray-400: #414141;
+  --official-gray-500: #5d5d5d;
+  --official-gray-600: #8f8f8f;
+  --official-gray-700: #afafaf;
+  --official-gray-800: #cdcdcd;
+  --official-gray-900: #ededed;
+  --official-gray-950: #f3f3f3;
+  --official-gray-1000: #ffffff;
+  --official-solid: #dfdfdf;
+  --accent: #0ea5e9;
+  --accent-soft: rgba(14, 165, 233, 0.14);
+
+  --bg-canvas: var(--official-surface);
+  --bg-sidebar: var(--official-sidebar);
+  --bg-elevated: #1c1c1c;
+  --fg-primary: var(--official-text-emphasis);
+  --fg-secondary: var(--official-gray-600);
+  --fg-muted: var(--official-gray-500);
+  --border-default: var(--official-gray-200);
+  --border-subtle: var(--official-gray-150);
+}
+
+.app-toolbar {
+  height: var(--height-toolbar-sm);
+  min-height: var(--height-toolbar-sm);
+}
+
+.composer-shell {
+  border-radius: var(--radius-token-composer-single-line);
+}
+
+#app {
+  grid-template-columns: var(--spacing-token-sidebar) minmax(0, 1fr);
+}
+body.sidebar-collapsed #app {
+  grid-template-columns: 0 minmax(0, 1fr);
+}

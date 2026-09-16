@@ -30,3 +30,9 @@ desktop.ini
 .env
 .env.*
 !.env.example
+
+# UIA rebuild artifacts
+codex-asar-extract/
+docs/uia/uia-tree-*.json
+__*.js
+
