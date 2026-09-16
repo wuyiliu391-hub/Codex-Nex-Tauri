@@ -16,14 +16,17 @@ function scheduledIcon(type) {
   return "";
 }
 
+// Official suggestion row: icon + title · meta + description.
 function suggestionCard(s) {
+  const iconClass = s.icon === "weekly" ? "purple" : s.icon === "followup" ? "green" : "";
+  const meta = s.cron || s.time || (s.icon === "weekly" ? "星期五（时间：16:00）" : s.icon === "followup" ? "工作日 9:00" : "工作日 8:00");
   return `<button class="suggestion-card" data-run-scheduled="${escapeHtml(s.id)}">
-    <span class="sug-ico">${scheduledIcon(s.icon)}</span>
-    <div>
-      <div class="sug-name">${escapeHtml(s.title)}</div>
-      <div class="sug-desc">${escapeHtml(s.desc || s.cron || "")}</div>
-    </div>
-    <span class="sug-badge">${escapeHtml(t("discovery.run"))}</span>
+    <span class="sug-ico ${iconClass}">${scheduledIcon(s.icon || s.type)}</span>
+    <span>
+      <span class="sug-name">${escapeHtml(s.title)}</span>
+      <span class="sug-meta">${escapeHtml(meta)}</span>
+      <span class="sug-desc">${escapeHtml(s.desc || "")}</span>
+    </span>
   </button>`;
 }
 
@@ -40,14 +43,33 @@ async function refreshScheduledFromBridge() {
 
 export function mountScheduled() {
   const main = $("main");
+  // Official seed suggestions (p16) when store is empty.
+  const SEEDS = [
+    { id: "daily-brief", title: "每日简报", desc: "以日历、未读电子邮件和优先事项摘要开启每个工作日", icon: "daily" },
+    { id: "weekly-review", title: "每周回顾", desc: "每周五将你最近的工作整理成简明的状态更新", icon: "weekly" },
+    { id: "followup", title: "跟进监控", desc: "查看最近的电子邮箱和日历活动，并标记需要你关注的事项", icon: "followup" },
+  ];
   function paint() {
     let view = main.querySelector("#view-scheduled");
     if (!view) {
       main.insertAdjacentHTML("beforeend", `
         <section class="view view-discovery" id="view-scheduled" hidden>
+          <div class="discovery-topbar">
+            <div></div>
+            <div class="actions">
+              <button class="btn-official" data-create-scheduled>
+                ${escapeHtml(t("action.create"))}
+                <svg class="chev" viewBox="0 0 18 18" aria-hidden="true"><path d="m5 7 4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              </button>
+            </div>
+          </div>
           <div class="discovery-head">
-            <div><h2 data-i18n-text></h2></div>
-            <div class="actions"><button class="btn btn-primary" data-i18n-text-action>${escapeHtml(t("action.create"))}</button></div>
+            <h2></h2>
+            <p class="lede"></p>
+          </div>
+          <div class="discovery-search">
+            <svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="7.7" cy="7.7" r="4.4"/><path d="m11 11 3.4 3.4"/></svg>
+            <input placeholder="" data-scheduled-search />
           </div>
           <div class="discovery-body" id="scheduled-body"></div>
         </section>`);
@@ -55,13 +77,14 @@ export function mountScheduled() {
     }
     const h2 = view.querySelector(".discovery-head h2");
     if (h2) h2.textContent = t("discovery.scheduled");
-    const createBtn = view.querySelector(".discovery-head .btn-primary");
-    if (createBtn) createBtn.textContent = t("action.create");
+    const lede = view.querySelector(".discovery-head .lede");
+    if (lede) lede.textContent = t("discovery.scheduledDesc");
+    const search = view.querySelector("[data-scheduled-search]");
+    if (search) search.placeholder = t("discovery.searchScheduled");
     const body = $("scheduled-body");
-    const list = store.scheduled || [];
-    body.innerHTML = list.length
-      ? `<div class="suggestion-list">${list.map((s) => suggestionCard(s)).join("")}</div>`
-      : `<div class="discovery-empty"><h3>${escapeHtml(t("discovery.scheduled"))}</h3></div>`;
+    const list = (store.scheduled && store.scheduled.length) ? store.scheduled : SEEDS;
+    body.innerHTML = `<div class="discovery-section-label">${escapeHtml(t("discovery.suggestions"))}</div>
+      <div class="suggestion-list">${list.map((s) => suggestionCard(s)).join("")}</div>`;
     body.querySelectorAll("[data-run-scheduled]").forEach((btn) => btn.addEventListener("click", async () => {
       try {
         await window.go?.main?.App?.RunScheduledTask?.(btn.dataset.runScheduled);
@@ -159,43 +182,60 @@ export function mountPlugins() {
     if (!view) {
       main.insertAdjacentHTML("beforeend", `
         <section class="view view-discovery" id="view-plugins" hidden>
-          <div class="plugins-tabs">
-            <button class="tab is-active" data-plugins-tab="plugins">${escapeHtml(t("discovery.plugins"))}</button>
-            <button class="tab" data-plugins-tab="skills">${escapeHtml(t("discovery.skills"))}</button>
-          </div>
-          <div class="plugins-toolbar">
-            <div class="search-box">
-              <svg viewBox="0 0 18 18"><circle cx="7.7" cy="7.7" r="4.45" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m11 11 3.45 3.45" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
-              <input placeholder="${escapeHtml(t("discovery.searchPlugins"))}" />
+          <div class="discovery-topbar">
+            <div class="tabs">
+              <button class="tab is-active" data-plugins-tab="plugins">${escapeHtml(t("discovery.plugins"))}</button>
+              <button class="tab" data-plugins-tab="skills">${escapeHtml(t("discovery.skills"))}</button>
             </div>
-            <div class="view-toggle">
-              <button class="is-active">${escapeHtml(t("discovery.public"))}</button>
-              <button>${escapeHtml(t("discovery.personal"))}</button>
+            <div class="actions">
+              <button class="icon-btn-round" data-plugins-refresh aria-label="Refresh">
+                <svg viewBox="0 0 18 18"><path d="M4 9a5 5 0 0 1 8.5-3.5M14 9a5 5 0 0 1-8.5 3.5" fill="none"/><path d="M12.5 3.5v2.5H10M5.5 14.5V12H8" fill="none"/></svg>
+              </button>
+              <button class="icon-btn-round" data-plugins-settings aria-label="Settings">
+                <svg viewBox="0 0 18 18"><circle cx="9" cy="9" r="2.2" fill="none"/><path d="M9 2.5v1.2M9 14.3v1.2M2.5 9h1.2M14.3 9h1.2M4.4 4.4l.9.9M12.7 12.7l.9.9M13.6 4.4l-.9.9M5.3 12.7l-.9.9" fill="none"/></svg>
+              </button>
+              <button class="btn-official" data-plugins-add>
+                ${escapeHtml(t("discovery.add"))}
+                <svg class="chev" viewBox="0 0 18 18" aria-hidden="true"><path d="m5 7 4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              </button>
             </div>
-            <button class="btn btn-primary" id="plugins-create">${escapeHtml(t("action.create"))}</button>
           </div>
-          <div class="discovery-body" id="plugins-body"></div>
+          <div class="discovery-head">
+            <h2>${escapeHtml(t("discovery.plugins"))}</h2>
+            <p class="lede">${escapeHtml(t("discovery.pluginsDesc"))}</p>
+          </div>
+          <div class="discovery-search">
+            <svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="7.7" cy="7.7" r="4.4"/><path d="m11 11 3.4 3.4"/></svg>
+            <input placeholder="${escapeHtml(t("discovery.searchPlugins"))}" />
+          </div>
+          <div class="discovery-filters">
+            <button class="chip is-active">${escapeHtml(t("discovery.public"))}</button>
+            <button class="chip">${escapeHtml(t("discovery.personal"))}</button>
+          </div>
+          <div class="discovery-body is-wide" id="plugins-body"></div>
         </section>`);
       view = main.querySelector("#view-plugins");
-      $("plugins-create")?.addEventListener("click", () => navigate("settings", "plugins"));
-    } else {
-      const tab = view.querySelector('[data-plugins-tab="plugins"]');
-      if (tab) tab.textContent = t("discovery.plugins");
-      const create = $("plugins-create");
-      if (create) create.textContent = t("action.create");
+      $("plugins-create")?.remove();
+      view.querySelector("[data-plugins-settings]")?.addEventListener("click", () => navigate("settings", "plugins"));
+      view.querySelector("[data-plugins-add]")?.addEventListener("click", () => navigate("settings", "plugins"));
+      view.querySelector("[data-plugins-refresh]")?.addEventListener("click", () => {
+        refreshPluginsFromBridge().finally(paint);
+      });
     }
     const body = $("plugins-body");
     const plugins = store.plugins || [];
+    if (!plugins.length) {
+      body.innerHTML = `<div class="discovery-loading"><span class="spin"></span><span>${escapeHtml(t("discovery.plugins"))}…</span></div>`;
+      return;
+    }
     const installed = plugins.filter((p) => p.installed);
     let html = "";
     if (installed.length) {
-      html += `<div class="plugin-section"><h3>${escapeHtml(t("discovery.installed"))}</h3><div class="plugins-grid">${installed.map(pluginCardHtml).join("")}</div></div>`;
+      html += `<div class="plugins-grid">${installed.map(pluginCardHtml).join("")}</div>`;
     }
     PLUGIN_GROUPS.forEach((tag) => {
       const items = plugins.filter((p) => p.tag === tag && !p.installed);
-      if (items.length) {
-        html += `<div class="plugin-section"><h3>${escapeHtml(tag)}</h3><div class="plugins-grid">${items.map(pluginCardHtml).join("")}</div></div>`;
-      }
+      if (items.length) html += `<div class="plugins-grid">${items.map(pluginCardHtml).join("")}</div>`;
     });
     body.innerHTML = html || `<div class="discovery-empty"><h3>${escapeHtml(t("discovery.noPlugins"))}</h3></div>`;
     body.querySelectorAll("[data-plugin-toggle]").forEach((btn) => {
@@ -265,6 +305,9 @@ export function mountPullRequests() {
     if (!view) {
       main.insertAdjacentHTML("beforeend", `
         <section class="view view-discovery" id="view-prs" hidden>
+          <div class="discovery-topbar">
+            <div></div>
+          </div>
           <div class="discovery-head">
             <h2></h2>
           </div>
@@ -273,20 +316,19 @@ export function mountPullRequests() {
       view = main.querySelector("#view-prs");
     }
     const h2 = view.querySelector(".discovery-head h2");
+    // Official title is "Pull Request" (singular product noun).
     if (h2) h2.textContent = t("discovery.pullrequests");
     const body = $("prs-body");
     if (prCache.length) {
       body.innerHTML = `<div class="plugins-grid">${prCache.map(prCardHtml).join("")}</div>`;
       return;
     }
+    // Official empty (p15): centered title + subtitle + black pill button, no icon.
     body.innerHTML = `
       <div class="pr-empty">
-        <div class="pr-icon">
-          <svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="11" cy="11" r="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="29" cy="29" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M11 15v7c0 3 1.5 4.5 4.5 4.5h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M29 25V15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        </div>
         <h3>${escapeHtml(t("discovery.ghRequired"))}</h3>
         <p>${escapeHtml(t("discovery.ghDesc"))}</p>
-        <button class="btn btn-primary" data-pr-recheck>${escapeHtml(t("config.checkAgain"))}</button>
+        <button class="btn-official" data-pr-recheck>${escapeHtml(t("discovery.checkAgain"))}</button>
       </div>`;
     body.querySelector("[data-pr-recheck]")?.addEventListener("click", () => {
       refreshPullRequestsFromBridge().finally(paint);

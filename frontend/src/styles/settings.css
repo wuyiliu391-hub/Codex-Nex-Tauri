@@ -95,11 +95,11 @@
   letter-spacing: var(--tracking-ui);
   text-align: left;
 }
-.settings-link:hover { background: rgba(0, 0, 0, .035); }
+.settings-link:hover { background: color-mix(in srgb, var(--fg-primary) 4%, transparent); }
 .settings-link.is-active {
-  background: #e8e8e8;
-  font-weight: var(--font-weight-bold);
-  color: var(--fg-title, #1a1c1f);
+  background: color-mix(in srgb, var(--fg-primary) 7%, transparent);
+  font-weight: 500;
+  color: var(--fg-primary);
 }
 .settings-link .ico { display: grid; width: 17px; height: 17px; place-items: center; color: var(--fg-chrome, #1a1c1f); }
 .settings-link .ico svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.35; stroke-linecap: round; stroke-linejoin: round; }
@@ -250,10 +250,22 @@
 .archived-search { display: flex; height: 30px; align-items: center; gap: 7px; padding: 0 10px; border: 0; box-shadow: 0 0 0 1px var(--border-default); border-radius: 8px; color: #858585; }
 .settings-page-search { margin-bottom: 12px; }
 
-.settings-tabs { display: flex; gap: 4px; margin: -24px 0 24px; }
-.settings-tab { padding: 0 11px; border-color: transparent; background: transparent; }
-.settings-tab.is-active { background: #f0f0f0; }
-.settings-tab .count { color: #888; }
+.settings-tabs { display: flex; gap: 4px; margin: 0 0 20px; }
+.settings-tab {
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg-description);
+  font-size: 13px;
+  font-weight: 500;
+}
+.settings-tab.is-active {
+  background: color-mix(in srgb, var(--fg-primary) 6%, transparent);
+  color: var(--fg-primary);
+}
+.settings-tab .count { color: var(--fg-muted); margin-left: 4px; }
 
 .settings-toast { position: fixed; right: 24px; bottom: 22px; z-index: 90; padding: 9px 13px; border: 0; box-shadow: 0 0 0 1px var(--border-default); border-radius: 10px; background: #fff; box-shadow: 0 8px 24px rgba(0, 0, 0, .12); color: #333; font-size: 12px; animation: toast-in .16s ease-out; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(4px); } }
