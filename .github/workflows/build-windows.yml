@@ -10,8 +10,11 @@ on:
 env:
   CARGO_TERM_COLOR: always
   TAURI_SKIP_SIDECAR_CHECK: "1"
-  # Cache key only — do not pin a non-existent crate version.
-  TAURI_CLI_CACHE_KEY: "tauri-cli-v2-latest"
+  # Stable as of crates.io 2026-09: max_stable_version=2.11.4
+  TAURI_CLI_VERSION: "2.11.4"
+  CARGO_HOME: ${{ github.workspace }}/.cargo-home
+  # Prebuilt CLI lives outside CARGO_HOME so rust-cache does not thrash it.
+  TOOLS_DIR: ${{ github.workspace }}/.tools
 
 jobs:
   build:
@@ -28,40 +31,50 @@ jobs:
         with:
           targets: x86_64-pc-windows-msvc
 
-      # Registry + target/ incremental. Key on lockfile so deps only rebuild when deps change.
+      # Registry + target incremental. Key on Cargo.lock so deps only rebuild
+      # when dependencies change. Same branch reuses this across workflow runs.
       - name: Cache cargo registry & target
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
           shared-key: tauri-win-release
           cache-on-failure: true
-          # Also cache ~/.cargo/bin so tauri.exe survives between runs.
           cache-bin: true
 
-      # Dedicated cache for the tauri CLI binary (cargo install is the slow part).
-      - name: Cache tauri-cli binary
-        id: cache-tauri-cli
+      # Prebuilt cargo-tauri from GitHub Releases (seconds) instead of cargo install (minutes).
+      - name: Cache prebuilt cargo-tauri
+        id: cache-cli
         uses: actions/cache@v4
         with:
-          path: |
-            ${{ env.CARGO_HOME }}/bin/tauri.exe
-            ${{ env.USERPROFILE }}/.cargo/bin/tauri.exe
-          key: ${{ env.TAURI_CLI_CACHE_KEY }}-${{ runner.os }}
+          path: ${{ env.TOOLS_DIR }}
+          key: cargo-tauri-${{ runner.os }}-${{ env.TAURI_CLI_VERSION }}
 
-      - name: Install Tauri CLI (only if missing)
+      - name: Download cargo-tauri ${{ env.TAURI_CLI_VERSION }}
+        if: steps.cache-cli.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          $tauri = Get-Command tauri -ErrorAction SilentlyContinue
-          if ($tauri -and $tauri.Source) {
-            Write-Host "tauri CLI already at $($tauri.Source) — skip install"
-            & $tauri.Source --version
-            exit 0
+          $ver = $env:TAURI_CLI_VERSION
+          New-Item -ItemType Directory -Force -Path $env:TOOLS_DIR | Out-Null
+          $url = "https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v$ver/cargo-tauri-x86_64-pc-windows-msvc.zip"
+          $zip = Join-Path $env:TOOLS_DIR "cargo-tauri.zip"
+          Write-Host "GET $url"
+          Invoke-WebRequest -Uri $url -OutFile $zip
+          Expand-Archive -Path $zip -DestinationPath $env:TOOLS_DIR -Force
+          Remove-Item $zip -Force
+          $exe = Join-Path $env:TOOLS_DIR "cargo-tauri.exe"
+          if (-not (Test-Path $exe)) {
+            Get-ChildItem $env:TOOLS_DIR -Recurse | Select-Object FullName
+            throw "cargo-tauri.exe not found after extract"
           }
-          Write-Host "installing tauri-cli (2.x latest, locked)"
-          cargo install tauri-cli --locked
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          tauri --version
+          & $exe --version
+
+      - name: Put cargo-tauri on PATH
+        shell: pwsh
+        run: |
+          Add-Content -Path $env:GITHUB_PATH -Value $env:TOOLS_DIR
+          # Also expose as `tauri` alias if anything still calls it bare.
+          Copy-Item (Join-Path $env:TOOLS_DIR "cargo-tauri.exe") (Join-Path $env:TOOLS_DIR "tauri.exe") -Force
 
       - name: Prepare icons (placeholder)
         shell: pwsh
@@ -84,12 +97,15 @@ jobs:
           $bmp.Save("src-tauri/icons/icon.png", [System.Drawing.Imaging.ImageFormat]::Png)
           Write-Host "icons ready"
 
-      # Single compile path: tauri build runs rustc under release and produces the exe.
-      # Do NOT cargo check + cargo build + tauri build (that triples cold work).
-      - name: tauri build
+      # Binary is cargo-tauri; invoke as `cargo tauri` (cargo subcommand) or cargo-tauri.
+      - name: cargo tauri build
         working-directory: src-tauri
         shell: pwsh
-        run: cargo tauri build
+        run: |
+          $ErrorActionPreference = "Stop"
+          cargo-tauri --version
+          cargo tauri build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Upload Codex.exe
         uses: actions/upload-artifact@v4
