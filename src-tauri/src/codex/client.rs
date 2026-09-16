@@ -126,7 +126,8 @@ impl CodexClient {
         let result = result.map_err(|e| anyhow::anyhow!("initialize rejected: {} {}", e.code, e.message))?;
 
         // Must follow the response. No params field (official test asserts this).
-        self.notify(super::protocol::INITIALIZED, None)?;
+        self.notify(super::protocol::INITIALIZED, None)
+            .map_err(|e| anyhow::anyhow!(e))?;
         Ok(result)
     }
 

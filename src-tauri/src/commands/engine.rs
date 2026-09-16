@@ -174,17 +174,16 @@ pub async fn list_providers(engine: State<'_, EngineHandle>) -> Result<Value, St
                 .cloned()
                 .or_else(|| v.get("modelProviders").cloned())
                 .unwrap_or_else(|| json!({}));
-            let list = if providers.is_object() {
+            let list: Vec<Value> = if providers.is_object() {
                 providers
                     .as_object()
                     .map(|m| {
                         m.iter()
-                            .map(|(k, mut val)| {
-                                if val.is_object() {
-                                    if let Some(obj) = val.as_object_mut() {
-                                        obj.entry("id")
-                                            .or_insert_with(|| Value::String(k.clone()));
-                                    }
+                            .map(|(k, val)| {
+                                let mut val = val.clone();
+                                if let Some(obj) = val.as_object_mut() {
+                                    obj.entry("id")
+                                        .or_insert_with(|| Value::String(k.clone()));
                                 }
                                 val
                             })
