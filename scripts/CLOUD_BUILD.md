@@ -9,19 +9,19 @@
    从官方源码构建（与 v0.154.0 对齐）：
 
    ```powershell
-   # 在含 codex-rust 的构建机上
+   # 推荐：使用脚本（自动发现官方树 + 拷贝到 binaries\）
+   .\scripts\build-sidecar.ps1
+
+   # 或手动：
    cd codex-rust-v0.154.0/codex-rs
    cargo build -p codex-app-server --release
-   # 产物：target/release/codex-app-server.exe
+   copy target\release\codex-app-server.exe `
+     ..\Codex-Tauri\src-tauri\binaries\codex-app-server-x86_64-pc-windows-msvc.exe
    ```
 
-   拷入：
-
-   ```
-   Codex-Tauri/src-tauri/binaries/codex-app-server-x86_64-pc-windows-msvc.exe
-   ```
-
-   Tauri `externalBin` 要求无后缀的 target triple 命名。
+   运行时还会按内容哈希安装到：
+   `%LOCALAPPDATA%\CodexDesktop\bin\<hash>\codex-app-server.exe`
+   详见 `docs/RUST_BACKEND.md`。
 
 2. **前端**
 

@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main, master]
   workflow_dispatch:
+    inputs:
+      build_sidecar:
+        description: "Also build official codex-app-server (needs CODEX_RUST_PATH)"
+        type: boolean
+        default: false
 
 env:
   CARGO_TERM_COLOR: always
@@ -106,5 +111,62 @@ jobs:
           path: |
             src-tauri/target/release/bundle/nsis/*.exe
             src-tauri/target/release/bundle/msi/*.msi
+          if-no-files-found: warn
+          retention-days: 14
+
+  # Optional: build the official codex-app-server sidecar.
+  # Only runs when the official tree is available (workflow_dispatch input or
+  # a checked-out CODEX_RUST_PATH). Does NOT block the shell-only job above.
+  build-sidecar:
+    name: Windows sidecar (codex-app-server)
+    runs-on: windows-latest
+    timeout-minutes: 90
+    if: github.event_name == 'workflow_dispatch' && inputs.build_sidecar == true
+    continue-on-error: true
+
+    steps:
+      - name: Checkout Codex-Tauri
+        uses: actions/checkout@v4
+        with:
+          path: Codex-Tauri
+
+      # The official tree is NOT vendored. Provide it via a private action,
+      # cache, or self-hosted runner with CODEX_RUST_PATH set. This job is a
+      # scaffold — fill in the fetch step for your environment.
+      - name: Checkout official codex-rust (placeholder)
+        id: codex_rust
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $path = $env:CODEX_RUST_PATH
+          if (-not $path) {
+            Write-Host "::notice::CODEX_RUST_PATH not set; sidecar job is a no-op scaffold."
+            Write-Host "Provide the official v0.154.0 tree at ../codex-rust-v0.154.0/codex-rs"
+            "available=false" >> $env:GITHUB_OUTPUT
+          } else {
+            "available=true" >> $env:GITHUB_OUTPUT
+            "path=$path" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Setup Rust
+        if: steps.codex_rust.outputs.available == 'true'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Build sidecar
+        if: steps.codex_rust.outputs.available == 'true'
+        working-directory: Codex-Tauri
+        shell: pwsh
+        run: |
+          $env:CODEX_RUST_PATH = "${{ steps.codex_rust.outputs.path }}"
+          .\scripts\build-sidecar.ps1
+
+      - name: Upload sidecar
+        if: steps.codex_rust.outputs.available == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-app-server-sidecar
+          path: Codex-Tauri/src-tauri/binaries/codex-app-server*.exe
           if-no-files-found: warn
           retention-days: 14

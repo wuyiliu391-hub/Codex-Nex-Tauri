@@ -97,30 +97,52 @@ function notImplementedVoid(method) {
 
 /**
  * Extract a normalized session list from engine thread/list response.
- * Accepts { threads: [...] }, { threads: { threads: [...] } }, or bare array.
+ *
+ * Official app-server v0.154.0 `thread/list` returns
+ *   `{ data: Thread[], nextCursor, backwardsCursor }`.
+ * Also accepts legacy `{ threads: [...] }`, `{ items: [...] }`, or a bare array.
  */
 function extractSessions(resp) {
   if (!resp) return [];
   if (Array.isArray(resp)) return resp;
+  // Official v0.154.0
+  if (Array.isArray(resp.data)) return resp.data;
   if (Array.isArray(resp.threads)) return resp.threads;
   if (Array.isArray(resp.items)) return resp.items;
   if (resp.threads && Array.isArray(resp.threads.threads)) return resp.threads.threads;
   return [];
 }
 
+/**
+ * Providers: engine list_providers normalizes config model_providers
+ * (object map or array) into `{ providers: [...] }`.
+ */
 function extractProviders(resp) {
   if (!resp) return [];
   if (Array.isArray(resp)) return resp;
   if (Array.isArray(resp.providers)) return resp.providers;
   if (Array.isArray(resp.items)) return resp.items;
+  // config/read raw shape
+  const cfg = resp.config || resp.raw?.config;
+  if (cfg && cfg.model_providers && typeof cfg.model_providers === "object") {
+    return Object.entries(cfg.model_providers).map(([id, v]) => ({
+      id,
+      ...(typeof v === "object" && v !== null ? v : {}),
+    }));
+  }
   return [];
 }
 
+/**
+ * MCP servers: official `mcpServerStatus/list` returns `{ data: [...] }`.
+ * Engine list_mcp_servers normalizes to `{ servers: [...] }`.
+ */
 function extractMcpServers(resp) {
   if (!resp) return [];
   if (Array.isArray(resp)) return resp;
   if (Array.isArray(resp.servers)) return resp.servers;
   if (Array.isArray(resp.mcpServers)) return resp.mcpServers;
+  if (Array.isArray(resp.data)) return resp.data;
   return [];
 }
 

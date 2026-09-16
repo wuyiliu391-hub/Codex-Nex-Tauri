@@ -5,6 +5,7 @@ Set-Location $PSScriptRoot\..
 $sidecar = "src-tauri\binaries\codex-app-server-x86_64-pc-windows-msvc.exe"
 if (-not (Test-Path $sidecar)) {
   Write-Warning "Sidecar missing: $sidecar (engine will be offline until provided)"
+  Write-Host "Build it with: .\scripts\build-sidecar.ps1  (needs official codex-rust tree)"
 }
 
 Push-Location src-tauri

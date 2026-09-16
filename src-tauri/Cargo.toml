@@ -27,6 +27,7 @@ futures-util = "0.3"
 uuid = { version = "1", features = ["v4", "serde"] }
 thiserror = "1"
 anyhow = "1"
+base64 = "0.22"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 dirs = "5"
@@ -36,9 +37,14 @@ cron = "0.12"
 walkdir = "2"
 regex = "1"
 
-# Optional: embed official protocol types when building with feature.
-# Default path is JSON passthrough to keep the shell decoupled.
+# ─── Optional in-process backend (OFF by default) ─────────────────────────────
+# Pulling these path deps requires the official codex-rust tree next to this
+# repo and links the entire 100+ crate workspace. Cloud CI must NOT enable
+# this feature — shell-only builds stay green without the official tree.
+# See docs/RUST_BACKEND.md Mode B.
+#
 # codex-app-server-protocol = { path = "../../codex-rust-v0.154.0/codex-rs/app-server-protocol", optional = true }
+# codex-app-server-client   = { path = "../../codex-rust-v0.154.0/codex-rs/app-server-client",   optional = true }
 
 [features]
 default = []
