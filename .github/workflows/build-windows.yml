@@ -10,8 +10,8 @@ on:
 env:
   CARGO_TERM_COLOR: always
   TAURI_SKIP_SIDECAR_CHECK: "1"
-  # Keep install path stable for binary cache.
-  TAURI_CLI_VERSION: "2.1.1"
+  # Cache key only — do not pin a non-existent crate version.
+  TAURI_CLI_CACHE_KEY: "tauri-cli-v2-latest"
 
 jobs:
   build:
@@ -46,19 +46,21 @@ jobs:
           path: |
             ${{ env.CARGO_HOME }}/bin/tauri.exe
             ${{ env.USERPROFILE }}/.cargo/bin/tauri.exe
-          key: tauri-cli-${{ runner.os }}-v${{ env.TAURI_CLI_VERSION }}
+          key: ${{ env.TAURI_CLI_CACHE_KEY }}-${{ runner.os }}
 
       - name: Install Tauri CLI (only if missing)
         shell: pwsh
         run: |
+          $ErrorActionPreference = "Stop"
           $tauri = Get-Command tauri -ErrorAction SilentlyContinue
           if ($tauri -and $tauri.Source) {
             Write-Host "tauri CLI already at $($tauri.Source) — skip install"
             & $tauri.Source --version
             exit 0
           }
-          Write-Host "installing tauri-cli $env:TAURI_CLI_VERSION"
-          cargo install tauri-cli --version $env:TAURI_CLI_VERSION --locked
+          Write-Host "installing tauri-cli (2.x latest, locked)"
+          cargo install tauri-cli --locked
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           tauri --version
 
       - name: Prepare icons (placeholder)
