@@ -152,7 +152,8 @@ jobs:
           sccache --version
           $engine = Join-Path $env:CODEX_APP_SERVER_DIR $env:CODEX_APP_SERVER_NAME
           if (-not (Test-Path $engine)) { throw "engine binary missing: $engine" }
-          cargo tauri build --no-default-features
+          # tauri-cli: runner args after `--` (no native --no-default-features).
+          cargo tauri build -- --no-default-features
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: sccache stats

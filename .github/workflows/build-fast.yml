@@ -1,19 +1,19 @@
 name: build-fast
 
-# Daily iteration: shell-only Tauri build + official prebuilt engine sidecar.
+# Deep in-process engine compile is no longer the product/CI path.
+# Daily builds: shell-only Tauri + official prebuilt engine sidecar.
 #
-# Architecture for CI (deep UI integration without compiling 100+ codex crates):
+# Architecture:
 #   Frontend ──Tauri IPC──► src-tauri shell commands
 #                              │
 #                              └─► official codex-app-server.exe (sidecar WS)
 #
-# Full desktop features (pets/calendar/settings/...) live in the shell layer.
-# in-process (default Cargo feature) remains available for engine-core work;
-# this workflow uses --no-default-features so CI does not compile src/backend.
+# Desktop features (pets/calendar/settings/...) live in the shell layer.
+# `in-process` is an optional Cargo feature only (default = []).
 #
-# Engine binary: openai/codex release rust-v0.154.0 (matches workspace pin).
-# tauri-cli has no --profile flag; CARGO_PROFILE_RELEASE_* keeps artifacts in
-# target/release/ while speeding codegen.
+# Engine binary: openai/codex release rust-v0.154.0.
+# tauri-cli 2.11.x: no --profile, no --no-default-features — pass cargo runner
+# args after `--`. CARGO_PROFILE_RELEASE_* keeps artifacts in target/release/.
 
 on:
   push:
@@ -180,8 +180,9 @@ jobs:
           Add-Content -Path $env:GITHUB_PATH -Value $env:TOOLS_DIR
           Copy-Item (Join-Path $env:TOOLS_DIR "cargo-tauri.exe") (Join-Path $env:TOOLS_DIR "tauri.exe") -Force
 
-      # --no-default-features disables `in-process`, so cargo does not build
-      # src/backend/**/*. Engine comes from the official sidecar binary above.
+      # tauri-cli 2.11.x has no --no-default-features flag. Cargo runner args
+      # go after `--`. default = [] already excludes in-process; the explicit
+      # runner flag keeps CI shell-only even if Cargo.toml default changes.
       - name: cargo tauri build (shell + sidecar)
         working-directory: src-tauri
         shell: pwsh
@@ -192,7 +193,7 @@ jobs:
           $engine = Join-Path $env:CODEX_APP_SERVER_DIR $env:CODEX_APP_SERVER_NAME
           if (-not (Test-Path $engine)) { throw "engine binary missing: $engine" }
           Write-Host "engine=$engine size=$((Get-Item $engine).Length)"
-          cargo tauri build --no-default-features
+          cargo tauri build -- --no-default-features
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: sccache stats

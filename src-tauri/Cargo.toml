@@ -60,12 +60,11 @@ codex-exec-server         = { path = "../src/backend/exec-server",         optio
 codex-feedback            = { path = "../src/backend/feedback",            optional = true }
 
 [features]
-# default = in-process: link official codex-rs under src/backend (deep engine
-# work; heavy compile). CI / daily shell builds pass --no-default-features and
-# use the official prebuilt sidecar from openai/codex rust-v0.154.0
-# (codex-app-server-x86_64-pc-windows-msvc.exe under src-tauri/binaries/).
-# Full desktop UI is shell Tauri commands + sidecar, not the binary RPC alone.
-default = ["in-process"]
+# Product/CI default is shell-only (engine = official prebuilt sidecar under
+# src-tauri/binaries/). Do not put in-process in default — that compiles
+# src/backend. Opt-in only: --features in-process
+# tauri-cli: cargo tauri build -- --no-default-features
+default = []
 in-process = [
     "dep:codex-app-server",
     "dep:codex-app-server-protocol",
