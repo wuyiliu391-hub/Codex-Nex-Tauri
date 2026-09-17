@@ -1,3 +1,5 @@
+pub(crate) mod anthropic;
+pub(crate) mod chat;
 pub(crate) mod compact;
 pub(crate) mod images;
 pub(crate) mod memories;
@@ -9,6 +11,26 @@ pub(crate) mod responses_websocket;
 pub(crate) mod search;
 mod session;
 
+pub use anthropic::AnthropicApiRequest;
+pub use anthropic::AnthropicBlock;
+pub use anthropic::AnthropicClient;
+pub use anthropic::AnthropicContent;
+pub use anthropic::AnthropicImageSource;
+pub use anthropic::AnthropicMessage;
+pub use anthropic::AnthropicOptions;
+pub use anthropic::AnthropicTool;
+pub use chat::ChatApiRequest;
+pub use chat::ChatClient;
+pub use chat::ChatFunctionCall;
+pub use chat::ChatImageUrl;
+pub use chat::ChatMessage;
+pub use chat::ChatMessageContent;
+pub use chat::ChatMessagePart;
+pub use chat::ChatOptions;
+pub use chat::ChatStreamOptions;
+pub use chat::ChatTool;
+pub use chat::ChatToolCall;
+pub use chat::ChatToolFunction;
 pub use compact::CompactClient;
 pub use images::ImagesClient;
 pub use memories::MemoriesClient;
@@ -34,3 +56,4 @@ pub use responses_websocket::ResponsesWebsocketClose;
 pub use responses_websocket::ResponsesWebsocketConnection;
 pub use responses_websocket::ResponsesWebsocketProbe;
 pub use search::SearchClient;
+

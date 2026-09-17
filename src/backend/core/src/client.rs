@@ -32,8 +32,12 @@ use std::sync::atomic::Ordering;
 
 use async_channel::Sender;
 use codex_api::AgentIdentityTelemetry;
+use codex_api::AnthropicClient as ApiAnthropicClient;
+use codex_api::AnthropicOptions as ApiAnthropicOptions;
 use codex_api::ApiError;
 use codex_api::AuthProvider;
+use codex_api::ChatClient as ApiChatClient;
+use codex_api::ChatOptions as ApiChatOptions;
 use codex_api::CompactClient as ApiCompactClient;
 use codex_api::CompactionInput as ApiCompactionInput;
 use codex_api::Compression;
@@ -996,6 +1000,301 @@ impl ModelClient {
         Ok(request)
     }
 
+    fn parse_data_url(data_url: &str) -> Option<(String, String)> {
+        if !data_url.starts_with("data:") {
+            return None;
+        }
+        let rest = &data_url[5..];
+        let (header, data) = rest.split_once(',')?;
+        let (mime, encoding) = header.split_once(';')?;
+        if encoding.trim().eq_ignore_ascii_case("base64") {
+            Some((mime.trim().to_string(), data.trim().to_string()))
+        } else {
+            None
+        }
+    }
+
+    fn build_chat_request(
+        &self,
+        prompt: &Prompt,
+        model_info: &ModelInfo,
+    ) -> Result<codex_api::ChatApiRequest> {
+        let input_items = prompt.get_formatted_input_for_request(false);
+        let mut messages = Vec::new();
+
+        if !prompt.base_instructions.text.is_empty() {
+            messages.push(codex_api::ChatMessage {
+                role: "system".to_string(),
+                content: Some(codex_api::ChatMessageContent::Text(
+                    prompt.base_instructions.text.clone(),
+                )),
+                tool_calls: None,
+                tool_call_id: None,
+            });
+        }
+
+        for item in input_items {
+            match item {
+                ResponseItem::Message { role, content, .. } => {
+                    let role = match role.as_str() {
+                        "developer" => "system".to_string(),
+                        other => other.to_string(),
+                    };
+                    let text_parts: Vec<String> = content
+                        .iter()
+                        .filter_map(|c| match c {
+                            ContentItem::InputText { text } => Some(text.clone()),
+                            ContentItem::OutputText { text } => Some(text.clone()),
+                            _ => None,
+                        })
+                        .collect();
+                    let full_text = text_parts.join("\n");
+                    messages.push(codex_api::ChatMessage {
+                        role,
+                        content: Some(codex_api::ChatMessageContent::Text(full_text)),
+                        tool_calls: None,
+                        tool_call_id: None,
+                    });
+                }
+                ResponseItem::FunctionCall {
+                    call_id,
+                    name,
+                    arguments,
+                    ..
+                } => {
+                    messages.push(codex_api::ChatMessage {
+                        role: "assistant".to_string(),
+                        content: None,
+                        tool_calls: Some(vec![codex_api::ChatToolCall {
+                            id: call_id,
+                            r#type: "function".to_string(),
+                            function: codex_api::ChatFunctionCall { name, arguments },
+                        }]),
+                        tool_call_id: None,
+                    });
+                }
+                ResponseItem::FunctionCallOutput {
+                    call_id, output, ..
+                } => {
+                    let text = output.body.to_text().unwrap_or_default();
+                    messages.push(codex_api::ChatMessage {
+                        role: "tool".to_string(),
+                        content: Some(codex_api::ChatMessageContent::Text(text)),
+                        tool_calls: None,
+                        tool_call_id: call_id,
+                    });
+                }
+                _ => {}
+            }
+        }
+
+        let mut tools = Vec::new();
+        for spec in &prompt.tools {
+            match spec {
+                codex_tools::ToolSpec::Function(f) => {
+                    if let Ok(params) = serde_json::to_value(&f.parameters) {
+                        tools.push(codex_api::ChatTool {
+                            r#type: "function".to_string(),
+                            function: codex_api::ChatToolFunction {
+                                name: f.name.clone(),
+                                description: f.description.clone(),
+                                parameters: params,
+                            },
+                        });
+                    }
+                }
+                codex_tools::ToolSpec::Namespace(ns) => {
+                    for tool in &ns.tools {
+                        match tool {
+                            codex_tools::ResponsesApiNamespaceTool::Function(f) => {
+                                if let Ok(params) = serde_json::to_value(&f.parameters) {
+                                    tools.push(codex_api::ChatTool {
+                                        r#type: "function".to_string(),
+                                        function: codex_api::ChatToolFunction {
+                                            name: f.name.clone(),
+                                            description: f.description.clone(),
+                                            parameters: params,
+                                        },
+                                    });
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        Ok(codex_api::ChatApiRequest {
+            model: model_info.slug.clone(),
+            messages,
+            tools,
+            stream: true,
+            stream_options: Some(codex_api::ChatStreamOptions {
+                include_usage: true,
+            }),
+            temperature: None,
+            max_tokens: None,
+        })
+    }
+
+    fn build_anthropic_request(
+        &self,
+        prompt: &Prompt,
+        model_info: &ModelInfo,
+    ) -> Result<codex_api::AnthropicApiRequest> {
+        let input_items = prompt.get_formatted_input_for_request(false);
+        let system = if prompt.base_instructions.text.is_empty() {
+            None
+        } else {
+            Some(prompt.base_instructions.text.clone())
+        };
+
+        let mut raw_messages: Vec<(String, codex_api::AnthropicBlock)> = Vec::new();
+
+        for item in input_items {
+            match item {
+                ResponseItem::Message { role, content, .. } => {
+                    let mapped_role = match role.as_str() {
+                        "assistant" => "assistant",
+                        _ => "user",
+                    };
+                    for c in content {
+                        match c {
+                            ContentItem::InputText { text } | ContentItem::OutputText { text } => {
+                                if !text.is_empty() {
+                                    raw_messages.push((
+                                        mapped_role.to_string(),
+                                        codex_api::AnthropicBlock::Text { text },
+                                    ));
+                                }
+                            }
+                            ContentItem::InputImage { image_url, .. } => {
+                                if let Some((mime, data)) = parse_data_url(&image_url) {
+                                    raw_messages.push((
+                                        mapped_role.to_string(),
+                                        codex_api::AnthropicBlock::Image {
+                                            source: codex_api::AnthropicImageSource {
+                                                r#type: "base64".to_string(),
+                                                media_type: mime,
+                                                data,
+                                            },
+                                        },
+                                    ));
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                ResponseItem::FunctionCall {
+                    call_id,
+                    name,
+                    arguments,
+                    ..
+                } => {
+                    let input = serde_json::from_str(&arguments)
+                        .unwrap_or_else(|_| serde_json::json!({}));
+                    raw_messages.push((
+                        "assistant".to_string(),
+                        codex_api::AnthropicBlock::ToolUse {
+                            id: call_id,
+                            name,
+                            input,
+                        },
+                    ));
+                }
+                ResponseItem::FunctionCallOutput {
+                    call_id, output, ..
+                } => {
+                    let text = output.body.to_text().unwrap_or_default();
+                    raw_messages.push((
+                        "user".to_string(),
+                        codex_api::AnthropicBlock::ToolResult {
+                            tool_use_id: call_id.unwrap_or_default(),
+                            content: text,
+                        },
+                    ));
+                }
+                _ => {}
+            }
+        }
+
+        let mut messages: Vec<codex_api::AnthropicMessage> = Vec::new();
+        for (role, block) in raw_messages {
+            if let Some(last) = messages.last_mut()
+                && last.role == role
+            {
+                match &mut last.content {
+                    codex_api::AnthropicContent::Blocks(blocks) => {
+                        blocks.push(block);
+                    }
+                    codex_api::AnthropicContent::Text(text) => {
+                        let existing = codex_api::AnthropicBlock::Text {
+                            text: std::mem::take(text),
+                        };
+                        last.content = codex_api::AnthropicContent::Blocks(vec![existing, block]);
+                    }
+                }
+            } else {
+                messages.push(codex_api::AnthropicMessage {
+                    role,
+                    content: codex_api::AnthropicContent::Blocks(vec![block]),
+                });
+            }
+        }
+
+        if messages.is_empty() {
+            messages.push(codex_api::AnthropicMessage {
+                role: "user".to_string(),
+                content: codex_api::AnthropicContent::Text("Hello".to_string()),
+            });
+        }
+
+        let mut tools = Vec::new();
+        for spec in &prompt.tools {
+            match spec {
+                codex_tools::ToolSpec::Function(f) => {
+                    if let Ok(input_schema) = serde_json::to_value(&f.parameters) {
+                        tools.push(codex_api::AnthropicTool {
+                            name: f.name.clone(),
+                            description: f.description.clone(),
+                            input_schema,
+                        });
+                    }
+                }
+                codex_tools::ToolSpec::Namespace(ns) => {
+                    for tool in &ns.tools {
+                        match tool {
+                            codex_tools::ResponsesApiNamespaceTool::Function(f) => {
+                                if let Ok(input_schema) = serde_json::to_value(&f.parameters) {
+                                    tools.push(codex_api::AnthropicTool {
+                                        name: f.name.clone(),
+                                        description: f.description.clone(),
+                                        input_schema,
+                                    });
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        Ok(codex_api::AnthropicApiRequest {
+            model: model_info.slug.clone(),
+            system,
+            messages,
+            tools,
+            max_tokens: 8192,
+            stream: true,
+            temperature: None,
+        })
+    }
+
     fn prepare_response_items_for_request(&self, input: &mut [ResponseItem]) {
         for item in input {
             if item.id().is_some_and(|id| !id.is_prefixed()) {
@@ -1707,6 +2006,210 @@ impl ModelClientSession {
         }
     }
 
+    async fn stream_chat_api(
+        &self,
+        prompt: &Prompt,
+        model_info: &ModelInfo,
+        session_telemetry: &SessionTelemetry,
+        responses_metadata: &CodexResponsesMetadata,
+        inference_trace: &InferenceTraceContext,
+    ) -> Result<ResponseStream> {
+        let auth_manager = self.client.state.provider.auth_manager();
+        let mut auth_recovery = auth_manager
+            .as_ref()
+            .map(AuthManager::unauthorized_recovery);
+        let mut provider_auth_recovery_attempted = false;
+        let mut pending_retry = PendingUnauthorizedRetry::default();
+        loop {
+            let client_setup = self.client.current_client_setup().await?;
+            let endpoint = "/chat/completions";
+            let transport = self
+                .client
+                .build_api_transport(&client_setup.api_provider, endpoint)?;
+            let request_auth_context = AuthRequestTelemetryContext::new(
+                client_setup.auth.as_ref().map(CodexAuth::auth_mode),
+                client_setup.api_auth.as_ref(),
+                client_setup.agent_identity_telemetry.clone(),
+                pending_retry,
+            );
+            let (request_telemetry, sse_telemetry) = Self::build_streaming_telemetry(
+                session_telemetry,
+                request_auth_context,
+                RequestRouteTelemetry::for_endpoint(endpoint),
+                self.client.state.auth_env_telemetry.clone(),
+            );
+            let options = ApiChatOptions {
+                session_id: Some(responses_metadata.session_id.to_string()),
+                thread_id: Some(responses_metadata.thread_id.to_string()),
+                extra_headers: ApiHeaderMap::new(),
+            };
+            let request = self.client.build_chat_request(prompt, model_info)?;
+            let inference_trace_attempt = inference_trace.start_attempt();
+            inference_trace_attempt.record_started(&request);
+
+            let client = ApiChatClient::new(
+                transport,
+                client_setup.api_provider,
+                client_setup.api_auth,
+            )
+            .with_telemetry(Some(request_telemetry), Some(sse_telemetry));
+            let stream_result = client.stream_request(request, options).await;
+
+            match stream_result {
+                Ok(stream) => {
+                    let (stream, _) = map_response_stream(
+                        stream,
+                        session_telemetry.clone(),
+                        inference_trace_attempt,
+                        Arc::clone(&self.client.state.provider),
+                    );
+                    return Ok(stream);
+                }
+                Err(ApiError::Transport(unauthorized_transport))
+                    if self
+                        .client
+                        .state
+                        .provider
+                        .is_recoverable_auth_error(&unauthorized_transport) =>
+                {
+                    let response_debug_context =
+                        extract_response_debug_context(&unauthorized_transport);
+                    inference_trace_attempt.record_failed(
+                        &unauthorized_transport,
+                        response_debug_context.request_id.as_deref(),
+                        &[],
+                    );
+                    pending_retry = PendingUnauthorizedRetry::from_recovery(
+                        handle_unauthorized(
+                            unauthorized_transport,
+                            &mut auth_recovery,
+                            &mut provider_auth_recovery_attempted,
+                            session_telemetry,
+                            &self.client.state.provider,
+                            self.client.event_sender.as_ref(),
+                            responses_metadata.turn_id.as_deref(),
+                        )
+                        .await?,
+                    );
+                    continue;
+                }
+                Err(err) => {
+                    let response_debug_context =
+                        extract_response_debug_context_from_api_error(&err);
+                    let err = self.client.state.provider.map_api_error(err);
+                    inference_trace_attempt.record_failed(
+                        &err,
+                        response_debug_context.request_id.as_deref(),
+                        &[],
+                    );
+                    return Err(err);
+                }
+            }
+        }
+    }
+
+    async fn stream_anthropic_api(
+        &self,
+        prompt: &Prompt,
+        model_info: &ModelInfo,
+        session_telemetry: &SessionTelemetry,
+        responses_metadata: &CodexResponsesMetadata,
+        inference_trace: &InferenceTraceContext,
+    ) -> Result<ResponseStream> {
+        let auth_manager = self.client.state.provider.auth_manager();
+        let mut auth_recovery = auth_manager
+            .as_ref()
+            .map(AuthManager::unauthorized_recovery);
+        let mut provider_auth_recovery_attempted = false;
+        let mut pending_retry = PendingUnauthorizedRetry::default();
+        loop {
+            let client_setup = self.client.current_client_setup().await?;
+            let endpoint = "/messages";
+            let transport = self
+                .client
+                .build_api_transport(&client_setup.api_provider, endpoint)?;
+            let request_auth_context = AuthRequestTelemetryContext::new(
+                client_setup.auth.as_ref().map(CodexAuth::auth_mode),
+                client_setup.api_auth.as_ref(),
+                client_setup.agent_identity_telemetry.clone(),
+                pending_retry,
+            );
+            let (request_telemetry, sse_telemetry) = Self::build_streaming_telemetry(
+                session_telemetry,
+                request_auth_context,
+                RequestRouteTelemetry::for_endpoint(endpoint),
+                self.client.state.auth_env_telemetry.clone(),
+            );
+            let options = ApiAnthropicOptions {
+                session_id: Some(responses_metadata.session_id.to_string()),
+                thread_id: Some(responses_metadata.thread_id.to_string()),
+                extra_headers: ApiHeaderMap::new(),
+            };
+            let request = self.client.build_anthropic_request(prompt, model_info)?;
+            let inference_trace_attempt = inference_trace.start_attempt();
+            inference_trace_attempt.record_started(&request);
+
+            let client = ApiAnthropicClient::new(
+                transport,
+                client_setup.api_provider,
+                client_setup.api_auth,
+            )
+            .with_telemetry(Some(request_telemetry), Some(sse_telemetry));
+            let stream_result = client.stream_request(request, options).await;
+
+            match stream_result {
+                Ok(stream) => {
+                    let (stream, _) = map_response_stream(
+                        stream,
+                        session_telemetry.clone(),
+                        inference_trace_attempt,
+                        Arc::clone(&self.client.state.provider),
+                    );
+                    return Ok(stream);
+                }
+                Err(ApiError::Transport(unauthorized_transport))
+                    if self
+                        .client
+                        .state
+                        .provider
+                        .is_recoverable_auth_error(&unauthorized_transport) =>
+                {
+                    let response_debug_context =
+                        extract_response_debug_context(&unauthorized_transport);
+                    inference_trace_attempt.record_failed(
+                        &unauthorized_transport,
+                        response_debug_context.request_id.as_deref(),
+                        &[],
+                    );
+                    pending_retry = PendingUnauthorizedRetry::from_recovery(
+                        handle_unauthorized(
+                            unauthorized_transport,
+                            &mut auth_recovery,
+                            &mut provider_auth_recovery_attempted,
+                            session_telemetry,
+                            &self.client.state.provider,
+                            self.client.event_sender.as_ref(),
+                            responses_metadata.turn_id.as_deref(),
+                        )
+                        .await?,
+                    );
+                    continue;
+                }
+                Err(err) => {
+                    let response_debug_context =
+                        extract_response_debug_context_from_api_error(&err);
+                    let err = self.client.state.provider.map_api_error(err);
+                    inference_trace_attempt.record_failed(
+                        &err,
+                        response_debug_context.request_id.as_deref(),
+                        &[],
+                    );
+                    return Err(err);
+                }
+            }
+        }
+    }
+
     /// Streams a turn via the Responses API over WebSocket transport.
     #[allow(clippy::too_many_arguments)]
     #[instrument(
@@ -2069,6 +2572,26 @@ impl ModelClientSession {
                     effort,
                     summary,
                     service_tier,
+                    responses_metadata,
+                    inference_trace,
+                )
+                .await
+            }
+            WireApi::Chat => {
+                self.stream_chat_api(
+                    prompt,
+                    model_info,
+                    session_telemetry,
+                    responses_metadata,
+                    inference_trace,
+                )
+                .await
+            }
+            WireApi::Anthropic => {
+                self.stream_anthropic_api(
+                    prompt,
+                    model_info,
+                    session_telemetry,
                     responses_metadata,
                     inference_trace,
                 )

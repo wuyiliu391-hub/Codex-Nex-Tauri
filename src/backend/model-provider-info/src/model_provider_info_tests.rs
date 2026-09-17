@@ -664,3 +664,30 @@ refresh_interval_ms = 0
     assert_eq!(auth.refresh_interval_ms, 0);
     assert_eq!(auth.refresh_interval(), None);
 }
+
+#[test]
+fn test_deserialize_wire_api_chat_and_anthropic() {
+    let chat_provider_toml = r#"
+name = "DeepSeek"
+base_url = "https://api.deepseek.com/v1"
+wire_api = "chat"
+    "#;
+    let chat_provider: ModelProviderInfo = toml::from_str(chat_provider_toml).unwrap();
+    assert_eq!(chat_provider.wire_api, WireApi::Chat);
+
+    let anthropic_provider_toml = r#"
+name = "Anthropic"
+base_url = "https://api.anthropic.com/v1"
+wire_api = "anthropic"
+    "#;
+    let anthropic_provider: ModelProviderInfo = toml::from_str(anthropic_provider_toml).unwrap();
+    assert_eq!(anthropic_provider.wire_api, WireApi::Anthropic);
+
+    let messages_provider_toml = r#"
+name = "Claude"
+base_url = "https://api.anthropic.com/v1"
+wire_api = "messages"
+    "#;
+    let messages_provider: ModelProviderInfo = toml::from_str(messages_provider_toml).unwrap();
+    assert_eq!(messages_provider.wire_api, WireApi::Anthropic);
+}
