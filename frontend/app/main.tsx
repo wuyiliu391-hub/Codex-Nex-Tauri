@@ -15,8 +15,10 @@ import "../src/styles/settings.css";
 import "../src/styles/settings-pages.css";
 import "../src/styles/dark.css";
 
-// React-owned styles for surfaces the vanilla layer never had.
+// React-owned styles for surfaces the vanilla layer never had, plus the modal
+// rules that modal.js used to inject at runtime.
 import "./styles/approvals.css";
+import "./styles/modal.css";
 
 import { App } from "./App";
 import { startEventBridge } from "./bridge/events";

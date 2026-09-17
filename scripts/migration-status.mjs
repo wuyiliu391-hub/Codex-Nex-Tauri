@@ -57,10 +57,10 @@ const MODULES = [
   },
   { file: "discovery.js", status: "pending", replaces: ["frontend/app/views/discovery/"] },
   { file: "shell.js", status: "ported", replaces: ["frontend/app/shell/AppShell.tsx"] },
-  { file: "pet.js", status: "pending", replaces: ["frontend/app/pet/PetOverlay.tsx"] },
-  { file: "modal.js", status: "pending", replaces: ["frontend/app/shell/Modal.tsx"] },
-  { file: "ui-controls.js", status: "pending", replaces: ["frontend/app/shell/Dropdown.tsx"] },
-  { file: "shortcuts.js", status: "pending", replaces: ["frontend/app/shell/useShortcuts.ts"] },
+  { file: "pet.js", status: "ported", replaces: ["frontend/app/pet/PetOverlay.tsx"] },
+  { file: "modal.js", status: "ported", replaces: ["frontend/app/shell/Modal.tsx"] },
+  { file: "ui-controls.js", status: "ported", replaces: ["frontend/app/shell/Dropdown.tsx"] },
+  { file: "shortcuts.js", status: "ported", replaces: ["frontend/app/shell/useShortcuts.ts"] },
   { file: "router.js", status: "ported", replaces: ["frontend/app/shell/useRoute.ts"] },
 ];
 
