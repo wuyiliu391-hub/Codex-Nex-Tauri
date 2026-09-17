@@ -42,7 +42,9 @@ env:
   # ── sccache → GitHub Actions cache backend ──
   SCCACHE_GHA_ENABLED: "on"
   SCCACHE_GHA_RW_MODE: "READ_WRITE"
-  SCCACHE_VERSION: "0.18.0"
+  # Asset names are sccache-vX.Y.Z-*.zip — the action URL-joins this string
+  # raw, so the leading "v" is required (0.18.0 → 404).
+  SCCACHE_VERSION: "v0.18.0"
   RUSTC_WRAPPER: sccache
 
 jobs:
