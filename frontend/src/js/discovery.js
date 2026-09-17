@@ -3,6 +3,7 @@
 import { store } from "./state.js";
 import { on, navigate } from "./router.js";
 import { t } from "./i18n.js";
+import { createDropdown } from "./ui-controls.js";
 
 function escapeHtml(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
@@ -19,7 +20,13 @@ function scheduledIcon(type) {
 // Official suggestion row: icon + title · meta + description.
 function suggestionCard(s) {
   const iconClass = s.icon === "weekly" ? "purple" : s.icon === "followup" ? "green" : "";
-  const meta = s.cron || s.time || (s.icon === "weekly" ? "星期五（时间：16:00）" : s.icon === "followup" ? "工作日 9:00" : "工作日 8:00");
+  // Stored crons map back to the official friendly schedule text (p16).
+  const CRON_META = {
+    "0 9 * * *": "工作日 8:00",
+    "0 10 * * 1": "星期五（时间：16:00）",
+    "0 */4 * * *": "工作日 9:00",
+  };
+  const meta = CRON_META[s.cron] || s.time || (s.icon === "weekly" ? "星期五（时间：16:00）" : s.icon === "followup" ? "工作日 9:00" : "工作日 8:00");
   return `<button class="suggestion-card" data-run-scheduled="${escapeHtml(s.id)}">
     <span class="sug-ico ${iconClass}">${scheduledIcon(s.icon || s.type)}</span>
     <span>
@@ -39,6 +46,114 @@ async function refreshScheduledFromBridge() {
   } catch (e) {
     console.warn("[discovery] ListScheduledTasks failed", e);
   }
+}
+
+// Minimal modal reusing global .settings-modal styles (no new chrome).
+function openDiscoveryModal({ title, bodyHtml, okLabel, onOk }) {
+  closeDiscoveryModal();
+  const back = document.createElement("div");
+  back.className = "settings-modal-backdrop";
+  back.id = "discovery-modal";
+  back.innerHTML = `<div class="settings-modal" role="dialog" aria-label="${escapeHtml(title)}">
+    <h2>${escapeHtml(title)}</h2>
+    <div class="dm-body">${bodyHtml}</div>
+    <div class="settings-modal-actions">
+      <button class="settings-button" type="button" data-dm-cancel>${escapeHtml(t("action.cancel"))}</button>
+      <button class="settings-button primary" type="button" data-dm-ok>${escapeHtml(okLabel)}</button>
+    </div>
+  </div>`;
+  document.body.appendChild(back);
+  back.addEventListener("pointerdown", (e) => {
+    if (e.target === back) closeDiscoveryModal();
+  });
+  back.querySelector("[data-dm-cancel]")?.addEventListener("click", closeDiscoveryModal);
+  back.querySelector("[data-dm-ok]")?.addEventListener("click", async () => {
+    try {
+      await onOk?.(back);
+      closeDiscoveryModal();
+    } catch (e) {
+      console.error("[discovery] modal save failed", e);
+    }
+  });
+  return back;
+}
+
+function closeDiscoveryModal() {
+  document.getElementById("discovery-modal")?.remove();
+}
+
+function discoveryToast(message) {
+  const el = document.createElement("div");
+  el.className = "settings-toast";
+  el.textContent = message;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2500);
+}
+
+const SCHEDULED_PRESETS = [
+  { id: "daily", cron: "0 9 * * *", labelKey: "scheduled.presetDaily" },
+  { id: "weekly", cron: "0 10 * * 1", labelKey: "scheduled.presetWeekly" },
+  { id: "followup", cron: "0 */4 * * *", labelKey: "scheduled.presetFollowup" },
+];
+
+// Create-task editor: preset fills title/desc/cron, all fields remain editable.
+function openScheduledEditor(repaint) {
+  const presetItems = SCHEDULED_PRESETS.map((p) => ({ value: p.id, label: t(p.labelKey) }));
+  const back = openDiscoveryModal({
+    title: t("scheduled.createTitle"),
+    okLabel: t("action.create"),
+    bodyHtml: `
+      <label class="dm-field"><span>${escapeHtml(t("scheduled.fieldTitle"))}</span>
+        <input type="text" class="settings-input" data-st-title /></label>
+      <label class="dm-field"><span>${escapeHtml(t("scheduled.fieldDesc"))}</span>
+        <input type="text" class="settings-input" data-st-desc /></label>
+      <div class="dm-field"><span>${escapeHtml(t("scheduled.fieldPreset"))}</span>
+        <button type="button" class="settings-input dm-select" data-st-preset="daily" aria-haspopup="listbox"><span class="ui-dropdown-label">${escapeHtml(t(SCHEDULED_PRESETS[0].labelKey))}</span><span class="ui-dropdown-caret" aria-hidden="true"></span></button></div>
+      <label class="dm-field"><span>${escapeHtml(t("scheduled.fieldCron"))}</span>
+        <input type="text" class="settings-input" data-st-cron value="${SCHEDULED_PRESETS[0].cron}" /></label>`,
+    onOk: async (root) => {
+      const title = root.querySelector("[data-st-title]")?.value.trim();
+      if (!title) return;
+      const desc = root.querySelector("[data-st-desc]")?.value.trim() || "";
+      const presetId = root.querySelector("[data-st-preset]")?.dataset.stPreset || "daily";
+      const preset = SCHEDULED_PRESETS.find((p) => p.id === presetId);
+      const cron = root.querySelector("[data-st-cron]")?.value.trim() || preset?.cron || "";
+      const task = {
+        id: `task-${Date.now()}`,
+        title,
+        desc,
+        icon: preset?.id || "daily",
+        cron,
+        status: "enabled",
+      };
+      const next = [...(store.scheduled || []), task];
+      await window.go?.main?.App?.SaveScheduledTasks?.(next);
+      store.scheduled = next;
+      discoveryToast(t("scheduled.created"));
+      await refreshScheduledFromBridge().finally(() => repaint?.());
+    },
+  });
+  // Preset picker fills the editable fields (official suggestion defaults).
+  const presetBtn = back.querySelector("[data-st-preset]");
+  const applyPreset = (id) => {
+    const preset = SCHEDULED_PRESETS.find((p) => p.id === id);
+    if (!preset) return;
+    back.querySelector("[data-st-cron]").value = preset.cron;
+    const titleEl = back.querySelector("[data-st-title]");
+    if (titleEl && !titleEl.value) titleEl.value = t(preset.labelKey).split(/[（(]/)[0].trim();
+  };
+  if (presetBtn) {
+    createDropdown({
+      anchor: presetBtn,
+      items: presetItems,
+      value: "daily",
+      onSelect: (val) => {
+        presetBtn.dataset.stPreset = val;
+        applyPreset(val);
+      },
+    });
+  }
+  applyPreset("daily");
 }
 
 export function mountScheduled() {
@@ -81,10 +196,16 @@ export function mountScheduled() {
     if (lede) lede.textContent = t("discovery.scheduledDesc");
     const search = view.querySelector("[data-scheduled-search]");
     if (search) search.placeholder = t("discovery.searchScheduled");
+    if (!view._scheduledBound) {
+      view._scheduledBound = true;
+      view.querySelector("[data-create-scheduled]")?.addEventListener("click", () => openScheduledEditor(paint));
+      search?.addEventListener("input", () => applyScheduledFilter(view));
+    }
     const body = $("scheduled-body");
     const list = (store.scheduled && store.scheduled.length) ? store.scheduled : SEEDS;
     body.innerHTML = `<div class="discovery-section-label">${escapeHtml(t("discovery.suggestions"))}</div>
       <div class="suggestion-list">${list.map((s) => suggestionCard(s)).join("")}</div>`;
+    applyScheduledFilter(view);
     body.querySelectorAll("[data-run-scheduled]").forEach((btn) => btn.addEventListener("click", async () => {
       try {
         await window.go?.main?.App?.RunScheduledTask?.(btn.dataset.runScheduled);
@@ -110,6 +231,14 @@ export function mountScheduled() {
   });
   document.addEventListener("codex:language-applied", () => {
     if ($("view-scheduled") && !$("view-scheduled").hidden) paint();
+  });
+}
+
+/** Filter scheduled rows by the search box (official search filters in place). */
+function applyScheduledFilter(view) {
+  const q = view.querySelector("[data-scheduled-search]")?.value.trim().toLowerCase() || "";
+  view.querySelectorAll(".suggestion-card").forEach((card) => {
+    card.style.display = !q || card.textContent.toLowerCase().includes(q) ? "" : "none";
   });
 }
 
@@ -170,10 +299,69 @@ async function refreshPluginsFromBridge() {
       const normalized = list.map(normalizePlugin).filter(Boolean);
       if (normalized.length) store.plugins = normalized;
     }
+    pluginsLoaded = true;
   } catch (e) {
     console.warn("[discovery] ListPlugins failed", e);
   }
 }
+
+/** Pull skills via bridge; fail-soft keeps the local cache. */
+let skillsCache = [];
+let skillsLoaded = false;
+async function refreshSkillsFromBridge() {
+  const api = window.go?.main?.App;
+  try {
+    const raw = await api?.ListSkills?.();
+    const list = Array.isArray(raw) ? raw : (raw?.skills || raw?.data || []);
+    if (Array.isArray(list)) {
+      skillsCache = list
+        .map((s) => (s && typeof s === "object"
+          ? { id: s.id || s.name || "", name: s.name || s.id || "Skill", desc: s.description || s.desc || "" }
+          : null))
+        .filter(Boolean);
+      skillsLoaded = true;
+    }
+  } catch (e) {
+    console.warn("[discovery] ListSkills failed", e);
+  }
+}
+
+function skillRowHtml(s) {
+  const letter = String(s.name || "S").charAt(0).toUpperCase();
+  return `<div class="plugin-card" data-skill-id="${escapeHtml(s.id)}">
+    <div class="pc-row1">
+      <div class="pc-logo">${escapeHtml(letter)}</div>
+      <div>
+        <div class="pc-name">${escapeHtml(s.name)}</div>
+        <div class="pc-tag">${escapeHtml(t("discovery.skills"))}</div>
+      </div>
+    </div>
+    <div class="pc-desc">${escapeHtml(s.desc || "")}</div>
+  </div>`;
+}
+
+/** Paint the skills tab body (list-only; engine owns enablement). */
+function paintSkillsBody(body) {
+  const q = pluginsQuery;
+  const list = skillsCache.filter((s) => {
+    if (!q) return true;
+    return `${s.name || ""} ${s.desc || ""}`.toLowerCase().includes(q);
+  });
+  if (!list.length && !skillsLoaded) {
+    body.innerHTML = `<div class="discovery-loading"><span class="spin"></span><span>${escapeHtml(t("discovery.loadingPlugins", "正在加载插件..."))}</span></div>`;
+    return;
+  }
+  body.innerHTML = list.length
+    ? `<div class="plugins-grid">${list.map(skillRowHtml).join("")}</div>`
+    : `<div class="discovery-empty"><h3>${escapeHtml(t("discovery.skillsEmpty"))}</h3></div>`;
+}
+
+// Discovery UI state (tabs / scope filter / search / sort).
+let pluginsTab = "plugins";
+let pluginsScope = "public";
+let pluginsQuery = "";
+let pluginsSortInstalledFirst = false;
+let pluginsLoaded = false;
 
 export function mountPlugins() {
   const main = $("main");
@@ -206,11 +394,15 @@ export function mountPlugins() {
           </div>
           <div class="discovery-search">
             <svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="7.7" cy="7.7" r="4.4"/><path d="m11 11 3.4 3.4"/></svg>
-            <input placeholder="${escapeHtml(t("discovery.searchPlugins"))}" />
+            <input placeholder="${escapeHtml(t("discovery.searchPlugins"))}" data-plugins-search />
           </div>
           <div class="discovery-filters">
-            <button class="chip is-active">${escapeHtml(t("discovery.public"))}</button>
-            <button class="chip">${escapeHtml(t("discovery.personal"))}</button>
+            <button class="chip is-active" data-plugins-scope="public">${escapeHtml(t("discovery.public"))}</button>
+            <button class="chip" data-plugins-scope="personal">${escapeHtml(t("discovery.personal"))}</button>
+            <span class="filters-spacer"></span>
+            <button class="icon-btn-round" data-plugins-filter aria-label="${escapeHtml(t("discovery.filter"))}" title="${escapeHtml(t("discovery.filter"))}">
+              <svg viewBox="0 0 18 18"><path d="M2.5 4h13M5 8.5h8M7.5 13h3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </button>
           </div>
           <div class="discovery-body is-wide" id="plugins-body"></div>
         </section>`);
@@ -219,13 +411,52 @@ export function mountPlugins() {
       view.querySelector("[data-plugins-settings]")?.addEventListener("click", () => navigate("settings", "plugins"));
       view.querySelector("[data-plugins-add]")?.addEventListener("click", () => navigate("settings", "plugins"));
       view.querySelector("[data-plugins-refresh]")?.addEventListener("click", () => {
-        refreshPluginsFromBridge().finally(paint);
+        (pluginsTab === "skills" ? refreshSkillsFromBridge() : refreshPluginsFromBridge()).finally(paint);
+      });
+      view.querySelectorAll("[data-plugins-tab]").forEach((tab) => tab.addEventListener("click", () => {
+        pluginsTab = tab.dataset.pluginsTab || "plugins";
+        paint();
+      }));
+      view.querySelectorAll("[data-plugins-scope]").forEach((chip) => chip.addEventListener("click", () => {
+        pluginsScope = chip.dataset.pluginsScope || "public";
+        paint();
+      }));
+      view.querySelector("[data-plugins-filter]")?.addEventListener("click", () => {
+        pluginsSortInstalledFirst = !pluginsSortInstalledFirst;
+        paint();
+      });
+      const searchInput = view.querySelector("[data-plugins-search]");
+      searchInput?.addEventListener("input", () => {
+        pluginsQuery = searchInput.value.trim().toLowerCase();
+        paint();
       });
     }
+    // Sync tab / scope / search chrome without rebuilding listeners.
+    view.querySelectorAll("[data-plugins-tab]").forEach((tab) => {
+      tab.classList.toggle("is-active", (tab.dataset.pluginsTab || "plugins") === pluginsTab);
+    });
+    view.querySelectorAll("[data-plugins-scope]").forEach((chip) => {
+      chip.classList.toggle("is-active", (chip.dataset.pluginsScope || "public") === pluginsScope);
+    });
+    view.querySelector(".discovery-filters").style.display = pluginsTab === "skills" ? "none" : "";
+    const searchBox = view.querySelector("[data-plugins-search]");
+    if (searchBox) searchBox.placeholder = t("discovery.searchPlugins");
     const body = $("plugins-body");
-    const plugins = store.plugins || [];
-    if (!plugins.length) {
-      body.innerHTML = `<div class="discovery-loading"><span class="spin"></span><span>${escapeHtml(t("discovery.plugins"))}…</span></div>`;
+    if (pluginsTab === "skills") {
+      paintSkillsBody(body);
+      return;
+    }
+    const q = pluginsQuery;
+    let plugins = (store.plugins || []).filter((p) => {
+      if (pluginsScope === "personal" && !p.installed) return false;
+      if (!q) return true;
+      return `${p.name || ""} ${p.desc || ""} ${p.tag || ""}`.toLowerCase().includes(q);
+    });
+    if (pluginsSortInstalledFirst) {
+      plugins = [...plugins].sort((a, b) => Number(b.installed === true) - Number(a.installed === true));
+    }
+    if (!plugins.length && !pluginsLoaded) {
+      body.innerHTML = `<div class="discovery-loading"><span class="spin"></span><span>${escapeHtml(t("discovery.loadingPlugins", "正在加载插件..."))}</span></div>`;
       return;
     }
     const installed = plugins.filter((p) => p.installed);
@@ -237,6 +468,9 @@ export function mountPlugins() {
       const items = plugins.filter((p) => p.tag === tag && !p.installed);
       if (items.length) html += `<div class="plugins-grid">${items.map(pluginCardHtml).join("")}</div>`;
     });
+    // Engine-backed plugins with unknown tags must not vanish silently.
+    const rest = plugins.filter((p) => !p.installed && !PLUGIN_GROUPS.includes(p.tag));
+    if (rest.length) html += `<div class="plugins-grid">${rest.map(pluginCardHtml).join("")}</div>`;
     body.innerHTML = html || `<div class="discovery-empty"><h3>${escapeHtml(t("discovery.noPlugins"))}</h3></div>`;
     body.querySelectorAll("[data-plugin-toggle]").forEach((btn) => {
       btn.addEventListener("click", async () => {
@@ -259,6 +493,7 @@ export function mountPlugins() {
     document.querySelectorAll(".view").forEach((v) => (v.hidden = true));
     $("view-plugins").hidden = false;
     refreshPluginsFromBridge().finally(paint);
+    refreshSkillsFromBridge();
   });
   document.addEventListener("codex:refresh", () => {
     if ($("view-plugins") && !$("view-plugins").hidden) {
@@ -309,7 +544,7 @@ export function mountPullRequests() {
             <div></div>
           </div>
           <div class="discovery-head">
-            <h2></h2>
+            <h2 class="is-title-sm"></h2>
           </div>
           <div class="discovery-body" id="prs-body"></div>
         </section>`);

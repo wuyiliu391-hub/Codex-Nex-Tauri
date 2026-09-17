@@ -5,4 +5,5 @@ pub mod connectors;
 pub mod engine;
 pub mod fs;
 pub mod pets;
+pub mod scheduled;
 pub mod settings;

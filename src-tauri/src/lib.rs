@@ -65,6 +65,11 @@ pub fn run() {
             commands::fs::list_files,
             commands::fs::read_file,
             commands::fs::write_file,
+            commands::scheduled::list_scheduled_tasks,
+            commands::scheduled::save_scheduled_tasks,
+            commands::scheduled::run_scheduled_task,
+            commands::scheduled::list_pull_requests,
+            commands::scheduled::save_pull_requests,
             // engine forwarders
             commands::engine::engine_status,
             commands::engine::new_session,

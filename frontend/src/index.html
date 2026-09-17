@@ -73,28 +73,6 @@
     }
     @keyframes startup-openai-blossom-fade-in { 0% { opacity: 0; } 100% { opacity: 1; } }
     @keyframes startup-openai-blossom-shimmer { 0% { background-position: 140% 0; } 100% { background-position: -105% 0; } }
-    .startup-loader__log {
-      position: absolute;
-      left: 50%;
-      bottom: 40px;
-      transform: translateX(-50%);
-      max-width: 80vw;
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size: 11px;
-      line-height: 1.45;
-      color: var(--startup-logo-shimmer-base, #666);
-      background: rgba(255,255,255,0.6);
-      backdrop-filter: blur(4px);
-      -webkit-app-region: no-drag;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 200ms ease;
-      white-space: pre-wrap;
-      text-align: center;
-    }
-    .startup-loader__log.is-visible { opacity: 1; }
   </style>
 </head>
 <body class="is-booting">
@@ -105,7 +83,6 @@
       </svg>
       <div class="startup-loader__overlay"></div>
     </div>
-    <div class="startup-loader__log" id="startup-log"></div>
   </div>
   <header class="app-toolbar" id="app-toolbar" data-tauri-drag-region>
     <div class="toolbar-navigation">

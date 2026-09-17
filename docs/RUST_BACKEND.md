@@ -252,8 +252,9 @@ skills/changed
 config/warnings
 ```
 
-Emitted as Tauri events `codex:{method with / → .}`, e.g.
-`codex:turn.completed`, `codex:item.agentMessage.delta`.
+Emitted as Tauri events `codex:{method with / replaced by -}` (dots are
+rejected by plugin:event validation), e.g.
+`codex:turn-completed`, `codex:item-agentMessage-delta`.
 
 ---
 

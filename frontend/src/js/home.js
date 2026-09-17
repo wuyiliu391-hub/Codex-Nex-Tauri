@@ -252,13 +252,11 @@ function renderMainHome() {
               <button class="composer-pill access ${permission.tone}" id="chip-full-access" aria-haspopup="menu">
                 <span class="shield"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 1.5 4 4v5c0 4 2.5 7.5 5 7.5s5-3.5 5-7.5V4l-5-2.5Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M9 6.5l1.2 2.4 2.6.4-1.9 1.8.5 2.6-2.4-1.3-2.4 1.3.5-2.6L6.2 9.3l2.6-.4L9 6.5Z" fill="currentColor" stroke="none"/></svg></span>
                 <span>${escapeHtml(permission.label)}</span>
-                <svg class="chevron" viewBox="0 0 18 18" aria-hidden="true"><path d="m5 7 4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </button>
               </div>
               <div class="composer-toolbar-right">
               <button class="composer-pill model${unconfigured ? " is-unconfigured" : ""}" id="chip-model" aria-haspopup="menu">
                 <span>${escapeHtml(modelLabel)}</span>
-                <svg class="chevron" viewBox="0 0 18 18" aria-hidden="true"><path d="m5 7 4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </button>
               <button class="composer-send${store.running ? " composer-stop" : ""}" id="btn-send" aria-label="${store.running ? t("home.stop") : t("home.send")}" ${store.running ? "" : "disabled"}>
                 ${store.running
@@ -631,7 +629,13 @@ function closeUtilityMenuFromOutside(e) {
   closeUtilityMenu();
 }
 
-function openUtilityMenu(anchor, html, className = "") {
+// Popover placement contract (spec/uia-skin-parity S2.2):
+// anchor-bottom-start by default (open DOWNWARD below the trigger),
+// flip above only when there is no room below.
+// At the bottom-anchored composer this flips up and tucks 6px above the
+// toolbar, right-aligned for the model trigger - see
+// docs/visual/official-model-menu.png.
+function openUtilityMenu(anchor, html, className = "", opts = {}) {
   closeUtilityMenu();
   const menu = document.createElement("div");
   menu.className = `composer-menu ${className}`.trim();
@@ -639,9 +643,26 @@ function openUtilityMenu(anchor, html, className = "") {
   document.body.appendChild(menu);
   const anchorRect = anchor.getBoundingClientRect();
   const menuRect = menu.getBoundingClientRect();
-  const left = Math.min(anchorRect.left, window.innerWidth - menuRect.width - 8);
-  menu.style.left = `${Math.max(8, Math.round(left))}px`;
-  menu.style.top = `${Math.max(8, Math.round(anchorRect.top - menuRect.height - 6))}px`;
+  const GAP = 6;
+  // Horizontal: start-align to the anchor; end-align (model menu) to the
+  // anchor's right edge so the panel tucks over the toolbar like official.
+  let left = opts.align === "end"
+    ? anchorRect.right - menuRect.width
+    : anchorRect.left;
+  left = Math.min(
+    Math.max(8, Math.round(left)),
+    Math.max(8, window.innerWidth - menuRect.width - 8),
+  );
+  menu.style.left = `${left}px`;
+  // Vertical: prefer below; flip above when below overflows and above fits better.
+  const spaceBelow = window.innerHeight - anchorRect.bottom;
+  const spaceAbove = anchorRect.top;
+  const need = menuRect.height + GAP + 8;
+  if (spaceBelow >= need || spaceBelow >= spaceAbove) {
+    menu.style.top = `${Math.round(anchorRect.bottom + GAP)}px`;
+  } else {
+    menu.style.top = `${Math.max(8, Math.round(anchorRect.top - menuRect.height - GAP))}px`;
+  }
   utilityMenu = menu;
   setTimeout(() => document.addEventListener("pointerdown", closeUtilityMenuFromOutside, true), 0);
   return menu;
@@ -710,7 +731,9 @@ function openModelMenu(anchor) {
       }).join("")}`).join("")
     : `<div class="composer-menu-empty">${escapeHtml(t("home.modelEmpty", "No models configured"))}</div>
        <button class="composer-menu-item" type="button" data-open-providers>
-         <span><strong>${escapeHtml(t("home.openProviders"))}</strong></span>
+         <span class="menu-icon model-icon"><svg viewBox="0 0 18 18"><circle cx="9" cy="9" r="5.7"/><path d="M9 6v3l2 1.2"/></svg></span>
+         <span><strong>${escapeHtml(t("home.openProviders"))}</strong><small>${escapeHtml(t("home.modelEmptyHint"))}</small></span>
+         <span class="menu-arrow">›</span>
        </button>`;
 
   const html = `
@@ -736,7 +759,7 @@ function openModelMenu(anchor) {
     </div>
     <div class="model-list" hidden>${listHtml}</div>`;
 
-  const menu = openUtilityMenu(anchor, html, "model-menu is-panel");
+  const menu = openUtilityMenu(anchor, html, "model-menu is-panel", { align: "end" });
   const panel = menu.querySelector(".model-panel");
   const list = menu.querySelector(".model-list");
   const slider = menu.querySelector(".intensity-slider");

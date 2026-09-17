@@ -180,7 +180,6 @@ function groupShellHtml(g) {
         (c) => `<button class="settings-link" data-link="${c.id}" type="button">
       <span class="ico">${iconSvg(c.icon)}</span>
       <span>${escapeHtml(t(c.labelKey))}</span>
-      <span class="chev">${c.external ? "->" : ">"}</span>
     </button>`,
       )
       .join("")}
@@ -1396,11 +1395,108 @@ function renderHooks(root) {
     ${block(t("hooks.list"), [`<div class="hooks-list">${hooks.map((h) => `<div class="plugin-row"><div class="plugin-icon">H</div><div><div class="plugin-name">${escapeHtml(h.name || h.event)}</div><div class="plugin-desc">${escapeHtml(h.command || "")}</div></div></div>`).join("") || `<div class="settings-card site-empty">${escapeHtml(t("hooks.empty"))}</div>`}</div>`])}`;
 }
 
+// Settings → 连接: SSH-only per official UIA (REPORT-2026-09-16 §2.2).
+// Rows come from the Rust connectors store (list/save/delete/test).
+let connectionsCache = null;
+
+async function refreshConnectionsCache() {
+  try {
+    const list = await api()?.ListConnectors?.();
+    if (Array.isArray(list)) connectionsCache = list;
+  } catch (e) {
+    console.warn("[settings] ListConnectors failed", e);
+  }
+  return connectionsCache || [];
+}
+
 function renderConnections(root) {
-  const conns = store.connections || [];
-  root.innerHTML = `
-    ${pageHead(t("connections.title"))}
-    ${block(t("connections.list"), [`<div class="connections-list">${conns.map((c) => `<div class="plugin-row"><div class="plugin-icon">C</div><div><div class="plugin-name">${escapeHtml(c.name || c.host)}</div><div class="plugin-desc">${escapeHtml(c.user || "")}@${escapeHtml(c.host || "")}</div></div></div>`).join("") || `<div class="settings-card site-empty">${escapeHtml(t("connections.empty"))}</div>`}</div>`])}`;
+  const paint = (conns) => {
+    const ssh = (conns || []).filter((c) => !c.kind || c.kind === "ssh");
+    const rows = ssh.map((c) => {
+      const cfg = (c.config && typeof c.config === "object") ? c.config : {};
+      const host = cfg.host || c.host || "";
+      const user = cfg.user || c.user || "";
+      const sub = [user ? `${user}@` : "", host].join("") || c.id || "";
+      return `<div class="plugin-row" data-conn-id="${escapeHtml(c.id)}">
+        <div class="plugin-icon">S</div>
+        <div><div class="plugin-name">${escapeHtml(c.name || host || c.id)}</div>
+        <div class="plugin-desc">${escapeHtml(sub)}</div></div>
+        <div class="provider-row-actions">
+          <button class="settings-button" type="button" data-conn-test="${escapeHtml(c.id)}">${escapeHtml(t("connections.test"))}</button>
+          <button class="settings-button danger" type="button" data-conn-del="${escapeHtml(c.id)}">${escapeHtml(t("action.delete"))}</button>
+        </div>
+      </div>`;
+    }).join("");
+    root.innerHTML = `
+      ${pageHead(t("connections.title"))}
+      ${block(t("connections.sshHead"), [
+        `<div class="connections-list">${rows || `<div class="settings-card site-empty">${escapeHtml(t("connections.empty"))}</div>`}</div>
+         <div class="connections-foot">${button(t("connections.add"), "add-conn", "primary")}</div>`,
+      ])}`;
+    root.querySelector("[data-action='add-conn']")?.addEventListener("click", () => {
+      showModal(
+        t("connections.addTitle"),
+        t("connections.addDesc"),
+        `
+        ${row(t("connections.name"), "", inputEl("name", ""))}
+        ${row(t("connections.host"), "", inputEl("host", "", "host.example.com"))}
+        ${row(t("connections.user"), "", inputEl("user", ""))}
+        `,
+        [
+          { label: t("connections.cancel") },
+          {
+            label: t("connections.save"),
+            primary: true,
+            action: async (modal) => {
+              const get = (k) => modal.querySelector(`[data-input='${k}']`)?.value?.trim() || "";
+              const host = get("host");
+              if (!host) return;
+              const entry = {
+                id: `ssh-${Date.now()}`,
+                name: get("name") || host,
+                kind: "ssh",
+                config: { host, user: get("user") },
+              };
+              await callAction(t("toast.saved"), () =>
+                requireApi("SaveConnector").then((fn) => fn(entry)),
+              );
+              await refreshStore();
+              renderConnections(root);
+            },
+          },
+        ],
+      );
+    });
+    root.querySelectorAll("[data-conn-test]").forEach((btn) => btn.addEventListener("click", async () => {
+      try {
+        await callAction(t("connections.checked"), () =>
+          requireApi("TestConnector").then((fn) => fn(btn.dataset.connTest)),
+        );
+      } catch (e) {
+        toast(String((e && e.message) || e));
+      }
+    }));
+    root.querySelectorAll("[data-conn-del]").forEach((btn) => btn.addEventListener("click", async () => {
+      try {
+        await callAction(t("toast.saved"), () =>
+          requireApi("DeleteConnector").then((fn) => fn(btn.dataset.connDel)),
+        );
+        await refreshStore();
+        renderConnections(root);
+      } catch (e) {
+        toast(String((e && e.message) || e));
+      }
+    }));
+  };
+  if (connectionsCache) {
+    paint(connectionsCache);
+  } else {
+    root.innerHTML = `${pageHead(t("connections.title"))}`;
+  }
+  refreshConnectionsCache().then((conns) => {
+    // Avoid painting over a navigated-away page.
+    if (document.contains(root) && root.innerHTML !== undefined) paint(conns);
+  });
 }
 
 function renderGit(root) {

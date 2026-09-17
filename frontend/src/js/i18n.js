@@ -420,7 +420,22 @@ const en = {
   "discovery.ghRequired": "GitHub CLI setup required",
   "discovery.ghDesc": "GitHub account source unavailable",
   "discovery.checkAgain": "Check again",
+  "discovery.loadingPlugins": "Loading plugins...",
+  "discovery.skillsEmpty": "No skills found",
+  "discovery.filter": "Filter",
   "config.checkAgain": "Check again",
+
+  // scheduled task editor
+  "scheduled.createTitle": "Create scheduled task",
+  "scheduled.fieldTitle": "Title",
+  "scheduled.fieldDesc": "Description",
+  "scheduled.fieldPreset": "Preset",
+  "scheduled.fieldCron": "Schedule (cron)",
+  "scheduled.presetDaily": "Daily brief (workdays 8:00)",
+  "scheduled.presetWeekly": "Weekly review (Fri 16:00)",
+  "scheduled.presetFollowup": "Follow-up monitor (workdays 9:00)",
+  "scheduled.presetCustom": "Custom...",
+  "scheduled.created": "Scheduled task saved.",
 
   // misc labels used often
   "label.editor": "Editor",
@@ -832,7 +847,22 @@ const zhCN = {
   "discovery.ghRequired": "需要设置 GitHub CLI",
   "discovery.ghDesc": "GitHub account source unavailable",
   "discovery.checkAgain": "再次检查",
+  "discovery.loadingPlugins": "正在加载插件...",
+  "discovery.skillsEmpty": "未找到技能",
+  "discovery.filter": "筛选",
   "config.checkAgain": "再次检查",
+
+  // scheduled task editor
+  "scheduled.createTitle": "创建定时任务",
+  "scheduled.fieldTitle": "标题",
+  "scheduled.fieldDesc": "描述",
+  "scheduled.fieldPreset": "预设",
+  "scheduled.fieldCron": "计划（cron）",
+  "scheduled.presetDaily": "每日简报（工作日 8:00）",
+  "scheduled.presetWeekly": "每周回顾（周五 16:00）",
+  "scheduled.presetFollowup": "跟进监控（工作日 9:00）",
+  "scheduled.presetCustom": "自定义...",
+  "scheduled.created": "定时任务已保存。",
 
   "label.editor": "编辑器",
   "label.currentWindow": "当前窗口",

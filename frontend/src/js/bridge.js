@@ -83,9 +83,15 @@ export function onCodexEvent(name, handler) {
     console.warn("[bridge] Tauri listen not available for", name);
     return () => {};
   }
+  // Tauri plugin:event names allow only [A-Za-z0-9-/:_]; dots are rejected
+  // with "invalid args 'event' for command 'listen'". The Rust emitter
+  // (events.rs) uses `-` as separator, so sanitize here to match it.
+  const channel = String(name).replace(/\./g, "-");
   let unlisten = null;
-  listenFn(name, (e) => handler(e?.payload ?? e)).then((fn) => {
+  listenFn(channel, (e) => handler(e?.payload ?? e)).then((fn) => {
     unlisten = fn;
+  }).catch((err) => {
+    console.warn("[bridge] listen failed for", channel, err);
   });
   return () => {
     if (typeof unlisten === "function") unlisten();
@@ -775,8 +781,8 @@ export function installBridge() {
   }
 
   // Also subscribe to the generic codex:* notification fan-out.
-  // The Rust side emits `codex:{method}` where method has / replaced by .
-  // We listen for a catch-all via the heartbeat + specific known methods.
+  // The Rust side emits `codex:{method}` where method has / replaced by -
+  // (dots are illegal in Tauri event names; onCodexEvent sanitizes aliases).
   onCodexEvent("codex:rpc-event", (payload) => {
     // Generic RPC event - dispatch as agent:runtime so live-turn can pick it up
     if (payload && typeof payload === "object") {

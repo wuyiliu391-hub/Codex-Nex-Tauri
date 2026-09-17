@@ -36,14 +36,9 @@ function hideSplash() {
 const startupStartedAt = performance.now();
 
 function bootLog(...args) {
-  const msg = args.map((a) => (typeof a === "string" ? a : JSON.stringify(a))).join(" ");
+  // Console-only: the boot overlay no longer shows log text (official boots clean).
   const time = new Date().toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
-  const line = `[${time}] ${msg}`;
-  console.log(...args);
-  const el = document.getElementById("startup-log");
-  if (!el) return;
-  el.textContent += (el.textContent ? "\n" : "") + line;
-  el.classList.add("is-visible");
+  console.log(`[${time}]`, ...args);
 }
 
 window.onerror = (message, source, lineno, colno, err) => {

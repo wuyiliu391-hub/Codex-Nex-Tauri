@@ -155,23 +155,24 @@ Go-only features return `{ __unimplemented: true, method, reason }` or empty arr
 
 ### codex:* → agent:* mapping
 
-Rust `events.rs` emits `codex:{method with / → .}` for every server
-notification, plus dedicated names for server→client requests:
+Rust `events.rs` emits `codex:{method with / replaced by -}` for every server
+notification (dots are illegal in Tauri event names), plus dedicated names
+for server→client requests:
 
 | Tauri event | agent:* CustomEvent | Source method |
 |-------------|---------------------|---------------|
 | `codex:approval` | `agent:event` (type=approval) | `item/*/*Approval*` |
 | `codex:user-input` | `agent:question` | `item/tool/requestUserInput`, elicitation |
-| `codex:turn.started` | `agent:runtime` | `turn/started` |
-| `codex:turn.completed` | `agent:runtime` | `turn/completed` |
-| `codex:item.agentMessage.delta` | `agent:runtime` | `item/agentMessage/delta` |
-| `codex:item.completed` | `agent:runtime` | `item/completed` |
-| `codex:item.commandExecution.outputDelta` | `agent:runtime` | command output |
-| `codex:thread.started` | `agent:runtime` | `thread/started` |
+| `codex:turn-started` | `agent:runtime` | `turn/started` |
+| `codex:turn-completed` | `agent:runtime` | `turn/completed` |
+| `codex:item-agentMessage-delta` | `agent:runtime` | `item/agentMessage/delta` |
+| `codex:item-completed` | `agent:runtime` | `item/completed` |
+| `codex:item-commandExecution-outputDelta` | `agent:runtime` | command output |
+| `codex:thread-started` | `agent:runtime` | `thread/started` |
 | `codex:rpc-event` | `agent:runtime` | generic fallback |
 
-`bridge.js` also re-maps the historical aliases (`codex:turn.completed` etc.)
-so `agent-events.js` keeps working.
+`bridge.js` sanitizes legacy dotted aliases (`codex:turn.completed` etc.) to the
+same `-` channels, so `agent-events.js` keeps working.
 
 ### OnAgent* callback bridges
 

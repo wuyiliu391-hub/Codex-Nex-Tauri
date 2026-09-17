@@ -290,3 +290,38 @@ html.theme-dark .ui-popover {
   width: 100%;
   justify-content: space-between;
 }
+
+/* --------------------------------------------------------------------------
+   Dropdown trigger (button that opens .ui-popover via ui-controls.js)
+   -------------------------------------------------------------------------- */
+.ui-dropdown {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-token-2);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.ui-dropdown:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ui-dropdown-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ui-dropdown-caret {
+  flex: 0 0 auto;
+  color: var(--fg-muted);
+  font-size: 9px;
+  line-height: 1;
+}
+
+.ui-dropdown-caret::after {
+  content: "▾";
+}

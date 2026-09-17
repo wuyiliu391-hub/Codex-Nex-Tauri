@@ -81,7 +81,7 @@
   display: grid;
   width: 100%;
   min-height: 30px;
-  grid-template-columns: 17px minmax(0, 1fr) 14px;
+  grid-template-columns: 17px minmax(0, 1fr);
   align-items: center;
   gap: 7px;
   padding: 5px 8px;
@@ -103,7 +103,6 @@
 }
 .settings-link .ico { display: grid; width: 17px; height: 17px; place-items: center; color: var(--fg-chrome, #1a1c1f); }
 .settings-link .ico svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.35; stroke-linecap: round; stroke-linejoin: round; }
-.settings-link .chev { color: #a0a0a0; font-size: 16px; line-height: 1; text-align: right; }
 
 .settings-main { min-width: 0; overflow-y: auto; background: #fff; scrollbar-color: #d7d7d7 transparent; scrollbar-width: thin; }
 .settings-content { width: min(768px, calc(100% - 64px)); margin: 0 auto; padding: 67px 0 84px; }

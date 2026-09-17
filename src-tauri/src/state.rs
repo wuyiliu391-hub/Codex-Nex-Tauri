@@ -96,6 +96,20 @@ pub struct Shortcut {
     pub action: String,
 }
 
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
+pub struct ScheduledTask {
+    pub id: String,
+    pub title: String,
+    #[serde(default)]
+    pub desc: String,
+    #[serde(default)]
+    pub icon: String,
+    #[serde(default)]
+    pub cron: String,
+    #[serde(default)]
+    pub status: String,
+}
+
 #[derive(Debug, Serialize, Clone)]
 pub struct StateSnapshot {
     pub settings: Settings,
@@ -123,6 +137,8 @@ pub struct InnerState {
     pub cinema_jobs: Vec<CinemaJob>,
     pub connectors: Vec<Connector>,
     pub shortcuts: Vec<Shortcut>,
+    pub scheduled_tasks: Vec<ScheduledTask>,
+    pub pull_requests: Vec<serde_json::Value>,
 }
 
 impl AppState {
@@ -146,6 +162,10 @@ impl AppState {
         }
         if inner.settings.app_server_listen.is_empty() {
             inner.settings.app_server_listen = "ws://127.0.0.1:17457".into();
+        }
+        // Official sidebar suggestions (docs/visual/p16-scheduled.png).
+        if inner.scheduled_tasks.is_empty() {
+            inner.scheduled_tasks = default_scheduled_tasks();
         }
         let _ = app; // reserved for path overrides
         Ok(Self {
@@ -197,6 +217,10 @@ struct ShellStateFile {
     connectors: Vec<Connector>,
     #[serde(default)]
     shortcuts: Vec<Shortcut>,
+    #[serde(default)]
+    scheduled_tasks: Vec<ScheduledTask>,
+    #[serde(default)]
+    pull_requests: Vec<serde_json::Value>,
 }
 
 impl ShellStateFile {
@@ -210,6 +234,8 @@ impl ShellStateFile {
             cinema_jobs: inner.cinema_jobs.clone(),
             connectors: inner.connectors.clone(),
             shortcuts: inner.shortcuts.clone(),
+            scheduled_tasks: inner.scheduled_tasks.clone(),
+            pull_requests: inner.pull_requests.clone(),
         }
     }
 
@@ -223,6 +249,38 @@ impl ShellStateFile {
             cinema_jobs: self.cinema_jobs,
             connectors: self.connectors,
             shortcuts: self.shortcuts,
+            scheduled_tasks: self.scheduled_tasks,
+            pull_requests: self.pull_requests,
         }
     }
+}
+
+/// Official sidebar suggestions shown when no tasks are stored yet.
+fn default_scheduled_tasks() -> Vec<ScheduledTask> {
+    vec![
+        ScheduledTask {
+            id: "daily-brief".into(),
+            title: "每日简报".into(),
+            desc: "以日历、未读电子邮件和优先事项摘要开启每个工作日".into(),
+            icon: "daily".into(),
+            cron: "0 9 * * *".into(),
+            status: "enabled".into(),
+        },
+        ScheduledTask {
+            id: "weekly-review".into(),
+            title: "每周回顾".into(),
+            desc: "每周五将你最近的工作整理成简明的状态更新".into(),
+            icon: "weekly".into(),
+            cron: "0 10 * * 1".into(),
+            status: "enabled".into(),
+        },
+        ScheduledTask {
+            id: "followup".into(),
+            title: "跟进监控".into(),
+            desc: "查看最近的电子邮箱和日历活动，并标记需要你关注的事项".into(),
+            icon: "followup".into(),
+            cron: "0 */4 * * *".into(),
+            status: "enabled".into(),
+        },
+    ]
 }

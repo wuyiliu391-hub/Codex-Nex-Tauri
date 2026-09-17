@@ -44,12 +44,14 @@ pub fn spawn_event_bridge(app: AppHandle) {
 
 /// Map a server message into a frontend event name + payload.
 ///
-/// Naming: `codex:{method with / replaced by .}` so
-/// `turn/completed` → `codex:turn.completed`.
+/// Naming: `codex:{method with / replaced by -}` so
+/// `turn/completed` → `codex:turn-completed`.
+/// (`-` because Tauri plugin:event names reject dots; bridge.js sanitizes
+/// legacy dotted aliases to the same channels.)
 pub fn map_server_message(msg: &ServerMessage) -> Option<(String, serde_json::Value)> {
     match msg {
         ServerMessage::Notification { method, params } => {
-            let name = format!("codex:{}", method.replace('/', "."));
+            let name = format!("codex:{}", method.replace('/', "-"));
             Some((name, params.clone().unwrap_or(serde_json::Value::Null)))
         }
         ServerMessage::Request { method, params, id } => {
@@ -61,7 +63,7 @@ pub fn map_server_message(msg: &ServerMessage) -> Option<(String, serde_json::Va
             } else if method.contains("elicitation") {
                 "codex:user-input".to_string()
             } else {
-                format!("codex:server-request.{}", method.replace('/', "."))
+                format!("codex:server-request-{}", method.replace('/', "-"))
             };
             Some((
                 name,

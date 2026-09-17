@@ -52,10 +52,15 @@
 .discovery-head h2 {
   margin: 0;
   font-family: var(--font-sans);
-  font-size: 22px;
+  font-size: 28px;
   font-weight: 500;
   letter-spacing: -0.01em;
   color: var(--fg-primary);
+}
+/* PR uses a small product-noun title (docs/visual/p15). */
+.discovery-head h2.is-title-sm {
+  font-size: 16px;
+  letter-spacing: 0;
 }
 .discovery-head .lede {
   margin: 0;
@@ -63,7 +68,7 @@
   color: var(--fg-description);
 }
 
-/* Official filled search — full width, soft stroke */
+/* Official filled search pill — full width, fully rounded, faint stroke */
 .discovery-search {
   display: flex;
   align-items: center;
@@ -71,7 +76,7 @@
   margin: 12px 24px 8px;
   padding: 0 12px;
   height: 40px;
-  border-radius: 12px;
+  border-radius: 999px;
   background: var(--bg-canvas);
   box-shadow: 0 0 0 1px var(--border-default);
   color: var(--fg-description);
@@ -255,13 +260,14 @@
 }
 .suggestion-card .sug-badge { display: none; }
 
-/* Filter chips (公开/个人) */
+/* Filter chips (公开/个人) + right-side funnel (docs/visual/p17) */
 .discovery-filters {
   display: flex;
   align-items: center;
   gap: 4px;
   margin: 8px 24px 4px;
 }
+.discovery-filters .filters-spacer { flex: 1; }
 .discovery-filters .chip {
   height: 28px;
   padding: 0 12px;
@@ -376,4 +382,29 @@
 }
 .ui-toggle[aria-checked="true"]::after {
   transform: translateX(16px);
+}
+
+/* Create-task modal fields (reuses global .settings-modal / .settings-input) */
+.dm-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+.dm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--fg-description);
+}
+.dm-field .settings-input { width: 100%; }
+.dm-select {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
 }

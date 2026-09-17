@@ -294,12 +294,12 @@
   border: 0;
   border-radius: var(--radius-token-composer-single-line, 22px);
   box-shadow: var(--elevation-prominent-official, var(--elevation-prominent));
-  padding: 10px 10px 8px;
+  padding: 12px 12px 8px;
   margin-top: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   box-sizing: border-box;
   overflow: visible;
 }
@@ -315,17 +315,20 @@
 .home-main-col:not(.is-empty) .composer-project-tray {
   display: none;
 }
+/* Official: project tray is tucked UNDER the composer shell — no gap line.
+   Shell (z-index 2) overlaps the tray bottom, so the tray reads as a
+   top-attached tab with only its top corners rounded. */
 .composer-project-tray {
   position: relative;
   z-index: 1;
   width: calc(100% - 24px);
-  min-height: 36px;
-  margin: 0 auto;
-  padding: 8px 14px;
+  min-height: 40px;
+  margin: 0 auto -14px;
+  padding: 9px 14px 23px;
   /* Official: soft filled chip card, no tab-like 1px box */
   border: 0;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--fg-primary) 4%, var(--bg-canvas));
+  border-radius: 12px 12px 0 0;
+  background: color-mix(in srgb, var(--fg-primary) 6%, var(--bg-canvas));
   box-sizing: border-box;
 }
 .composer-project {
@@ -342,13 +345,13 @@
 }
 .composer-project:hover { color: var(--fg-primary); }
 .composer-project .proj-icon {
-  width: 14px; height: 14px;
+  width: 15px; height: 15px;
   display: grid; place-items: center;
   color: var(--fg-secondary);
 }
-.composer-project .proj-icon svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+.composer-project .proj-icon svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; }
 .composer-project .proj-name {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--fg-body, var(--fg-primary));
   font-weight: var(--font-weight-body);
 }
@@ -363,7 +366,7 @@
   font-size: var(--text-base, 14px);
   font-weight: var(--font-weight-body, 400);
   color: var(--fg-primary, #1a1c1f);
-  padding: 2px 6px 2px;
+  padding: 4px 6px 2px;
   font-family: var(--font-sans);
   line-height: 1.5; /* leading ~ text-base * 1.5 */
   box-sizing: border-box;
@@ -372,48 +375,51 @@
   color: var(--fg-muted);
   font-weight: 400;
 }
-/* Official footer: grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-2 py-1 */
+/* Official footer: left tool cluster + right model/send cluster, no divider line */
 .composer-toolbar {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
-  column-gap: 8px;
-  row-gap: 0;
-  padding: 4px 2px 2px;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 2px 2px;
   border-top: 0;
   min-height: var(--spacing-token-button-composer, 28px);
 }
 .composer-toolbar-left {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
 }
 .composer-toolbar-right {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
+  margin-left: auto;
 }
 .composer-spacer { display: none; } /* grid middle column acts as spacer via empty cell if needed */
 .composer-send,
 .composer-stop {
-  width: var(--spacing-token-button-composer, 32px);
-  height: var(--spacing-token-button-composer, 32px);
+  width: var(--spacing-token-button-composer, 28px);
+  height: var(--spacing-token-button-composer, 28px);
   border-radius: 50%;
   border: 0;
   display: grid;
   place-items: center;
-  flex: 0 0 var(--spacing-token-button-composer, 32px);
+  flex: 0 0 var(--spacing-token-button-composer, 28px);
 }
 .composer-send {
-  /* Official: solid near-black circle */
+  /* Official: solid near-black circle when active */
   background: var(--fg-primary);
   color: var(--bg-canvas);
 }
 .composer-send[disabled] {
-  opacity: 0.28;
+  /* Official empty-state: solid light-gray circle, white arrow (not translucent black) */
+  background: var(--official-gray-200);
+  color: #fff;
+  opacity: 1;
   cursor: not-allowed;
 }
 .composer-send:hover:not([disabled]) { filter: brightness(1.08); }
@@ -428,29 +434,32 @@
 .composer-pill {
   display: inline-flex; align-items: center; gap: 6px;
   height: var(--spacing-token-button-composer, 28px); padding: 0 8px;
-  border-radius: var(--radius-token-row);
-  border: 1px solid transparent;
+  border-radius: 8px;
+  border: 0;
   background: transparent;
   color: var(--fg-secondary);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 400;
   letter-spacing: var(--tracking-ui);
+  white-space: nowrap;
 }
 .composer-pill:hover { background: var(--bg-hover); color: var(--fg-primary); }
 .composer-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .7; }
 
+/* Official "+" is a borderless icon button (not a circled outline button) */
 .composer-add-btn {
   width: var(--spacing-token-button-composer, 28px);
   height: var(--spacing-token-button-composer, 28px);
-  border-radius: 50%;
-  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  border: 0;
   background: transparent;
   color: var(--fg-secondary);
   display: grid; place-items: center;
   flex: 0 0 var(--spacing-token-button-composer, 28px);
+  cursor: pointer;
 }
-.composer-add-btn:hover { background: var(--bg-hover); color: var(--fg-primary); border-color: var(--border-heavy); }
-.composer-add-btn svg { width: 13px; height: 13px; }
+.composer-add-btn:hover { background: var(--bg-hover); color: var(--fg-primary); }
+.composer-add-btn svg { width: 15px; height: 15px; }
 
 .composer-pill.access {
   font-weight: var(--font-weight-medium);
