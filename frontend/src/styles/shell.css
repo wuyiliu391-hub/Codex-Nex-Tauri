@@ -66,14 +66,14 @@ code, kbd, pre, samp {
   font-synthesis: none;
   letter-spacing: 0;
 }
-/* 焦点可见性 —— 不依赖 UA :focus */
+/* 焦点可见性 —— 不依赖 UA :focus；统一用主题强调环（蓝），不再用红色 */
 :focus { outline: none; }
 :focus-visible {
-  outline: 2px solid var(--focus-outline-color-light, #d46b63);
+  outline: 2px solid var(--accent-ring, #339cff);
   outline-offset: 2px;
 }
 html.theme-dark :focus-visible {
-  outline-color: var(--focus-outline-color-dark, #e17068);
+  outline-color: var(--accent-ring, #339cff);
 }
 
 #app {

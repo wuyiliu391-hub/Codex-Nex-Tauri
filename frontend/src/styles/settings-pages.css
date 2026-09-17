@@ -126,8 +126,15 @@ kbd.key { display: inline-flex; min-width: 23px; height: 23px; align-items: cent
 .plugin-name { font-size: 12px; font-weight: 500; }
 .plugin-desc { margin-top: 2px; color: #777; font-size: 11px; }
 
-/* Model providers */
+/* Model providers (custom suppliers) */
 .provider-list .provider-row { grid-template-columns: 36px 1fr auto; }
+/* Active-provider summary line + add-button footer inside the card */
+.provider-active { padding: 12px 16px 4px; font-size: 13px; font-weight: 500; color: var(--fg-primary); }
+.settings-card > .provider-active + .ui-dropdown { margin: 8px 16px 14px; }
+.provider-foot { display: flex; justify-content: flex-start; padding: 12px 16px 14px; }
+/* Probe row inside the provider editor modal */
+.provider-probe { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.probe-result { font-size: 12px; color: var(--fg-secondary); }
 .provider-row.is-active .plugin-icon { box-shadow: 0 0 0 2px #202020; }
 .provider-row-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .provider-pill {

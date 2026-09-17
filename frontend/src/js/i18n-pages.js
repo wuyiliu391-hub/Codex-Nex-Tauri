@@ -2,7 +2,7 @@
 
 export const pagesEn = {
   // account / providers
-  "account.title": "Model providers",
+  "account.title": "Custom providers",
   "account.desc": "Connect OpenAI-compatible chat, Responses, Anthropic Messages, or Ollama. Keys stay in the local vault.",
   "account.active": "Active for new tasks",
   "account.provider": "Provider",
@@ -467,7 +467,7 @@ export const pagesEn = {
 };
 
 export const pagesZhCN = {
-  "account.title": "模型提供商",
+  "account.title": "自定义供应商",
   "account.desc": "连接 OpenAI 兼容 Chat、Responses、Anthropic Messages 或 Ollama。密钥保存在本地保险库。",
   "account.active": "新建任务默认",
   "account.provider": "提供商",

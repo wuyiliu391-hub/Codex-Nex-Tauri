@@ -918,17 +918,17 @@ function renderAccount(root) {
     .map((p) => providerRow(p, active?.id === p.id))
     .join("");
   root.innerHTML = `
-    ${pageHead(t("account.title"))}
-    ${block(t("account.activeProvider"), [
+    ${pageHead(t("account.title"), t("account.desc"))}
+    ${block(t("account.active"), [
       `
-      <div class="provider-active">${active ? escapeHtml(active.name + " (" + active.protocol + ")") : escapeHtml(t("account.none"))}</div>
-      ${selectEl("activeProviderId", active?.id || "", providers.map((p) => ({ value: p.id, label: `${p.name}${p.hasApiKey ? " ? key" : ""}` })).concat([{ value: "", label: t("account.none") }]), "wide")}
+      <div class="provider-active">${active ? escapeHtml(active.name) : escapeHtml(t("account.none"))}</div>
+      ${selectEl("activeProviderId", active?.id || "", providers.map((p) => ({ value: p.id, label: `${p.name}${p.hasApiKey ? " · " + t("account.keySaved", "key saved") : ""}` })).concat([{ value: "", label: t("account.none") }]), "wide")}
     `,
     ])}
-    ${block(t("account.providers"), [
+    ${block(t("account.configured"), [
       `
-      <div class="provider-list">${rows || `<div class="settings-card site-empty">${escapeHtml(t("account.noProviders"))}</div>`}</div>
-      ${button(t("account.addProvider"), "add-provider", "primary")}
+      <div class="provider-list">${rows || `<div class="settings-card site-empty">${escapeHtml(t("account.empty"))}</div>`}</div>
+      <div class="provider-foot">${button(t("account.add"), "add-provider", "primary")}</div>
     `,
     ])}`;
   wireInputs(root, (patch) => {
@@ -971,17 +971,21 @@ function renderAccount(root) {
 
 function providerRow(p, isActive) {
   const models = (p.models || []).slice(0, 3).join(", ");
+  const desc = [p.protocol, p.baseUrl, p.hasApiKey ? t("account.keySaved", "key saved") : "", models]
+    .map((s) => String(s || "").trim())
+    .filter(Boolean)
+    .join(" · ");
   return `
     <div class="provider-row ${isActive ? "is-active" : ""}">
       <div class="plugin-icon">${escapeHtml((p.name || "P").slice(0, 1).toUpperCase())}</div>
       <div class="provider-row-meta">
         <div class="provider-row-name">${escapeHtml(p.name)}${isActive ? `<span class="provider-pill">${escapeHtml(t("account.activePill"))}</span>` : ""}</div>
-        <div class="provider-row-desc">${escapeHtml(p.protocol)} ? ${escapeHtml(p.baseUrl || "")}${p.hasApiKey ? " ? key saved" : ""}${models ? " ? " + escapeHtml(models) : ""}</div>
+        <div class="provider-row-desc">${escapeHtml(desc)}</div>
       </div>
       <div class="provider-row-actions">
-        <button type="button" data-set-active="${p.id}" ${isActive ? "disabled" : ""}>${escapeHtml(t("account.use"))}</button>
-        <button type="button" data-edit-provider="${p.id}">${escapeHtml(t("action.edit"))}</button>
-        <button type="button" data-delete-provider="${p.id}" class="danger">${escapeHtml(t("action.delete"))}</button>
+        <button class="settings-button" type="button" data-set-active="${p.id}" ${isActive ? "disabled" : ""}>${escapeHtml(t("account.use"))}</button>
+        <button class="settings-button" type="button" data-edit-provider="${p.id}">${escapeHtml(t("action.edit"))}</button>
+        <button class="settings-button danger" type="button" data-delete-provider="${p.id}">${escapeHtml(t("action.delete"))}</button>
       </div>
     </div>`;
 }
@@ -1003,17 +1007,17 @@ function openProviderEditor(root, providerId) {
     hasApiKey: !!existing?.hasApiKey,
   };
   showModal(
-    existing ? t("account.editProvider") : t("account.addProvider"),
-    t("account.providerDesc"),
+    existing ? t("account.editorEdit") : t("account.editorNew"),
+    t("account.editorDesc"),
     `
-    ${row(t("account.providerName"), "", inputEl("name", d.name, "My Provider"))}
-    ${row(t("account.protocol"), "", selectEl("protocol", d.protocol, PROTOCOL_OPTIONS, "wide"))}
-    ${row(t("account.baseUrl"), "", inputEl("baseUrl", d.baseUrl, "https://api.openai.com/v1"))}
-    ${row(t("account.apiKey"), d.hasApiKey ? t("account.apiKeyKeep") : t("account.apiKeyNew"), inputEl("apiKey", d.apiKey, d.hasApiKey ? "???????? (unchanged if blank)" : "sk-..."))}
-    ${row(t("account.model"), "", inputEl("defaultModel", d.defaultModel, "gpt-4o"))}
-    ${row(t("account.contextWindow"), "", numberEl("contextWindow", d.contextWindow, 1, 10000000))}
-    ${row(t("account.maxOutputTokens"), "", numberEl("maxOutputTokens", d.maxOutputTokens, 1, 10000000))}
-    <div class="provider-probe"><button type="button" data-probe class="settings-button">${escapeHtml(t("account.probe"))}</button><span class="probe-result"></span></div>
+    ${row(t("account.displayName"), t("account.displayNameDesc"), inputEl("name", d.name, "My Provider"))}
+    ${row(t("account.protocol"), t("account.protocolDesc"), selectEl("protocol", d.protocol, PROTOCOL_OPTIONS, "wide"))}
+    ${row(t("account.baseUrl"), t("account.baseUrlDesc"), inputEl("baseUrl", d.baseUrl, "https://api.openai.com/v1"))}
+    ${row(t("account.apiKey"), d.hasApiKey ? t("account.apiKeyKeep") : t("account.apiKeyNew"), inputEl("apiKey", d.apiKey, d.hasApiKey ? "????????" : "sk-..."))}
+    ${row(t("account.defaultModel"), t("account.defaultModelDesc"), inputEl("defaultModel", d.defaultModel, t("account.modelPlaceholder")))}
+    ${row(t("account.contextWindow"), t("account.contextWindowDesc"), numberEl("contextWindow", d.contextWindow, 1, 10000000))}
+    ${row(t("account.maxOutput"), t("account.maxOutputDesc"), numberEl("maxOutputTokens", d.maxOutputTokens, 1, 10000000))}
+    <div class="provider-probe"><button type="button" data-probe class="settings-button">${escapeHtml(t("account.runChecks"))}</button><span class="probe-result"></span></div>
   `,
     [
       { label: t("action.cancel") },
@@ -1068,7 +1072,7 @@ function openProviderEditor(root, providerId) {
       );
       resultEl.textContent = result?.ok
         ? t("account.probeOk")
-        : result?.error || t("account.probeFail");
+        : result?.error || t("account.checksFailed");
     } catch (e) {
       resultEl.textContent = String(e.message || e);
     }
@@ -1282,7 +1286,7 @@ function renderPlugins(root) {
     ${pageHead(t("plugins.title"))}
     ${block(t("plugins.mcpServers"), [
       `
-      <div class="plugin-list">${servers.map((s) => `<div class="plugin-row"><div class="plugin-icon">M</div><div><div class="plugin-name">${escapeHtml(s.name)}</div><div class="plugin-desc">${escapeHtml(s.transport)}</div></div></div>`).join("") || `<div class="settings-card site-empty">${escapeHtml(t("plugins.empty"))}</div>`}</div>
+      <div class="plugin-list">${servers.map((s) => `<div class="plugin-row"><div class="plugin-icon">M</div><div><div class="plugin-name">${escapeHtml(s.name)}</div><div class="plugin-desc">${escapeHtml(s.transport)}</div></div></div>`).join("") || `<div class="settings-card site-empty">${escapeHtml(t("plugins.noMcp"))}</div>`}</div>
       ${button(t("plugins.addMcp"), "add-mcp", "primary")}
     `,
     ])}`;

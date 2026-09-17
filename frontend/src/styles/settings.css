@@ -101,6 +101,13 @@
   font-weight: 500;
   color: var(--fg-primary);
 }
+/* Sidebar position is already shown by .is-active; never draw a focus ring
+   on nav rows (official has none). */
+.settings-link:focus,
+.settings-link:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
 .settings-link .ico { display: grid; width: 17px; height: 17px; place-items: center; color: var(--fg-chrome, var(--fg-primary)); }
 .settings-link .ico svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.35; stroke-linecap: round; stroke-linejoin: round; }
 
