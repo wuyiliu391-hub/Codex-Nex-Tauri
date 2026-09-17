@@ -3,19 +3,35 @@
 This document is the source of truth for how Codex-Tauri embeds the official
 OpenAI Codex Rust engine (`C:\Users\Administrator\Desktop\codex-rust-v0.154.0\codex-rs`).
 
-## Decision: sidecar binary, not in-process (default)
+## Decision (2026-09-17 revision): in-process is now the default
 
-The official `codex-rs` tree is a 100+ crate monorepo. Linking it into the
-Tauri shell would:
+The official `codex-rs` sources live **in this repository** under
+`src/backend/` and are members of the root workspace, so the shell can link
+them directly instead of shipping/pointing at an external `codex-app-server.exe`.
 
-- explode compile time and break cloud CI caching
-- couple the desktop shell to every breaking change in core
-- require the full workspace at path-dependency resolution time
+As of this revision **`default = ["in-process"]`**: the engine runs inside the
+Tauri process and no external binary is required. Opt out with
+`--no-default-features` to fall back to the sidecar.
 
-**Default path for this project: spawn `codex-app-server.exe` as a sidecar
-and speak JSON-RPC over WebSocket (`ws://127.0.0.1:17457`).**
+The earlier "sidecar only" decision was reversed deliberately; the trade-off
+(compile time, coupling to core changes) is accepted in exchange for removing
+the external binary and getting the full in-process event stream.
 
-Two modes are documented; only Mode A is wired by default.
+### Event forwarding adapter
+
+The in-process runtime exposes events via `InProcessClientHandle::next_event()`
+as `InProcessServerEvent` values. `sidecar.rs` pumps them into the same
+`broadcast::Sender<ServerMessage>` the sidecar used, by serializing each event
+to JSON and re-parsing with `protocol::parse_server_message`. Because
+`ServerNotification` serializes to `{ "method", "params" }` and `ServerRequest`
+to `{ "method", "id", "params" }`, both land on the existing parser branches —
+so `events.rs` and the whole `codex:*` → `agent:*` frontend chain are unchanged.
+
+### Mode A — Sidecar binary (opt-in fallback)
+
+Selected with `--no-default-features`. Spawns `codex-app-server.exe` and
+speaks JSON-RPC over WebSocket (`ws://127.0.0.1:17457`). Kept because it needs
+no backend build time and remains useful for shell-only builds.
 
 ---
 

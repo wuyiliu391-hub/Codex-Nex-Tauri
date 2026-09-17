@@ -25,7 +25,10 @@ const EVENT_CAPACITY: usize = 256;
 #[cfg(feature = "in-process")]
 pub mod in_process_backend {
     use super::*;
-    use codex_app_server::in_process::{self, InProcessClientHandle, InProcessStartArgs};
+    use codex_app_server::in_process::{
+        self, InProcessClientHandle, InProcessClientSender, InProcessServerEvent,
+        InProcessStartArgs,
+    };
     use codex_app_server_protocol::{
         ClientInfo, ClientRequest, InitializeCapabilities, InitializeParams, RequestId,
         ServerMessage as ProtocolServerMessage,
@@ -39,12 +42,19 @@ pub mod in_process_backend {
     use std::sync::atomic::AtomicI64;
 
     pub struct InProcessEngine {
-        handle: InProcessClientHandle,
+        /// Kept for request/response; the full handle (which owns the event
+        /// receiver) is moved into the event-pump task in `start`.
+        sender: InProcessClientSender,
         next_request_id: AtomicI64,
+        /// Signals the event-pump task to shut the runtime down.
+        shutdown_tx: Option<tokio::sync::oneshot::Sender<()>>,
     }
 
     impl InProcessEngine {
-        pub async fn start(app: &AppHandle) -> anyhow::Result<Self> {
+        pub async fn start(
+            _app: &AppHandle,
+            events_tx: broadcast::Sender<ServerMessage>,
+        ) -> anyhow::Result<Self> {
             let codex_home = codex_core::config::find_codex_home()
                 .unwrap_or_else(|_| dirs::data_dir().unwrap_or_default().join("codex"));
 
@@ -91,9 +101,16 @@ pub mod in_process_backend {
                 .await
                 .map_err(|e| anyhow::anyhow!("failed to start in-process app server: {e}"))?;
 
+            // Split the handle: the sender drives requests/responses here, the
+            // handle itself (owning the event receiver) drives the event pump.
+            let sender = handle.sender();
+            let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
+            spawn_event_pump(handle, events_tx, shutdown_rx);
+
             Ok(Self {
-                handle,
+                sender,
                 next_request_id: AtomicI64::new(1),
+                shutdown_tx: Some(shutdown_tx),
             })
         }
 
@@ -112,7 +129,7 @@ pub mod in_process_backend {
                 .map_err(|e| format!("invalid RPC request '{method}': {e}"))?;
 
             let res = self
-                .handle
+                .sender
                 .request(client_req)
                 .await
                 .map_err(|e| format!("in-process RPC '{method}' I/O error: {e}"))?;
@@ -135,17 +152,68 @@ pub mod in_process_backend {
                 serde_json::Value::String(s) => RequestId::String(s),
                 _ => RequestId::Integer(0),
             };
-            self.handle
+            self.sender
                 .respond_to_server_request(req_id, result)
                 .map_err(|e| format!("respond error: {e}"))
         }
 
-        pub fn spawn_event_pump(&mut self, events_tx: broadcast::Sender<ServerMessage>) {
-            // Note: in_process events are consumed via handle.next_event()
+        pub async fn shutdown(mut self) {
+            if let Some(tx) = self.shutdown_tx.take() {
+                let _ = tx.send(());
+            }
         }
+    }
 
-        pub async fn shutdown(self) {
-            let _ = self.handle.shutdown().await;
+    /// Forward every in-process event into the shell's `ServerMessage` channel.
+    ///
+    /// Runs for the lifetime of the runtime; `shutdown_rx` lets the engine stop
+    /// it gracefully, after which the runtime handle is awaited.
+    fn spawn_event_pump(
+        mut handle: InProcessClientHandle,
+        events_tx: broadcast::Sender<ServerMessage>,
+        mut shutdown_rx: tokio::sync::oneshot::Receiver<()>,
+    ) {
+        tauri::async_runtime::spawn(async move {
+            loop {
+                tokio::select! {
+                    maybe_event = handle.next_event() => {
+                        match maybe_event {
+                            Some(event) => {
+                                if let Some(msg) = event_to_server_message(event) {
+                                    let _ = events_tx.send(msg);
+                                }
+                            }
+                            None => break,
+                        }
+                    }
+                    _ = &mut shutdown_rx => break,
+                }
+            }
+            let _ = handle.shutdown().await;
+        });
+    }
+
+    /// Convert one in-process event into the wire-level [`ServerMessage`].
+    ///
+    /// Reuses [`crate::codex::protocol::parse_server_message`] instead of
+    /// matching variants by hand: `ServerNotification` serialises to
+    /// `{ "method", "params" }` and `ServerRequest` to
+    /// `{ "method", "id", "params" }` — exactly the shapes that parser already
+    /// handles, so the sidecar and in-process paths share one parsing contract.
+    fn event_to_server_message(event: InProcessServerEvent) -> Option<ServerMessage> {
+        match event {
+            InProcessServerEvent::ServerNotification(notification) => {
+                let text = serde_json::to_string(&*notification).ok()?;
+                crate::codex::protocol::parse_server_message(&text)
+            }
+            InProcessServerEvent::ServerRequest(request) => {
+                let text = serde_json::to_string(&*request).ok()?;
+                crate::codex::protocol::parse_server_message(&text)
+            }
+            InProcessServerEvent::Lagged { skipped } => {
+                tracing::warn!(skipped, "in-process event stream lagged; events dropped");
+                None
+            }
         }
     }
 }
@@ -173,10 +241,9 @@ impl EngineHandle {
             let holder_clone = engine_holder.clone();
 
             tauri::async_runtime::spawn(async move {
-                match in_process_backend::InProcessEngine::start(&app_clone).await {
-                    Ok(mut eng) => {
+                match in_process_backend::InProcessEngine::start(&app_clone, tx_clone).await {
+                    Ok(eng) => {
                         tracing::info!("In-process Codex native backend started successfully");
-                        eng.spawn_event_pump(tx_clone);
                         let mut guard = holder_clone.lock().await;
                         *guard = Some(eng);
                     }
@@ -202,25 +269,32 @@ impl EngineHandle {
             })
             .unwrap_or_else(|_| DEFAULT_LISTEN_URL.to_string());
 
-        let bin = resolve_and_install_sidecar(app);
         let mut child = None;
 
-        // Provider API keys are kept in the shell store and handed to the
-        // sidecar as environment variables, so config.toml only ever carries
-        // the `env_key` *name*. See `state::provider_env_key`.
-        let provider_env: Vec<(String, String)> = match app.try_state::<AppState>() {
-            Some(state) => match state.inner.lock() {
-                Ok(inner) => inner
-                    .provider_secrets
-                    .iter()
-                    .map(|(id, secret)| (crate::state::provider_env_key(id), secret.clone()))
-                    .collect(),
-                Err(_) => Vec::new(),
-            },
-            None => Vec::new(),
-        };
+        // When the in-process backend is compiled in, no external binary is
+        // spawned: the engine runs inside this process. The sidecar path below
+        // is kept for builds that opt the feature out (and as a graceful
+        // fallback if the in-process runtime fails to start — see `rpc`).
+        #[cfg(not(feature = "in-process"))]
+        {
+            let bin = resolve_and_install_sidecar(app);
 
-        if bin.exists() {
+            // Provider API keys are kept in the shell store and handed to the
+            // sidecar as environment variables, so config.toml only ever carries
+            // the `env_key` *name*. See `state::provider_env_key`.
+            let provider_env: Vec<(String, String)> = match app.try_state::<AppState>() {
+                Some(state) => match state.inner.lock() {
+                    Ok(inner) => inner
+                        .provider_secrets
+                        .iter()
+                        .map(|(id, secret)| (crate::state::provider_env_key(id), secret.clone()))
+                        .collect(),
+                    Err(_) => Vec::new(),
+                },
+                None => Vec::new(),
+            };
+
+            if bin.exists() {
             let invocation = probe_invocation(&bin);
             let mut cmd = Command::new(&bin);
             for (name, value) in &provider_env {
@@ -262,12 +336,13 @@ impl EngineHandle {
                     tracing::warn!(error=%e, path=%bin.display(), "failed to spawn codex-app-server");
                 }
             }
-        } else {
-            tracing::warn!(
-                "no codex-app-server binary resolved; engine stays disconnected. \
-                 Put it at src-tauri/binaries/codex-app-server-x86_64-pc-windows-msvc.exe, \
-                 set CODEX_APP_SERVER, or set settings.app_server_binary."
-            );
+            } else {
+                tracing::warn!(
+                    "no codex-app-server binary resolved; engine stays disconnected. \
+                     Put it at src-tauri/binaries/codex-app-server-x86_64-pc-windows-msvc.exe, \
+                     set CODEX_APP_SERVER, or set settings.app_server_binary."
+                );
+            }
         }
 
         Ok(Self {
@@ -305,10 +380,12 @@ impl EngineHandle {
     }
 
     /// Clone the client out of the mutex so the guard is dropped before any await.
+    #[cfg(not(feature = "in-process"))]
     fn client_clone(&self) -> Option<CodexClient> {
         self.client.lock().ok().and_then(|g| g.clone())
     }
 
+    #[cfg(not(feature = "in-process"))]
     fn store_client(&self, client: CodexClient) {
         // Forward this client's broadcast into the stable EngineHandle channel.
         let mut rx = client.subscribe();
@@ -333,6 +410,7 @@ impl EngineHandle {
         self.running.store(true, Ordering::SeqCst);
     }
 
+    #[cfg(not(feature = "in-process"))]
     fn listen_url(&self) -> String {
         self.listen_url
             .lock()
@@ -341,6 +419,7 @@ impl EngineHandle {
     }
 
     /// True when we spawned a sidecar and it has not exited yet.
+    #[cfg(not(feature = "in-process"))]
     fn sidecar_alive(&self) -> bool {
         self.child
             .lock()
@@ -358,6 +437,7 @@ impl EngineHandle {
     /// startup and surfaces as a spurious
     /// `connect codex-app-server: ... os error 10061`.
     /// When no sidecar was spawned we fail fast instead of stalling the UI.
+    #[cfg(not(feature = "in-process"))]
     async fn connect_with_retry(&self, url: &str) -> Result<CodexClient, String> {
         const ATTEMPTS: u32 = 40;
         const DELAY_MS: u64 = 250;
@@ -395,27 +475,42 @@ impl EngineHandle {
     ) -> Result<serde_json::Value, String> {
         #[cfg(feature = "in-process")]
         {
-            let in_proc = self.in_process.lock().await;
-            if let Some(engine) = in_proc.as_ref() {
-                return engine.rpc(method, params).await;
+            // The backend is started on a background task so `EngineHandle::start`
+            // stays non-blocking. An RPC issued before it finishes must wait for
+            // it rather than fall through to the (not spawned) sidecar path.
+            const ATTEMPTS: u32 = 40;
+            const DELAY_MS: u64 = 100;
+            for attempt in 0..ATTEMPTS {
+                {
+                    let in_proc = self.in_process.lock().await;
+                    if let Some(engine) = in_proc.as_ref() {
+                        return engine.rpc(method, params).await;
+                    }
+                }
+                if attempt + 1 < ATTEMPTS {
+                    tokio::time::sleep(std::time::Duration::from_millis(DELAY_MS)).await;
+                }
             }
+            return Err("in-process Codex backend is not available (failed to start?)".to_string());
         }
 
-        if let Some(client) = self.client_clone() {
-            if client.is_connected() {
-                return client.request(method, params).await;
+        #[cfg(not(feature = "in-process"))]
+        {
+            if let Some(client) = self.client_clone() {
+                if client.is_connected() {
+                    return client.request(method, params).await;
+                }
             }
+            let url = self.listen_url();
+            let client = self
+                .connect_with_retry(&url)
+                .await
+                .map_err(|e| format!("connect codex-app-server: {e}"))?;
+            // Kick off a warm-up so the UI can read initialize metadata later.
+            let result = client.request(method, params).await;
+            self.store_client(client);
+            result
         }
-
-        let url = self.listen_url();
-        let client = self
-            .connect_with_retry(&url)
-            .await
-            .map_err(|e| format!("connect codex-app-server: {e}"))?;
-        // Kick off a warm-up so the UI can read initialize metadata later.
-        let result = client.request(method, params).await;
-        self.store_client(client);
-        result
     }
 
     /// Resolve a server→client request (approval / user input / elicitation).
@@ -431,20 +526,35 @@ impl EngineHandle {
                     return engine.respond(id, result);
                 }
             }
+            return Err("in-process Codex backend is not available".to_string());
         }
 
-        let client = self
-            .client_clone()
-            .ok_or_else(|| "engine not connected".to_string())?;
-        if !client.is_connected() {
-            return Err("engine not connected".into());
+        #[cfg(not(feature = "in-process"))]
+        {
+            let client = self
+                .client_clone()
+                .ok_or_else(|| "engine not connected".to_string())?;
+            if !client.is_connected() {
+                return Err("engine not connected".into());
+            }
+            client.respond(id, result)
         }
-        client.respond(id, result)
     }
 
     /// Metadata from the last successful initialize handshake.
+    ///
+    /// Only the sidecar path exposes the handshake result; the in-process
+    /// backend performs `initialize` internally without returning it, so this
+    /// stays `None` there (the frontend treats it as optional).
     pub fn initialize_meta(&self) -> Option<serde_json::Value> {
-        self.client_clone().and_then(|c| c.initialize_result())
+        #[cfg(not(feature = "in-process"))]
+        {
+            return self.client_clone().and_then(|c| c.initialize_result());
+        }
+        #[cfg(feature = "in-process")]
+        {
+            None
+        }
     }
 
     pub fn shutdown(&self) {
