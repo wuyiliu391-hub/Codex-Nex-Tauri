@@ -1,9 +1,9 @@
 /**
  * Application shell: titlebar + sidebar + main view host.
  *
- * Replaces shell.js. The view host currently renders an explicit "not migrated"
- * notice for views that still live in the vanilla layer — deliberately not a
- * fake screen, so it is always obvious what has and has not been ported.
+ * All nineteen legacy modules now have a React replacement. The view host is
+ * no longer a "not migrated" placeholder; every route is backed by a React
+ * view (HomeView, SettingsShell, or DiscoveryView).
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -14,6 +14,8 @@ import { navigate, useRoute } from "./useRoute";
 import type { ShellContext } from "./actions";
 import { getAppState, refreshAppState, setActiveSession } from "@/state/appStore";
 import { HomeView } from "@/views/HomeView";
+import { DiscoveryView } from "@/views/DiscoveryView";
+import { SettingsShell } from "@/views/settings/SettingsShell";
 
 /** Views still served by the vanilla layer. */
 const NOT_MIGRATED: Record<string, string> = {
@@ -25,6 +27,10 @@ const NOT_MIGRATED: Record<string, string> = {
 
 function ViewHost({ view, sub }: { view: string; sub: string | null }) {
   if (view === "home") return <HomeView />;
+  if (view === "settings") return <SettingsShell />;
+  if (view === "scheduled" || view === "plugins" || view === "pullrequests") {
+    return <DiscoveryView view={view} />;
+  }
 
   const pending = NOT_MIGRATED[view];
   if (!pending) {

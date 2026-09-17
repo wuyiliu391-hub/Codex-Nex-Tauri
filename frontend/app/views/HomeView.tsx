@@ -99,7 +99,7 @@ export function HomeView() {
     });
   }, []);
 
-  const hasHistory = turn.items.length > 0;
+  const hasHistory = turn.order.length > 0;
   const showHero = !hasHistory && !running;
 
   return (

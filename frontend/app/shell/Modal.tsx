@@ -70,10 +70,10 @@ export function Modal({
 
   if (!open) return null;
 
-  function close(reason: string): void {
+  function close(reason?: string): void {
     if (closingRef.current) return;
     closingRef.current = true;
-    onClose(reason);
+    onClose(reason ?? "close");
   }
 
   return (

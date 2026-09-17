@@ -228,7 +228,7 @@ export function reduceNotification(env: NotificationEnvelope): void {
         command: str(item, "command", "cmd"),
         args: item["args"] ?? item["arguments"],
         path: str(item, "path"),
-        server: str(item, "server", "serverName"),
+        mcpServer: str(item, "server", "serverName"),
         tool: str(item, "tool", "toolName"),
       });
       return;

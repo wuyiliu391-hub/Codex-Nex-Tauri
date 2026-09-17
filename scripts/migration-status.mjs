@@ -52,10 +52,10 @@ const MODULES = [
   },
   {
     file: "settings.js",
-    status: "pending",
+    status: "ported",
     replaces: ["frontend/app/views/settings/SettingsShell.tsx"],
   },
-  { file: "discovery.js", status: "pending", replaces: ["frontend/app/views/discovery/"] },
+  { file: "discovery.js", status: "ported", replaces: ["frontend/app/views/DiscoveryView.tsx"] },
   { file: "shell.js", status: "ported", replaces: ["frontend/app/shell/AppShell.tsx"] },
   { file: "pet.js", status: "ported", replaces: ["frontend/app/pet/PetOverlay.tsx"] },
   { file: "modal.js", status: "ported", replaces: ["frontend/app/shell/Modal.tsx"] },

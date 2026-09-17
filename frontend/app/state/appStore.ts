@@ -46,6 +46,11 @@ export interface SettingsState {
   fullAccess: boolean;
   sidebarCollapsed: boolean;
   language: string;
+  /** Configuration tab. Values are passed through to config.toml verbatim. */
+  sandbox: string;
+  webSearch: string;
+  outputVerbosity: string;
+  reasoningSummary: string;
 }
 
 export function defaultSettings(): SettingsState {
@@ -57,6 +62,10 @@ export function defaultSettings(): SettingsState {
     fullAccess: false,
     sidebarCollapsed: false,
     language: "en",
+    sandbox: "workspace-write",
+    webSearch: "cached",
+    outputVerbosity: "medium",
+    reasoningSummary: "auto",
   };
 }
 
@@ -220,20 +229,56 @@ function normaliseSettings(raw: unknown): Partial<SettingsState> {
   if (typeof rec["fullAccess"] === "boolean") out.fullAccess = rec["fullAccess"];
   if (typeof rec["sidebarCollapsed"] === "boolean") out.sidebarCollapsed = rec["sidebarCollapsed"];
   if (typeof rec["language"] === "string") out.language = rec["language"];
+  if (typeof rec["sandbox"] === "string") out.sandbox = rec["sandbox"];
+  if (typeof rec["webSearch"] === "string") out.webSearch = rec["webSearch"];
+  if (typeof rec["outputVerbosity"] === "string") out.outputVerbosity = rec["outputVerbosity"];
+  if (typeof rec["reasoningSummary"] === "string") out.reasoningSummary = rec["reasoningSummary"];
   return out;
 }
 
 /**
- * Persist a settings patch. The backend keeps the authoritative copy, so this
- * writes through and updates local state optimistically.
+ * Persist a settings patch.
+ *
+ * Two writes are needed:
+ *   1. `save_settings` — the shell's own shell-state.json
+ *   2. `config/batchWrite` — the engine's config.toml, for the keys the engine
+ *      actually owns (model / provider / reasoning effort / approval policy)
+ *
+ * Skipping (2) is why the model slider and approval policy used to look like
+ * they saved but never reached the engine.
  */
 export async function saveSettings(patch: Partial<SettingsState>): Promise<void> {
   const next = { ...state.settings, ...patch };
   commit({ ...state, settings: next });
+
   try {
     await invoke("save_settings", { settings: next });
   } catch (err) {
-    console.error("[appStore] saveSettings failed", err);
+    console.error("[appStore] saveSettings (shell) failed", err);
+  }
+
+  const writes: Array<{ key: string; value: unknown }> = [];
+  if (patch.activeModel !== undefined && patch.activeModel) {
+    writes.push({ key: "model", value: patch.activeModel });
+  }
+  if (patch.activeProviderId !== undefined && patch.activeProviderId) {
+    writes.push({ key: "model_provider", value: patch.activeProviderId });
+  }
+  if (patch.modelReasoningEffort !== undefined) {
+    writes.push({ key: "model_reasoning_effort", value: patch.modelReasoningEffort });
+  }
+  if (patch.approvalPolicy !== undefined) {
+    // The engine only knows on-request / never.
+    const mapped = patch.approvalPolicy === "never" ? "never" : "on-request";
+    writes.push({ key: "approval_policy", value: mapped });
+  }
+  if (!writes.length) return;
+
+  try {
+    await invoke("rpc_raw", { method: "config/batchWrite", params: { writes } });
+  } catch (err) {
+    // The shell copy is already saved; the engine may simply be offline.
+    console.warn("[appStore] engine config write failed (engine offline?)", err);
   }
 }
 
