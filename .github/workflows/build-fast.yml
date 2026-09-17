@@ -1,17 +1,15 @@
 name: build-fast
 
 # Daily iteration: a usable Tauri installer in the shortest possible wall-clock
-# time. Shallow + recursive submodules, a fast override of the default cargo
-# release profile (opt-level 2, no LTO, high codegen units), no tests, no lint.
-# For a fully optimised, reproducible installer use build-release.yml.
+# time. Community cache stack (see docs/compose/change-notes/ci-cache-stack.md):
+#   1. Pin rustc (stable floats → rust-cache key thrash)
+#   2. Swatinem/rust-cache: target + workspace crates + shared-key
+#   3. Kill debuginfo so target/ stays small (Tauri official does this too)
+#   4. mozilla sccache GHA backend — rustc-invocation cache on top of rust-cache
 #
 # Why not `cargo tauri build --profile ci-fast`?
-#   tauri-cli 2.11.x has no --profile flag (it rejects the arg). Passing
-#   `-- --profile ci-fast` would compile under that profile, but the CLI still
-#   looks for the binary under target/release/, so bundling fails. The official
-#   Cargo way to speed up the release profile without renaming it is the
-#   CARGO_PROFILE_RELEASE_* environment variables, which keeps artifacts in
-#   target/release/ where tauri expects them.
+#   tauri-cli 2.11.x has no --profile flag. CARGO_PROFILE_RELEASE_* env vars
+#   speed up the default release profile; artifacts stay in target/release/.
 
 on:
   push:
@@ -29,15 +27,23 @@ env:
   TAURI_SKIP_SIDECAR_CHECK: "1"
   TAURI_CLI_VERSION: "2.11.4"
   CARGO_TARGET_DIR: ${{ github.workspace }}/target
+  # sccache docs: cargo incremental must be off when RUSTC_WRAPPER is sccache.
   CARGO_INCREMENTAL: "0"
   TOOLS_DIR: ${{ github.workspace }}/.tools
-  # Mirror of [profile.ci-fast] applied onto the default release profile so
-  # `cargo tauri build` (no --profile) produces a fast binary in target/release.
+  # ── debuginfo off (smaller target, better cache hit rate) ──
+  # Same knobs Tauri official CI uses; CARGO_PROFILE_* is also hashed into
+  # the Swatinem cache key via the CARGO env prefix — keep them stable.
   CARGO_PROFILE_RELEASE_OPT_LEVEL: "2"
   CARGO_PROFILE_RELEASE_LTO: "false"
   CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "256"
-  CARGO_PROFILE_RELEASE_DEBUG: "false"
+  CARGO_PROFILE_RELEASE_DEBUG: "0"
   CARGO_PROFILE_RELEASE_STRIP: "symbols"
+  CARGO_PROFILE_DEV_DEBUG: "0"
+  # ── sccache → GitHub Actions cache backend ──
+  SCCACHE_GHA_ENABLED: "on"
+  SCCACHE_GHA_RW_MODE: "READ_WRITE"
+  SCCACHE_VERSION: "0.18.0"
+  RUSTC_WRAPPER: sccache
 
 jobs:
   build-fast:
@@ -46,8 +52,6 @@ jobs:
     timeout-minutes: 45
 
     steps:
-      # Shallow + recursive: the backend sources live in-tree now, but keep
-      # recursive so any future nested submodule is fetched without changing CI.
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -82,37 +86,43 @@ jobs:
           $ErrorActionPreference = "Stop"
           npm run build
 
-      # Pin the toolchain. `stable` floats — a new rustc release changes the
-      # rust-cache key and forces a full recompile of the 100+ workspace crates.
+      # 1) Pin rustc BEFORE rust-cache / sccache — both key off the compiler.
       - name: Setup Rust (pinned 1.98.1, MSVC)
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "1.98.1"
           targets: x86_64-pc-windows-msvc
 
-      # Swatinem/rust-cache — the project already used this (方案1). Keep it
-      # aligned with the recommended knobs:
-      #   workspaces: . -> target     cache the project target/ dir
-      #   cache-targets: true         restore/save target (default, set explicit)
-      #   cache-workspace-crates: true  also cache local codex-* workspace members
-      #   shared-key: tauri-win       same key family as build-release
-      #   cache-on-failure: true      save even when compile fails (so the next
-      #                               job does not start from zero again)
-      #
-      # Cache key still includes Cargo.lock + rustc version + workspace member
-      # Cargo.tomls + (by default) relevant env. Changing any of those, or the
-      # first run after introducing CARGO_PROFILE_RELEASE_*, is a miss and looks
-      # like "recompiling everything". That is Cargo + rust-cache normal, not a
-      # missing cache step.
+      # 2) sccache GHA backend credentials (mozilla docs/GHA.md).
+      - name: Export sccache GHA credentials
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_RESULTS_URL', process.env.ACTIONS_RESULTS_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
+      - name: Setup sccache
+        uses: mozilla/sccache-action@v0.0.9
+        with:
+          version: ${{ env.SCCACHE_VERSION }}
+
+      # 3) Swatinem/rust-cache — registry + target + local workspace crates.
+      #    add-job-id-key: false + shared-key so build-fast / build-release
+      #    restore the same cache family instead of job-id shards.
       - name: Cache cargo registry & target
+        id: rust-cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: . -> target
           shared-key: tauri-win
+          key: release-fast
           cache-targets: true
           cache-workspace-crates: true
+          cache-all-crates: false
           cache-on-failure: true
           cache-bin: true
+          add-job-id-key: false
+          prefix-key: v0-rust
 
       - name: Cache prebuilt cargo-tauri
         id: cache-cli
@@ -142,16 +152,26 @@ jobs:
           Add-Content -Path $env:GITHUB_PATH -Value $env:TOOLS_DIR
           Copy-Item (Join-Path $env:TOOLS_DIR "cargo-tauri.exe") (Join-Path $env:TOOLS_DIR "tauri.exe") -Force
 
-      # Default release profile, overridden by CARGO_PROFILE_RELEASE_* above.
-      # Output and bundles land in target/release/ (not target/ci-fast/).
-      - name: cargo tauri build (fast release)
+      - name: cargo tauri build (fast release + sccache)
         working-directory: src-tauri
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           cargo-tauri --version
+          sccache --version
           cargo tauri build
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: sccache stats
+        if: always()
+        shell: pwsh
+        run: |
+          try { sccache --show-stats } catch { Write-Host "sccache stats unavailable" }
+
+      - name: rust-cache hit
+        if: always()
+        shell: pwsh
+        run: Write-Host "rust-cache cache-hit=${{ steps.rust-cache.outputs.cache-hit }}"
 
       - name: Upload fast exe
         uses: actions/upload-artifact@v4

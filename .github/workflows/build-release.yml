@@ -1,8 +1,8 @@
 name: build-release
 
-# Formal release packaging: the fully optimised [profile.release] build with the
-# standard installer bundle, kept long enough to publish. Shares the rust-cache
-# key with build-fast so the two workflows reuse each other's compiled crates.
+# Formal release packaging: fully optimised [profile.release] + installer
+# bundle. Shares Swatinem rust-cache + sccache GHA key family with
+# build-fast so the two workflows reuse compiled artifacts.
 
 on:
   push:
@@ -20,6 +20,14 @@ env:
   CARGO_TARGET_DIR: ${{ github.workspace }}/target
   CARGO_INCREMENTAL: "0"
   TOOLS_DIR: ${{ github.workspace }}/.tools
+  # Debuginfo off for cache size. Release still uses workspace [profile.release]
+  # LTO/opt via Cargo.toml; these env vars only zero out debug info.
+  CARGO_PROFILE_RELEASE_DEBUG: "0"
+  CARGO_PROFILE_DEV_DEBUG: "0"
+  SCCACHE_GHA_ENABLED: "on"
+  SCCACHE_GHA_RW_MODE: "READ_WRITE"
+  SCCACHE_VERSION: "0.18.0"
+  RUSTC_WRAPPER: sccache
 
 jobs:
   build-release:
@@ -49,22 +57,39 @@ jobs:
           npm ci --no-audit --no-fund
           npm run build
 
-      # Must match build-fast so the shared rust-cache key stays valid.
+      # Pin must match build-fast or the shared rust-cache key splits.
       - name: Setup Rust (pinned 1.98.1, MSVC)
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "1.98.1"
           targets: x86_64-pc-windows-msvc
 
+      - name: Export sccache GHA credentials
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_RESULTS_URL', process.env.ACTIONS_RESULTS_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
+      - name: Setup sccache
+        uses: mozilla/sccache-action@v0.0.9
+        with:
+          version: ${{ env.SCCACHE_VERSION }}
+
       - name: Cache cargo registry & target
+        id: rust-cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: . -> target
           shared-key: tauri-win
+          key: release-full
           cache-targets: true
           cache-workspace-crates: true
+          cache-all-crates: false
           cache-on-failure: true
           cache-bin: true
+          add-job-id-key: false
+          prefix-key: v0-rust
 
       - name: Cache prebuilt cargo-tauri
         id: cache-cli
@@ -94,14 +119,26 @@ jobs:
           Add-Content -Path $env:GITHUB_PATH -Value $env:TOOLS_DIR
           Copy-Item (Join-Path $env:TOOLS_DIR "cargo-tauri.exe") (Join-Path $env:TOOLS_DIR "tauri.exe") -Force
 
-      - name: cargo tauri build (release)
+      - name: cargo tauri build (release + sccache)
         working-directory: src-tauri
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           cargo-tauri --version
+          sccache --version
           cargo tauri build
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: sccache stats
+        if: always()
+        shell: pwsh
+        run: |
+          try { sccache --show-stats } catch { Write-Host "sccache stats unavailable" }
+
+      - name: rust-cache hit
+        if: always()
+        shell: pwsh
+        run: Write-Host "rust-cache cache-hit=${{ steps.rust-cache.outputs.cache-hit }}"
 
       - name: Upload release exe
         uses: actions/upload-artifact@v4
