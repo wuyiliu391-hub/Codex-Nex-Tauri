@@ -99,7 +99,12 @@ pub fn list_files(cwd: String, dir: String) -> Result<Vec<FileEntry>, String> {
 }
 
 #[tauri::command]
-pub fn read_file(cwd: String, path: String, offset: Option<usize>, limit: Option<usize>) -> Result<String, String> {
+pub fn read_file(
+    cwd: String,
+    path: String,
+    offset: Option<usize>,
+    limit: Option<usize>,
+) -> Result<String, String> {
     let root = PathBuf::from(&cwd);
     let abs = sanitize_join(&root, &path)?;
     let meta = std::fs::metadata(&abs).map_err(|e| e.to_string())?;

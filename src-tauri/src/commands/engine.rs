@@ -202,8 +202,7 @@ pub async fn list_providers(engine: State<'_, EngineHandle>) -> Result<Value, St
                             .map(|(k, val)| {
                                 let mut val = val.clone();
                                 if let Some(obj) = val.as_object_mut() {
-                                    obj.entry("id")
-                                        .or_insert_with(|| Value::String(k.clone()));
+                                    obj.entry("id").or_insert_with(|| Value::String(k.clone()));
                                 }
                                 val
                             })

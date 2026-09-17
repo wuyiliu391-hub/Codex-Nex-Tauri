@@ -123,7 +123,8 @@ impl CodexClient {
             .map_err(|_| anyhow::anyhow!("initialize timed out"))?
             .map_err(|_| anyhow::anyhow!("initialize response channel closed"))?;
 
-        let result = result.map_err(|e| anyhow::anyhow!("initialize rejected: {} {}", e.code, e.message))?;
+        let result =
+            result.map_err(|e| anyhow::anyhow!("initialize rejected: {} {}", e.code, e.message))?;
 
         // Must follow the response. No params field (official test asserts this).
         self.notify(super::protocol::INITIALIZED, None)
@@ -144,11 +145,7 @@ impl CodexClient {
         self.notify_tx.subscribe()
     }
 
-    pub async fn request(
-        &self,
-        method: &str,
-        params: Option<Value>,
-    ) -> Result<Value, String> {
+    pub async fn request(&self, method: &str, params: Option<Value>) -> Result<Value, String> {
         let id = uuid::Uuid::new_v4().to_string();
         let req = RpcRequest {
             id: id.clone(),
@@ -189,8 +186,8 @@ impl CodexClient {
     /// Resolve a server→client request (approval, user input, elicitation)
     /// by sending a JSON-RPC result for the given server request id.
     pub fn respond(&self, id: Value, result: Value) -> Result<(), String> {
-        let text = serde_json::to_string(&RpcResultMessage { id, result })
-            .map_err(|e| e.to_string())?;
+        let text =
+            serde_json::to_string(&RpcResultMessage { id, result }).map_err(|e| e.to_string())?;
         self.cmd_tx
             .send(ClientCmd::Send(text))
             .map_err(|_| "client closed".into())

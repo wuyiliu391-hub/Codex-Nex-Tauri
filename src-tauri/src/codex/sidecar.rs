@@ -136,9 +136,10 @@ pub mod in_process_backend {
 
             match res {
                 Ok(val) => Ok(val),
-                Err(err) => {
-                    Err(format!("RPC '{method}' error: {} (code {})", err.message, err.code))
-                }
+                Err(err) => Err(format!(
+                    "RPC '{method}' error: {} (code {})",
+                    err.message, err.code
+                )),
             }
         }
 
@@ -295,47 +296,47 @@ impl EngineHandle {
             };
 
             if bin.exists() {
-            let invocation = probe_invocation(&bin);
-            let mut cmd = Command::new(&bin);
-            for (name, value) in &provider_env {
-                cmd.env(name, value);
-            }
-            // The official desktop ships a multi-call `codex.exe`; the app-server
-            // transport only starts when the `app-server` subcommand comes first.
-            // A standalone `codex-app-server.exe` takes no subcommand.
-            for arg in &invocation.prefix {
-                cmd.arg(arg);
-            }
-            cmd.arg("--listen").arg(&settings_listen);
-            // Only pass `--session-source` when this build accepts it. The shipped
-            // 0.154.0-alpha binary rejects it as an unknown argument and exits
-            // immediately, leaving nothing listening on the port (symptom:
-            // "由于目标计算机积极拒绝，无法连接" / os error 10061).
-            if invocation.session_source {
-                cmd.arg("--session-source").arg(SESSION_SOURCE);
-            }
-            // Hide the console window on Windows release builds.
-            #[cfg(windows)]
-            {
-                use std::os::windows::process::CommandExt;
-                const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-                cmd.creation_flags(CREATE_NO_WINDOW);
-            }
-            match cmd.spawn() {
-                Ok(c) => {
-                    tracing::info!(
-                        path=%bin.display(),
-                        listen=%settings_listen,
-                        prefix=?invocation.prefix,
-                        session_source=invocation.session_source,
-                        "spawned codex-app-server"
-                    );
-                    child = Some(c);
+                let invocation = probe_invocation(&bin);
+                let mut cmd = Command::new(&bin);
+                for (name, value) in &provider_env {
+                    cmd.env(name, value);
                 }
-                Err(e) => {
-                    tracing::warn!(error=%e, path=%bin.display(), "failed to spawn codex-app-server");
+                // The official desktop ships a multi-call `codex.exe`; the app-server
+                // transport only starts when the `app-server` subcommand comes first.
+                // A standalone `codex-app-server.exe` takes no subcommand.
+                for arg in &invocation.prefix {
+                    cmd.arg(arg);
                 }
-            }
+                cmd.arg("--listen").arg(&settings_listen);
+                // Only pass `--session-source` when this build accepts it. The shipped
+                // 0.154.0-alpha binary rejects it as an unknown argument and exits
+                // immediately, leaving nothing listening on the port (symptom:
+                // "由于目标计算机积极拒绝，无法连接" / os error 10061).
+                if invocation.session_source {
+                    cmd.arg("--session-source").arg(SESSION_SOURCE);
+                }
+                // Hide the console window on Windows release builds.
+                #[cfg(windows)]
+                {
+                    use std::os::windows::process::CommandExt;
+                    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+                    cmd.creation_flags(CREATE_NO_WINDOW);
+                }
+                match cmd.spawn() {
+                    Ok(c) => {
+                        tracing::info!(
+                            path=%bin.display(),
+                            listen=%settings_listen,
+                            prefix=?invocation.prefix,
+                            session_source=invocation.session_source,
+                            "spawned codex-app-server"
+                        );
+                        child = Some(c);
+                    }
+                    Err(e) => {
+                        tracing::warn!(error=%e, path=%bin.display(), "failed to spawn codex-app-server");
+                    }
+                }
             } else {
                 tracing::warn!(
                     "no codex-app-server binary resolved; engine stays disconnected. \
@@ -514,11 +515,7 @@ impl EngineHandle {
     }
 
     /// Resolve a server→client request (approval / user input / elicitation).
-    pub fn respond(
-        &self,
-        id: serde_json::Value,
-        result: serde_json::Value,
-    ) -> Result<(), String> {
+    pub fn respond(&self, id: serde_json::Value, result: serde_json::Value) -> Result<(), String> {
         #[cfg(feature = "in-process")]
         {
             if let Ok(guard) = self.in_process.try_lock() {

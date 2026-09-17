@@ -3,7 +3,12 @@ use tauri::State;
 
 #[tauri::command]
 pub fn list_connectors(state: State<'_, AppState>) -> Result<Vec<Connector>, String> {
-    Ok(state.inner.lock().map_err(|e| e.to_string())?.connectors.clone())
+    Ok(state
+        .inner
+        .lock()
+        .map_err(|e| e.to_string())?
+        .connectors
+        .clone())
 }
 
 #[tauri::command]

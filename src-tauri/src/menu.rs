@@ -9,9 +9,15 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     // File
     let file_new_window = MenuItem::with_id(app, "new-window", "New Window", true, None::<&str>)?;
     let file_new_task = MenuItem::with_id(app, "new-task", "New Task", true, Some("Ctrl+N"))?;
-    let file_new_projectless =
-        MenuItem::with_id(app, "new-projectless-task", "New Projectless Task", true, Some("Ctrl+Alt+O"))?;
-    let file_open_folder = MenuItem::with_id(app, "open-folder", "Open Folder...", true, Some("Ctrl+O"))?;
+    let file_new_projectless = MenuItem::with_id(
+        app,
+        "new-projectless-task",
+        "New Projectless Task",
+        true,
+        Some("Ctrl+Alt+O"),
+    )?;
+    let file_open_folder =
+        MenuItem::with_id(app, "open-folder", "Open Folder...", true, Some("Ctrl+O"))?;
     let file_close = MenuItem::with_id(app, "close", "Close Tab", true, Some("Ctrl+W"))?;
     let file_settings = MenuItem::with_id(app, "settings", "Settings...", true, Some("Ctrl+,"))?;
     let file_logout = MenuItem::with_id(app, "logout", "Log Out", true, None::<&str>)?;
@@ -62,17 +68,37 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     )?;
 
     // View
-    let view_toggle_sidebar =
-        MenuItem::with_id(app, "toggle-sidebar", "Toggle Sidebar", true, Some("Ctrl+B"))?;
-    let view_toggle_bottom =
-        MenuItem::with_id(app, "toggle-bottom-panel", "Toggle Bottom Panel", true, Some("Ctrl+J"))?;
-    let view_file_tree =
-        MenuItem::with_id(app, "toggle-file-tree", "Toggle File Tree", true, Some("Ctrl+Shift+E"))?;
+    let view_toggle_sidebar = MenuItem::with_id(
+        app,
+        "toggle-sidebar",
+        "Toggle Sidebar",
+        true,
+        Some("Ctrl+B"),
+    )?;
+    let view_toggle_bottom = MenuItem::with_id(
+        app,
+        "toggle-bottom-panel",
+        "Toggle Bottom Panel",
+        true,
+        Some("Ctrl+J"),
+    )?;
+    let view_file_tree = MenuItem::with_id(
+        app,
+        "toggle-file-tree",
+        "Toggle File Tree",
+        true,
+        Some("Ctrl+Shift+E"),
+    )?;
     let view_open_terminal =
         MenuItem::with_id(app, "open-terminal", "Open Terminal", true, Some("Ctrl+`"))?;
     let view_find = MenuItem::with_id(app, "find", "Find", true, Some("Ctrl+F"))?;
-    let view_prev_task =
-        MenuItem::with_id(app, "previous-task", "Previous Task", true, Some("Ctrl+Shift+K"))?;
+    let view_prev_task = MenuItem::with_id(
+        app,
+        "previous-task",
+        "Previous Task",
+        true,
+        Some("Ctrl+Shift+K"),
+    )?;
     let view_next_task =
         MenuItem::with_id(app, "next-task", "Next Task", true, Some("Ctrl+Shift+J"))?;
     let view_open_browser_tab = MenuItem::with_id(
@@ -96,12 +122,17 @@ pub fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         true,
         Some("Ctrl+R"),
     )?;
-    let view_zoom_in =
-        MenuItem::with_id(app, "zoom-in", "Zoom In", true, Some("Ctrl+Shift+Plus"))?;
+    let view_zoom_in = MenuItem::with_id(app, "zoom-in", "Zoom In", true, Some("Ctrl+Shift+Plus"))?;
     let view_zoom_out = MenuItem::with_id(app, "zoom-out", "Zoom Out", true, Some("Ctrl+-"))?;
-    let view_actual_size = MenuItem::with_id(app, "actual-size", "Actual Size", true, Some("Ctrl+0"))?;
-    let view_fullscreen =
-        MenuItem::with_id(app, "toggle-fullscreen", "Toggle Fullscreen", true, Some("F11"))?;
+    let view_actual_size =
+        MenuItem::with_id(app, "actual-size", "Actual Size", true, Some("Ctrl+0"))?;
+    let view_fullscreen = MenuItem::with_id(
+        app,
+        "toggle-fullscreen",
+        "Toggle Fullscreen",
+        true,
+        Some("F11"),
+    )?;
 
     let view_menu = Submenu::with_items(
         app,

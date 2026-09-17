@@ -9,9 +9,7 @@ use serde_json::{json, Value};
 use tauri::State;
 
 #[tauri::command]
-pub fn list_scheduled_tasks(
-    state: State<'_, AppState>,
-) -> Result<Vec<ScheduledTask>, String> {
+pub fn list_scheduled_tasks(state: State<'_, AppState>) -> Result<Vec<ScheduledTask>, String> {
     Ok(state
         .inner
         .lock()
@@ -32,17 +30,10 @@ pub fn save_scheduled_tasks(
 }
 
 #[tauri::command]
-pub fn run_scheduled_task(
-    state: State<'_, AppState>,
-    id: String,
-) -> Result<Value, String> {
+pub fn run_scheduled_task(state: State<'_, AppState>, id: String) -> Result<Value, String> {
     let found = {
         let inner = state.inner.lock().map_err(|e| e.to_string())?;
-        inner
-            .scheduled_tasks
-            .iter()
-            .find(|t| t.id == id)
-            .cloned()
+        inner.scheduled_tasks.iter().find(|t| t.id == id).cloned()
     };
     match found {
         Some(t) => Ok(json!({
@@ -66,10 +57,7 @@ pub fn list_pull_requests(state: State<'_, AppState>) -> Result<Vec<Value>, Stri
 }
 
 #[tauri::command]
-pub fn save_pull_requests(
-    state: State<'_, AppState>,
-    prs: Vec<Value>,
-) -> Result<(), String> {
+pub fn save_pull_requests(state: State<'_, AppState>, prs: Vec<Value>) -> Result<(), String> {
     let mut inner = state.inner.lock().map_err(|e| e.to_string())?;
     inner.pull_requests = prs;
     drop(inner);

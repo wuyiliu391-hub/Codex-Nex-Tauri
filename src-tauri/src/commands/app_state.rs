@@ -40,11 +40,7 @@ pub fn check_dependencies(
     });
 
     // ripgrep optional
-    let rg = if cfg!(windows) {
-        "rg.exe"
-    } else {
-        "rg"
-    };
+    let rg = if cfg!(windows) { "rg.exe" } else { "rg" };
     let rg_ok = std::process::Command::new(rg)
         .arg("--version")
         .output()
@@ -53,7 +49,11 @@ pub fn check_dependencies(
     out.push(DependencyStatus {
         name: "ripgrep".into(),
         ok: rg_ok,
-        detail: if rg_ok { "found".into() } else { "optional, not found".into() },
+        detail: if rg_ok {
+            "found".into()
+        } else {
+            "optional, not found".into()
+        },
     });
 
     let _ = app;

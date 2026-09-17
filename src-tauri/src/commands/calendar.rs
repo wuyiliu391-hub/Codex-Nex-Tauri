@@ -3,7 +3,12 @@ use tauri::State;
 
 #[tauri::command]
 pub fn list_calendar_events(state: State<'_, AppState>) -> Result<Vec<CalendarEvent>, String> {
-    Ok(state.inner.lock().map_err(|e| e.to_string())?.calendar.clone())
+    Ok(state
+        .inner
+        .lock()
+        .map_err(|e| e.to_string())?
+        .calendar
+        .clone())
 }
 
 #[tauri::command]

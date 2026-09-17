@@ -43,7 +43,11 @@ pub fn tuck_pet(state: State<'_, AppState>, id: String) -> Result<Pet, String> {
 }
 
 #[tauri::command]
-pub fn create_custom_pet(state: State<'_, AppState>, name: String, kind: String) -> Result<Pet, String> {
+pub fn create_custom_pet(
+    state: State<'_, AppState>,
+    name: String,
+    kind: String,
+) -> Result<Pet, String> {
     let pet = Pet {
         id: uuid::Uuid::new_v4().to_string(),
         name,
