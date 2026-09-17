@@ -1,73 +1,45 @@
 // Official Codex pet spritesheet player.
-// Sheet: 1536×2288, 8 cols × 11 rows, cell 192×208 (spriteVersion 2).
-// background-size: 800% 1100%; position: col/7 * 100%  row/10 * 100%.
+//
+// All sheet geometry, animation timing and the pet catalog live in
+// ./pets-data.js, transcribed from the shipped Codex webview bundle. This file
+// only drives the DOM: frame stepping, directional look, hover reactions and
+// agent-driven moods.
 
-const COLS = 8;
-const ROWS = 11; // built-in sheets are v2 (11 rows)
-const ASPECT_W = 192;
-const ASPECT_H = 208;
+import {
+  PET_SHEETS,
+  PET_COLUMNS,
+  DEFAULT_SPRITE_VERSION,
+  buildPetSequence,
+  frameToBackgroundPosition,
+  lookFrameFromPointer,
+  spriteRowCount,
+  petSheetUrl,
+  OFFICIAL_PETS,
+} from "./pets-data.js";
 
-// Idle blink cycle (row 0) — official timings, then slowed for loop.
-const IDLE_FRAMES = [
-  { col: 0, ms: 280 },
-  { col: 1, ms: 110 },
-  { col: 2, ms: 110 },
-  { col: 3, ms: 140 },
-  { col: 4, ms: 140 },
-  { col: 5, ms: 320 },
-];
-const IDLE_LOOP_SCALE = 2;
+const CELL_W = PET_SHEETS[DEFAULT_SPRITE_VERSION].cellWidth;
+const CELL_H = PET_SHEETS[DEFAULT_SPRITE_VERSION].cellHeight;
 
-// row, frameCount, stepMs, lastMs
-const ACTIONS = {
-  "running-right": { row: 1, frames: 8, step: 120, last: 220 },
-  "running-left": { row: 2, frames: 8, step: 120, last: 220 },
-  waving: { row: 3, frames: 4, step: 140, last: 280 },
-  jumping: { row: 4, frames: 5, step: 140, last: 280 },
-  failed: { row: 5, frames: 8, step: 140, last: 240 },
-  waiting: { row: 6, frames: 6, step: 150, last: 260 },
-  running: { row: 7, frames: 6, step: 120, last: 220 },
-  review: { row: 8, frames: 6, step: 150, last: 280 },
-};
-
-function pos(col, row) {
-  return `${(col / (COLS - 1)) * 100}% ${(row / (ROWS - 1)) * 100}%`;
-}
-
-function actionFrames(def) {
-  return Array.from({ length: def.frames }, (_, i) => ({
-    col: i,
-    row: def.row,
-    ms: i === def.frames - 1 ? def.last : def.step,
-  }));
-}
-
-function idleLoopFrames() {
-  return IDLE_FRAMES.map((f) => ({
-    col: f.col,
-    row: 0,
-    ms: f.ms * IDLE_LOOP_SCALE,
-  }));
-}
-
-function buildSequence(state) {
-  if (state === "idle" || !ACTIONS[state]) {
-    return { frames: idleLoopFrames(), loopStart: 0 };
-  }
-  const once = actionFrames(ACTIONS[state]);
-  // official: play action 3× then fall into idle loop
-  const triple = [...once, ...once, ...once];
-  const idle = idleLoopFrames();
-  return { frames: [...triple, ...idle], loopStart: triple.length };
-}
+/** How long a directional look frame is held after the last pointer move. */
+const LOOK_HOLD_MS = 1400;
 
 let overlayEl = null;
 let animTimer = null;
+let lookTimer = null;
 let frameIndex = 0;
 let currentSeq = null;
 let currentState = "idle";
 let drag = null;
 let reducedMotion = false;
+
+// Sprite sheet geometry of the currently displayed pet.
+let rowCount = PET_SHEETS[DEFAULT_SPRITE_VERSION].rows;
+let spriteVersion = DEFAULT_SPRITE_VERSION;
+
+// Interaction state.
+let lookActive = false;
+let hoverJump = true;
+let lastStore = null;
 
 function clearAnim() {
   if (animTimer != null) {
@@ -76,9 +48,16 @@ function clearAnim() {
   }
 }
 
+function clearLookTimer() {
+  if (lookTimer != null) {
+    clearTimeout(lookTimer);
+    lookTimer = null;
+  }
+}
+
 function applyFrame(frame) {
   if (!overlayEl || !frame) return;
-  overlayEl.style.backgroundPosition = pos(frame.col, frame.row);
+  overlayEl.style.backgroundPosition = frameToBackgroundPosition(frame, rowCount);
 }
 
 function tick() {
@@ -87,18 +66,18 @@ function tick() {
   if (!frames.length) return;
   applyFrame(frames[frameIndex]);
   if (frames.length === 1) return;
-  const delay = frames[frameIndex].ms || 200;
+  const delay = frames[frameIndex].frameDurationMs || 200;
   animTimer = setTimeout(() => {
     let next = frameIndex + 1;
     if (next >= frames.length) {
-      if (currentSeq.loopStart != null) {
-        next = currentSeq.loopStart;
+      if (currentSeq.loopStartIndex != null) {
+        next = currentSeq.loopStartIndex;
       } else {
         animTimer = null;
         return;
       }
     }
-    if (currentSeq.loopStart > 0 && next === currentSeq.loopStart) {
+    if (currentSeq.loopStartIndex > 0 && next === currentSeq.loopStartIndex) {
       currentState = "idle";
     }
     frameIndex = next;
@@ -110,24 +89,38 @@ function setState(state) {
   if (state === currentState && currentSeq) return;
   currentState = state || "idle";
   clearAnim();
-  if (reducedMotion) {
-    currentSeq = { frames: [{ col: 0, row: 0, ms: 0 }], loopStart: null };
-    frameIndex = 0;
-    applyFrame(currentSeq.frames[0]);
-    return;
-  }
-  currentSeq = buildSequence(currentState);
+  clearLookTimer();
+  lookActive = false;
+  currentSeq = buildPetSequence(currentState, reducedMotion);
   frameIndex = 0;
   tick();
 }
 
-function resolvePetUrl(pet) {
-  const thumb = pet?.thumb || "";
-  if (!thumb) return "";
-  if (/^https?:\/\//i.test(thumb) || thumb.startsWith("data:")) return thumb;
-  // store paths: assets/pets/... → /assets/pets/...
-  const clean = thumb.replace(/^\/+/, "");
-  return "/" + clean;
+/** Hold a single directional frame while the pointer is near the pet. */
+function setLookFrame(frame) {
+  if (!overlayEl || !frame) return;
+  lookActive = true;
+  clearAnim();
+  applyFrame(frame);
+}
+
+/** Drop the directional hold and resume the ambient animation. */
+function releaseLook() {
+  clearLookTimer();
+  if (!lookActive) return;
+  lookActive = false;
+  currentState = "";
+  setState("idle");
+}
+
+function handlePointerMove(e) {
+  if (!overlayEl || drag) return;
+  if (spriteVersion !== 2) return; // v1 sheets have no directional rows
+  const rect = overlayEl.getBoundingClientRect();
+  const frame = lookFrameFromPointer(rect, { x: e.clientX, y: e.clientY }, spriteVersion);
+  if (frame) setLookFrame(frame);
+  clearLookTimer();
+  lookTimer = setTimeout(releaseLook, LOOK_HOLD_MS);
 }
 
 function ensureOverlay() {
@@ -146,6 +139,7 @@ function ensureOverlay() {
       oy: e.clientY - overlayEl.offsetTop,
     };
     overlayEl.setPointerCapture(e.pointerId);
+    overlayEl.classList.add("is-dragging");
     setState("waving");
   });
   overlayEl.addEventListener("pointermove", (e) => {
@@ -159,13 +153,38 @@ function ensureOverlay() {
   });
   overlayEl.addEventListener("pointerup", () => {
     drag = null;
-    // return to idle after wave finishes via sequence loop
+    overlayEl.classList.remove("is-dragging");
+  });
+  // Official respondToHover behaviour: the pet hops when the pointer lands on it.
+  overlayEl.addEventListener("pointerenter", () => {
+    if (hoverJump && !drag) setState("jumping");
   });
   overlayEl.addEventListener("dblclick", () => {
     setState("jumping");
   });
 
+  document.addEventListener("pointermove", handlePointerMove, { passive: true });
+  document.addEventListener("pointerleave", releaseLook);
+  window.addEventListener("blur", releaseLook);
+
   return overlayEl;
+}
+
+function hideOverlay() {
+  clearAnim();
+  clearLookTimer();
+  lookActive = false;
+  overlayEl?.remove();
+  overlayEl = null;
+  currentSeq = null;
+  currentState = "idle";
+}
+
+/** Resolve the active pet record from engine data, falling back to the catalog. */
+function resolvePet(store, selectedId) {
+  const enginePets = Array.isArray(store?.pets) ? store.pets : [];
+  const pool = enginePets.length ? enginePets : OFFICIAL_PETS;
+  return pool.find((p) => p.id === selectedId) || pool[0] || null;
 }
 
 export function setPetRuntimeState(state) {
@@ -174,51 +193,54 @@ export function setPetRuntimeState(state) {
 }
 
 export function renderPetOverlay(store) {
-  const prefs = store.preferences?.pets || {};
-  // no selection or tucked away
-  if (!prefs.selected || prefs.asleep) {
-    clearAnim();
-    overlayEl?.remove();
-    overlayEl = null;
-    currentSeq = null;
-    currentState = "idle";
+  lastStore = store;
+  const prefs = store?.preferences?.pets || {};
+  // settings.js writes `active`; older shells wrote `selected`. Accept both.
+  const selectedId = prefs.active || prefs.selected || "";
+  const asleep = !!prefs.asleep;
+
+  if (!selectedId || asleep) {
+    hideOverlay();
     return;
   }
 
-  const pet =
-    (store.pets || []).find((p) => p.id === prefs.selected) ||
-    (store.pets || [])[0];
-  const url = resolvePetUrl(pet);
+  const pet = resolvePet(store, selectedId);
+  const url = petSheetUrl(pet);
   if (!url) {
-    clearAnim();
-    overlayEl?.remove();
-    overlayEl = null;
+    hideOverlay();
     return;
   }
 
-  const nextReducedMotion = !!store.preferences?.appearance?.reduceMotion;
+  spriteVersion = pet?.spriteVersionNumber ?? DEFAULT_SPRITE_VERSION;
+  rowCount = spriteRowCount(spriteVersion);
+
+  const nextReducedMotion = !!store?.preferences?.appearance?.reduceMotion;
   const motionChanged = reducedMotion !== nextReducedMotion;
   reducedMotion = nextReducedMotion;
 
   const el = ensureOverlay();
-  // official slider 80–224; default ~100
+  // Official slider 80–224; default ~100.
   const size = Math.max(80, Math.min(224, Number(prefs.size) || 100));
   const height = size;
-  const width = Math.round((size * ASPECT_W) / ASPECT_H);
+  const width = Math.round((size * CELL_W) / CELL_H);
   const prevSheet = el.dataset.sheet || "";
   const sheetChanged = prevSheet !== url;
 
   el.style.width = width + "px";
   el.style.height = height + "px";
-  // force image swap even if browser caches same property string
+  // Force an image swap even when the browser would reuse the cached property.
   if (sheetChanged) el.style.backgroundImage = "";
   el.style.backgroundImage = `url("${url}")`;
   el.style.backgroundRepeat = "no-repeat";
-  el.style.backgroundSize = `${COLS * 100}% ${ROWS * 100}%`;
+  el.style.backgroundSize = `${PET_COLUMNS * 100}% ${rowCount * 100}%`;
   el.style.imageRendering = "pixelated";
-  el.title = pet?.name || "Pet";
-  el.setAttribute("aria-label", pet?.name || "Codex pet");
+  const name = pet?.displayName || pet?.name || "Pet";
+  el.title = name;
+  el.setAttribute("aria-label", name);
   el.dataset.petId = pet?.id || "";
+  el.dataset.spriteVersion = String(spriteVersion);
+  el.hidden = false;
+  el.style.display = "";
 
   if (!currentSeq || sheetChanged || motionChanged) {
     el.dataset.sheet = url;
@@ -255,3 +277,25 @@ export function petOnAgentPhase(phase) {
       break;
   }
 }
+
+// ── Shell events ─────────────────────────────────────────────────────
+
+// Wake + show the pet from the settings page.
+document.addEventListener("codex:show-pet", () => {
+  const store = lastStore;
+  if (!store) return;
+  const pets = store.preferences?.pets || {};
+  const id = pets.active || pets.selected || OFFICIAL_PETS[0].id;
+  store.preferences.pets = { ...pets, active: id, selected: id, asleep: false };
+  renderPetOverlay(store);
+});
+
+// Preview a single official animation from the settings page action grid.
+document.addEventListener("codex:pet-action", (e) => {
+  const action = e?.detail;
+  if (!action) return;
+  if (!overlayEl && lastStore) renderPetOverlay(lastStore);
+  if (!overlayEl) return;
+  currentState = ""; // force the sequence to restart even if it is the same action
+  setState(action);
+});

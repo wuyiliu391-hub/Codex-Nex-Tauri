@@ -308,6 +308,8 @@ function paintPet() {
 document.addEventListener("codex:refresh", paintPet);
 document.addEventListener("codex:boot", paintPet);
 document.addEventListener("codex:appearance", paintPet);
+// Selecting a different pet in settings must repaint the floating overlay.
+document.addEventListener("codex:pet-changed", paintPet);
 document.addEventListener("codex:live-turn", () => {
   const phase = liveTurn?.phase || (store.running ? "executing_tool" : "idle");
   petOnAgentPhase(phase);

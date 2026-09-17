@@ -290,7 +290,8 @@ function buildMessagesFromTimeline(items, firstPreview) {
   return messages;
 }
 
-
+/**
+ * Build a synthetic projects list from sessions' cwd values.
  * Official Codex has no separate project concept — every thread carries a cwd.
  * We deduplicate by cwd and produce { id, name, path } objects compatible with
  * home.js renderProjectList() and currentProjectLabel()/currentProjectPath().

@@ -1,5 +1,7 @@
 // Single source of truth for the frontend.
 
+import { OFFICIAL_PETS, PET_ASSET_MAP } from "./pets-data.js";
+
 export const store = {
   snapshot: {},
   settings: defaultSettings(),
@@ -200,17 +202,18 @@ function defaultScheduled() {
 }
 
 function defaultPets() {
-  return [
-    { id: "codex", name: "Codex", selected: true, desc: "A helpful desk companion.", thumb: "assets/pets/codex-spritesheet-v6-BRBFriCM.webp" },
-    { id: "dewey", name: "Dewey", selected: false, desc: "Bookworm with a monocle.", thumb: "assets/pets/dewey-spritesheet-v5-D1KFAW8x.webp" },
-    { id: "bsod", name: "Bluey", selected: false, desc: "Crashes the party (in blue).", thumb: "assets/pets/bsod-spritesheet-v5-DMVBNs4E.webp" },
-    { id: "fire", name: "Fireball", selected: false, desc: "Hot-headed speed-runner.", thumb: "assets/pets/fireball-spritesheet-v5-CcKkFG0_.webp" },
-    { id: "hoots", name: "Hoots", selected: false, desc: "Wise owl who plans ahead.", thumb: "assets/pets/hoots-spritesheet-v8-hys0ZOs6.webp" },
-    { id: "null", name: "Null Signal", selected: false, desc: "Quiet hacker ghost.", thumb: "assets/pets/null-signal-spritesheet-v7-B59v4kgD.webp" },
-    { id: "rocky", name: "Rocky", selected: false, desc: "Tiny rolling boulder.", thumb: "assets/pets/rocky-spritesheet-v5-CXtdFM3V.webp" },
-    { id: "seedy", name: "Seedy", selected: false, desc: "Plant-based partner.", thumb: "assets/pets/seedy-spritesheet-v10-A9vkGoq7.webp" },
-    { id: "stack", name: "Stacky", selected: false, desc: "Tall stack of surprises.", thumb: "assets/pets/stacky-spritesheet-v6-Y0DWcgq_.webp" },
-  ];
+  // Built from the official catalog so ids, names and descriptions match the
+  // shipped Codex pets exactly. Never hand-write entries here — several ids
+  // used to be wrong (`fire`, `null`, `stack`) and bsod was labelled "Bluey".
+  return OFFICIAL_PETS.map((pet, i) => ({
+    id: pet.id,
+    assetRef: pet.assetRef,
+    name: pet.displayName,
+    desc: pet.description,
+    spriteVersionNumber: pet.spriteVersionNumber,
+    thumb: PET_ASSET_MAP[pet.assetRef],
+    selected: i === 0,
+  }));
 }
 
 export function setSessionActive(id) {

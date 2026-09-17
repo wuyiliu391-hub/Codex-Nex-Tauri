@@ -39,3 +39,6 @@ docs/uia/uia-tree-*.json
 __*.js
 scratch/
 
+
+# Local AI workspace data
+.workbuddy-ai/

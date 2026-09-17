@@ -249,3 +249,70 @@ kbd.key { display: inline-flex; min-width: 23px; height: 23px; align-items: cent
 .language-card-native{font-size:14px;font-weight:500}
 .language-card-name{font-size:11px;color:#777}
 html.theme-dark .language-card{background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.1)}
+
+/* ── Pets page ─────────────────────────────────────────────────────── */
+.pet-top-row { display: flex; align-items: center; gap: 10px; padding: 12px 16px 16px; }
+.pet-actions-row { display: flex; align-items: center; gap: 8px; padding: 12px 16px 4px; }
+.pet-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(172px, 1fr));
+  gap: 10px;
+  padding: 10px 16px 16px;
+}
+.pet-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 12px 12px;
+  border: 1px solid rgba(13, 13, 13, .1);
+  border-radius: 12px;
+  background: var(--bg-canvas, #fff);
+  color: inherit;
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .12s ease, box-shadow .12s ease;
+}
+.pet-card:hover { border-color: rgba(13, 13, 13, .22); }
+.pet-card.is-active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+/* Frame (row 0, col 0) of the real spritesheet; JS sets image + size. */
+.pet-thumb {
+  display: block;
+  width: 48px;
+  height: 52px;
+  background-repeat: no-repeat;
+  background-position: 0% 0%;
+  image-rendering: pixelated;
+}
+.pet-thumb-empty { background: rgba(13, 13, 13, .06); border-radius: 8px; }
+.pet-name { font-size: 13px; font-weight: 500; }
+.pet-desc { font-size: 11px; line-height: 1.35; color: #777; }
+.pet-tag {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(13, 13, 13, .06);
+  color: #777;
+  font-size: 10px;
+}
+.pet-action-grid { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px 16px; }
+.pet-action-btn {
+  padding: 6px 12px;
+  border: 1px solid rgba(13, 13, 13, .12);
+  border-radius: 8px;
+  background: var(--bg-canvas, #fff);
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color .12s ease;
+}
+.pet-action-btn:hover { border-color: rgba(13, 13, 13, .28); }
+.pet-action-btn:active { transform: translateY(1px); }
+
+html.theme-dark .pet-card { background: rgba(255, 255, 255, .03); border-color: rgba(255, 255, 255, .1); }
+html.theme-dark .pet-thumb-empty { background: rgba(255, 255, 255, .08); }
+html.theme-dark .pet-desc { color: #999; }
+html.theme-dark .pet-tag { background: rgba(255, 255, 255, .08); color: #999; }
+html.theme-dark .pet-action-btn { background: rgba(255, 255, 255, .03); border-color: rgba(255, 255, 255, .12); }
+

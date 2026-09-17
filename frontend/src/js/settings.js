@@ -3,6 +3,15 @@ import { store, updateSettings } from "./state.js";
 import { on, navigate } from "./router.js";
 import { t, languageOptions, LOCALES, normalizeLang } from "./i18n.js";
 import { createDropdown } from "./ui-controls.js";
+import {
+  OFFICIAL_PETS,
+  PET_ASSET_MAP,
+  PET_ACTION_NAMES,
+  PET_COLUMNS,
+  spriteRowCount,
+  petSheetUrl,
+  isCustomPetId,
+} from "./pets-data.js";
 
 function $(id) {
   return document.getElementById(id);
@@ -248,11 +257,62 @@ async function openSettingsPage(id) {
     </button>
     <div class="settings-content" id="settings-content"></div>`;
   root.querySelector("#settings-close-btn")?.addEventListener("click", () => navigate("home"));
-  const content = $("settings-content");
-  await loadPageRuntimeState(id);
+
   const render = RENDERERS[id] || renderGeneral;
-  render(content);
-  if (settingsSearchValue) filterSettings(settingsSearchValue);
+  const paint = () => {
+    const content = $("settings-content");
+    if (!content) return;
+    render(content);
+    if (settingsSearchValue) filterSettings(settingsSearchValue);
+  };
+
+  // Paint immediately from cached store state. Opening a settings page must
+  // never block on an engine round-trip: the Account page fetches providers
+  // over the app-server socket, which stalls the whole view when the engine is
+  // slow or disconnected. Cached data gives an instant first paint.
+  paint();
+
+  // Refresh the page's runtime data in the background, then repaint only when
+  // something actually changed — avoids clobbering in-progress user input.
+  const before = settingsRuntimeFingerprint(id);
+  try {
+    await loadPageRuntimeState(id);
+  } catch {
+    /* keep the cached paint */
+  }
+  if (store._settingsPage !== id) return;
+  if (settingsRuntimeFingerprint(id) === before) return;
+  paint();
+}
+
+/** Cheap change-detector for the per-page runtime data fetched from the engine. */
+function settingsRuntimeFingerprint(id) {
+  try {
+    switch (id) {
+      case "account":
+        return JSON.stringify(store.providers || []);
+      case "plugins":
+        return JSON.stringify(store.mcpServers || []);
+      case "hooks":
+        return JSON.stringify(store.hooks || []);
+      case "configuration":
+        return JSON.stringify(store.dependencies || []);
+      case "personalization":
+        return JSON.stringify(store.memory || []);
+      case "browser":
+        return JSON.stringify(store.browserStatus ?? null);
+      case "computer-use":
+        return JSON.stringify(store.computerUseStatus ?? null);
+      case "git":
+        return JSON.stringify(store.gitStatus ?? null);
+      case "voice":
+        return JSON.stringify(store.audioDevices ?? null);
+      default:
+        return "";
+    }
+  } catch {
+    return "";
+  }
 }
 
 async function loadPageRuntimeState(id) {
@@ -1147,41 +1207,83 @@ function renderPersonalization(root) {
   });
 }
 
-function petThumbUrl(pet) {
-  const thumb = pet?.thumb || "";
-  if (!thumb) return "";
-  if (/^https?:\/\//i.test(thumb) || thumb.startsWith("data:")) return thumb;
-  return "/" + thumb.replace(/^\/+/, "");
-}
-
 function renderPets(root) {
-  const PETS = [
-    { id: "mini", name: "杩蜂綘", desc: "杞婚噺绾?Codex 浼欎即" },
-    { id: "codex", name: "Codex", desc: "The original Codex companion." },
-    { id: "dewey", name: "Dewey", desc: "A calm companion for focused workspace days" },
-    { id: "fireball", name: "Fireball", desc: "Hot path energy for fast iteration." },
-    { id: "hoots", name: "Hoots", desc: "A sharp-eyed owl for polished work in a blink." },
-    { id: "rocky", name: "Rocky", desc: "A steady rock when the diff gets large." },
-    { id: "seedy", name: "Seedy", desc: "Small green shoots for new ideas." },
-    { id: "stacky", name: "Stacky", desc: "A balanced stack for deep work." },
-    { id: "bsod", name: "BSOD", desc: "A tiny blue-screen gremlin." },
-    { id: "null-signal", name: "Null Signal", desc: "Quiet signal from the void." },
-  ];
   const p = pref("pets", {});
   const active = p.active || "codex";
   const customs = Array.isArray(p.custom) ? p.custom : [];
-  const all = PETS.concat(customs);
-  const cards = all.map((pet) => '<button type="button" class="pet-card' + (active === pet.id ? " is-active" : "") + '" data-pet="' + pet.id + '" aria-pressed="' + (active === pet.id) + '"><span class="pet-name">' + escapeHtml(pet.name) + '</span><span class="pet-desc">' + escapeHtml(pet.desc) + '</span></button>').join("");
+  // Official built-in catalog first, then user-created pets.
+  const all = OFFICIAL_PETS.concat(customs);
+  const cards = all
+    .map((pet) => {
+      const name = pet.displayName || pet.name || pet.id;
+      const desc = pet.description || pet.desc || "";
+      const thumb = petSheetUrl(pet);
+      const rows = spriteRowCount(pet.spriteVersionNumber);
+      const isActive = active === pet.id;
+      const tag = isCustomPetId(pet.id)
+        ? '<span class="pet-tag">' + escapeHtml(t("pets.custom")) + "</span>"
+        : "";
+      // Thumbnail shows frame (row 0, col 0) of the real spritesheet.
+      const sprite = thumb
+        ? '<span class="pet-thumb" style="background-image:url(\'' +
+          thumb +
+          "');background-size:" +
+          PET_COLUMNS * 100 +
+          "% " +
+          rows * 100 +
+          '%"></span>'
+        : '<span class="pet-thumb pet-thumb-empty"></span>';
+      return (
+        '<button type="button" class="pet-card' +
+        (isActive ? " is-active" : "") +
+        '" data-pet="' +
+        escapeHtml(pet.id) +
+        '" aria-pressed="' +
+        isActive +
+        '" title="' +
+        escapeHtml(desc) +
+        '">' +
+        sprite +
+        '<span class="pet-name">' +
+        escapeHtml(name) +
+        '</span><span class="pet-desc">' +
+        escapeHtml(desc) +
+        "</span>" +
+        tag +
+        "</button>"
+      );
+    })
+    .join("");
+  // Official action set (mirrors the bundle's Xlo map) for live preview.
+  const actionButtons = PET_ACTION_NAMES.map(
+    (name) =>
+      '<button type="button" class="pet-action-btn" data-pet-action="' +
+      name +
+      '">' +
+      escapeHtml(t("pets.action." + name, name)) +
+      "</button>",
+  ).join("");
   root.innerHTML = `
     ${pageHead(t("pets.title"), t("pets.desc"))}
-    ${blockCustom("", '<div class="pet-top-row">' + button(t("pets.show"), "show-pet", "primary") + selectEl("petVariant", p.variant || "custom", [{ value: "custom", label: t("pets.custom") }], "") + '</div>')}
-    ${blockCustom(t("pets.mine"), '<div class="pet-actions-row">' + button(t("pets.refresh"), "pets-refresh") + button(t("pets.create"), "pet-create") + '</div><div class="pet-grid">' + cards + '</div>')}`;
+    ${blockCustom("", '<div class="pet-top-row">' + button(t("pets.show"), "show-pet", "primary") + selectEl("petVariant", p.variant || "custom", [{ value: "custom", label: t("pets.custom") }], "") + "</div>")}
+    ${blockCustom(t("pets.mine"), '<div class="pet-actions-row">' + button(t("pets.refresh"), "pets-refresh") + button(t("pets.create"), "pet-create") + '</div><div class="pet-grid">' + cards + "</div>")}
+    ${blockCustom(t("pets.actions", "Actions & expressions"), '<div class="pet-action-grid">' + actionButtons + "</div>")}`;
   wireInputs(root, (patch) => savePreferences("pets", patch));
-  root.querySelector("[data-action='show-pet']")?.addEventListener("click", () => document.dispatchEvent(new CustomEvent("codex:show-pet")));
-  root.querySelector("[data-action='pets-refresh']")?.addEventListener("click", () => renderPets(root));
+  root.querySelector("[data-action='show-pet']")?.addEventListener("click", async () => {
+    // Persist the wake-up so the overlay stays visible across restarts.
+    const id = active || OFFICIAL_PETS[0].id;
+    await savePreferences("pets", { active: id, selected: id, asleep: false });
+    document.dispatchEvent(new CustomEvent("codex:pet-changed", { detail: id }));
+  });
+  root.querySelector("[data-action='pets-refresh']")?.addEventListener("click", async () => {
+    // Re-read the live pet list from the engine, then repaint.
+    await store.onRefresh?.();
+    renderPets(root);
+  });
   root.querySelector("[data-action='pet-create']")?.addEventListener("click", async () => {
     const n = customs.length + 1;
-    await savePreferences("pets", { custom: customs.concat([{ id: "custom-" + Date.now(), name: t("pets.custom") + " " + n, desc: "" }]) });
+    // Official custom pets use a `custom:` id prefix (see klo() in the bundle).
+    await savePreferences("pets", { custom: customs.concat([{ id: "custom:" + Date.now(), name: t("pets.custom") + " " + n, desc: "" }]) });
     renderPets(root);
   });
   root.querySelectorAll("[data-pet]").forEach((btn) =>
@@ -1189,6 +1291,12 @@ function renderPets(root) {
       await savePreferences("pets", { active: btn.dataset.pet });
       document.dispatchEvent(new CustomEvent("codex:pet-changed", { detail: btn.dataset.pet }));
       renderPets(root);
+    })
+  );
+  root.querySelectorAll("[data-pet-action]").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      // Preview a single official animation on the floating pet overlay.
+      document.dispatchEvent(new CustomEvent("codex:pet-action", { detail: btn.dataset.petAction }));
     })
   );
 }
