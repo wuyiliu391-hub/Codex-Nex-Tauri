@@ -86,6 +86,7 @@ use codex_protocol::ThreadId;
 use codex_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
 use codex_protocol::config_types::Verbosity as VerbosityConfig;
 use codex_protocol::models::ResponseItem;
+use codex_protocol::models::ContentItem;
 use codex_protocol::openai_models::ModelInfo;
 use codex_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
 use codex_protocol::protocol::AuthRecoveryEvent;
@@ -1089,7 +1090,7 @@ impl ModelClient {
         }
 
         let mut tools = Vec::new();
-        for spec in &prompt.tools {
+        for spec in prompt.tools.iter() {
             match spec {
                 codex_tools::ToolSpec::Function(f) => {
                     if let Ok(params) = serde_json::to_value(&f.parameters) {
@@ -1097,7 +1098,7 @@ impl ModelClient {
                             r#type: "function".to_string(),
                             function: codex_api::ChatToolFunction {
                                 name: f.name.clone(),
-                                description: f.description.clone(),
+                                description: Some(f.description.clone()),
                                 parameters: params,
                             },
                         });
@@ -1112,7 +1113,7 @@ impl ModelClient {
                                         r#type: "function".to_string(),
                                         function: codex_api::ChatToolFunction {
                                             name: f.name.clone(),
-                                            description: f.description.clone(),
+                                            description: Some(f.description.clone()),
                                             parameters: params,
                                         },
                                     });
@@ -1171,7 +1172,7 @@ impl ModelClient {
                                 }
                             }
                             ContentItem::InputImage { image_url, .. } => {
-                                if let Some((mime, data)) = parse_data_url(&image_url) {
+                                if let Some((mime, data)) = Self::parse_data_url(image_url) {
                                     raw_messages.push((
                                         mapped_role.to_string(),
                                         codex_api::AnthropicBlock::Image {
@@ -1253,13 +1254,13 @@ impl ModelClient {
         }
 
         let mut tools = Vec::new();
-        for spec in &prompt.tools {
+        for spec in prompt.tools.iter() {
             match spec {
                 codex_tools::ToolSpec::Function(f) => {
                     if let Ok(input_schema) = serde_json::to_value(&f.parameters) {
                         tools.push(codex_api::AnthropicTool {
                             name: f.name.clone(),
-                            description: f.description.clone(),
+                            description: Some(f.description.clone()),
                             input_schema,
                         });
                     }
@@ -1271,7 +1272,7 @@ impl ModelClient {
                                 if let Ok(input_schema) = serde_json::to_value(&f.parameters) {
                                     tools.push(codex_api::AnthropicTool {
                                         name: f.name.clone(),
-                                        description: f.description.clone(),
+                                        description: Some(f.description.clone()),
                                         input_schema,
                                     });
                                 }
