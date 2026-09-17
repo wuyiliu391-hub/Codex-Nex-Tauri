@@ -129,7 +129,9 @@
     <div class="startup-loader__spinner"></div>
   </div>
   <div class="startup-error" id="startup-error" hidden></div>
-  <div id="app"></div>
+  <!-- React mount point. The shell renders its own #app container so the
+       existing stylesheets' #app layout rules keep applying. -->
+  <div id="root"></div>
   <script type="module" src="/app/main.tsx"></script>
 </body>
 </html>

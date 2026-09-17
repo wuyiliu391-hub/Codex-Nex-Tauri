@@ -20,11 +20,15 @@ import "./styles/approvals.css";
 
 import { App } from "./App";
 import { startEventBridge } from "./bridge/events";
+import { installRouter } from "./shell/useRoute";
 
-const container = document.getElementById("app");
+const container = document.getElementById("root");
 if (!container) {
-  throw new Error("#app container missing from index.html");
+  throw new Error("#root container missing from index.html");
 }
+
+// Install the router before the first render so the initial route is known.
+installRouter();
 
 // Wire the protocol event bridge before first paint so no notification is lost.
 void startEventBridge();
