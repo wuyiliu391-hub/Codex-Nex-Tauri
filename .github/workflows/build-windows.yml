@@ -30,6 +30,41 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # ── Frontend (React) ───────────────────────────────────────────────
+      # Dependencies and builds live in CI only. Local work is limited to
+      # editing plus dependency-free checks (see scripts/verify-*.mjs).
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # Dependency-free checks first: they need no install, so a syntax or
+      # coverage regression fails the job before npm ci burns CI time. The same
+      # two commands are what runs locally.
+      - name: Frontend — dependency-free checks
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          node scripts/check-frontend.mjs
+          node scripts/verify-notification-coverage.mjs
+
+      - name: Frontend — install
+        working-directory: frontend
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          npm ci --no-audit --no-fund
+
+      # `npm run build` runs `tsc --noEmit` first, so type errors fail the job.
+      - name: Frontend — typecheck + build
+        working-directory: frontend
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          npm run build
+
       - name: Setup Rust (stable, MSVC)
         uses: dtolnay/rust-toolchain@stable
         with:

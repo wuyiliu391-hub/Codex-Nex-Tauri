@@ -91,6 +91,7 @@ export const NOTIFICATION_METHODS = [
   "thread/realtime/closed",
   "windows/worldWritableWarning",
   "windowsSandbox/setupCompleted",
+  "account/login/completed",
 ] as const;
 
 export type NotificationMethod = (typeof NOTIFICATION_METHODS)[number];
@@ -208,6 +209,7 @@ export const NOTIFICATION_VARIANTS: Record<NotificationMethod, string> = {
   "thread/realtime/closed": "ThreadRealtimeClosed",
   "windows/worldWritableWarning": "WindowsWorldWritableWarning",
   "windowsSandbox/setupCompleted": "WindowsSandboxSetupCompleted",
+  "account/login/completed": "AccountLoginCompleted",
 };
 
 const NOTIFICATION_SET: ReadonlySet<string> = new Set(NOTIFICATION_METHODS);

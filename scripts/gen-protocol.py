@@ -48,29 +48,48 @@ def enum_body(name):
 
 
 def methods_of(body):
-    """Parse `Variant => "method/name"` entries plus their experimental gate."""
+    """Parse method entries out of a definitions-macro body.
+
+    Two declaration styles appear in common.rs:
+      Variant => "method/name" (v2::Type),            // most entries
+      #[strum(serialize = "method/name")] Variant(..) // e.g. account/login/completed
+    """
     out = []
     pending_exp = None
+    pending_strum = None
     for raw in body.split("\n"):
         line = raw.strip()
+
         if line.startswith("#[experimental("):
             m = re.search(r'#\[experimental\("([^"]+)"\)\]', line)
             pending_exp = m.group(1) if m else True
             continue
+
+        m = re.match(r'#\[strum\(serialize\s*=\s*"([^"]+)"\)\]', line)
+        if m:
+            pending_strum = m.group(1)
+            continue
+
         m = re.match(r'^([A-Za-z_][A-Za-z0-9_]*)\s*=>\s*"([^"]+)"', line)
         if m:
-            out.append(
-                {
-                    "variant": m.group(1),
-                    "method": m.group(2),
-                    "experimental": pending_exp,
-                }
-            )
+            out.append({"variant": m.group(1), "method": m.group(2), "experimental": pending_exp})
             pending_exp = None
+            pending_strum = None
             continue
+
+        # Tuple variant carrying its method name on a preceding strum attribute.
+        m = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)\s*\(", line)
+        if m and pending_strum:
+            out.append({"variant": m.group(1), "method": pending_strum, "experimental": pending_exp})
+            pending_exp = None
+            pending_strum = None
+            continue
+
         if line.startswith("#[") or line.startswith("//") or line == "":
             continue
+
         pending_exp = None
+        pending_strum = None
     return out
 
 

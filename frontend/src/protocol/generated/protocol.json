@@ -409,6 +409,11 @@
       "variant": "WindowsSandboxSetupCompleted",
       "method": "windowsSandbox/setupCompleted",
       "experimental": null
+    },
+    {
+      "variant": "AccountLoginCompleted",
+      "method": "account/login/completed",
+      "experimental": null
     }
   ],
   "requests": [
