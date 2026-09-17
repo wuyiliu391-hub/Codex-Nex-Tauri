@@ -26,7 +26,7 @@ function commit(next: Preferences): void {
   for (const listener of listeners) listener();
 }
 
-function subscribe(listener: () => void): () => void {
+export function subscribe(listener: () => void): () => void {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);

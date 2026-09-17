@@ -1,9 +1,11 @@
 /**
  * Application shell: titlebar + sidebar + main view host.
  *
- * All nineteen legacy modules now have a React replacement. The view host is
- * no longer a "not migrated" placeholder; every route is backed by a React
- * view (HomeView, SettingsShell, or DiscoveryView).
+ * DOM contract (matches the vanilla index.html the stylesheets were written for):
+ *   body > #root(display:contents) > .app-toolbar + #app > .sidebar + .main
+ * The settings view is a SIBLING of .main, not a child: shell.css hides both
+ * .sidebar and .main when body.settings-open is set, and lets #view-settings
+ * fill #app. Rendering settings inside .main would hide it along with .main.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -17,43 +19,12 @@ import { HomeView } from "@/views/HomeView";
 import { DiscoveryView } from "@/views/DiscoveryView";
 import { SettingsShell } from "@/views/settings/SettingsShell";
 
-/** Views still served by the vanilla layer. */
-const NOT_MIGRATED: Record<string, string> = {
-  settings: "Settings (19 tabs)",
-  scheduled: "Scheduled",
-  plugins: "Plugins",
-  pullrequests: "Pull requests",
-};
-
-function ViewHost({ view, sub }: { view: string; sub: string | null }) {
-  if (view === "home") return <HomeView />;
-  if (view === "settings") return <SettingsShell />;
+function ViewHost({ view }: { view: string }) {
   if (view === "scheduled" || view === "plugins" || view === "pullrequests") {
     return <DiscoveryView view={view} />;
   }
-
-  const pending = NOT_MIGRATED[view];
-  if (!pending) {
-    return (
-      <section className="view">
-        <div className="settings-page-head">
-          <h1>{view}</h1>
-          <p>Unknown view.</p>
-        </div>
-      </section>
-    );
-  }
-  return (
-    <section className="view view-pending" data-view={view}>
-      <div className="settings-page-head">
-        <h1>{pending}</h1>
-        <p>
-          Not migrated yet — still served by the vanilla layer
-          {sub ? ` (sub-page: ${sub})` : ""}.
-        </p>
-      </div>
-    </section>
-  );
+  // Home is the default for every other (and unknown) route.
+  return <HomeView />;
 }
 
 export function AppShell() {
@@ -75,6 +46,13 @@ export function AppShell() {
         /* settings are optional; default to expanded */
       });
   }, []);
+
+  // The stylesheet collapses the sidebar via `body.sidebar-collapsed`
+  // (shell.css:91-114), not a class on the aside. Keep the body class in sync
+  // with React state so the existing rules keep working unchanged.
+  useEffect(() => {
+    document.body.classList.toggle("sidebar-collapsed", collapsed);
+  }, [collapsed]);
 
   const toggleSidebar = useCallback(() => {
     setCollapsed((prev) => {
@@ -98,7 +76,6 @@ export function AppShell() {
         if (el instanceof HTMLTextAreaElement) el.focus();
       },
       addProject: () => {
-        // The picker lives in the home view, which is not migrated yet.
         window.dispatchEvent(new CustomEvent("codex:add-project"));
       },
       stepTask: (direction: 1 | -1) => {
@@ -116,14 +93,19 @@ export function AppShell() {
     [toggleSidebar],
   );
 
+  const isSettings = route.view === "settings";
+
   return (
     <>
       <TitleBar ctx={ctx} sidebarCollapsed={collapsed} onToggleSidebar={toggleSidebar} />
       <div id="app">
         <Sidebar ctx={ctx} collapsed={collapsed} />
-        <main className="main" id="main">
-          <ViewHost view={route.view} sub={route.sub} />
+        {/* Settings is a sibling of .main: body.settings-open hides .main and
+            .sidebar and lets #view-settings fill #app (shell.css:94-97). */}
+        <main className="main" id="main" hidden={isSettings}>
+          <ViewHost view={route.view} />
         </main>
+        {isSettings ? <SettingsShell /> : null}
       </div>
     </>
   );

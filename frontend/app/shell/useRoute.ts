@@ -53,10 +53,23 @@ export function navigate(view: string, sub?: string): void {
   }
 }
 
+/**
+ * Reflect the route onto <body> so the existing stylesheets' layout rules apply.
+ *
+ * The vanilla router toggled `body.settings-open` (router.js:28) and the whole
+ * settings layout hangs off it; without this the React port renders settings in
+ * a narrow column with the sidebar still visible.
+ */
+function applyBodyClasses(route: Route): void {
+  if (typeof document === "undefined") return;
+  document.body.classList.toggle("settings-open", route.view === "settings");
+}
+
 /** Begin listening for hash changes. Returns a teardown function. */
 export function installRouter(): () => void {
   const onChange = (): void => {
     current = parse(window.location.hash);
+    applyBodyClasses(current);
     emit();
   };
   window.addEventListener("hashchange", onChange);

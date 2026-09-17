@@ -66,6 +66,7 @@ export function Composer({
 }: ComposerProps) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [multiline, setMultiline] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const { projects, providers } = useAppState();
@@ -82,9 +83,6 @@ export function Composer({
     : String(t("home.modelUnconfigured", "Model not configured"));
 
   const fullAccess = settings.fullAccess === true || settings.approvalPolicy === "never";
-  const permissionLabel = fullAccess
-    ? String(t("home.helpApproval", "Approve for me"))
-    : String(t("home.askApproval", "Ask for approval"));
 
   // Grow the textarea with its content.
   useEffect(() => {
@@ -93,7 +91,7 @@ export function Composer({
     el.style.height = "auto";
     const height = Math.min(Math.max(el.scrollHeight, 24), MAX_INPUT_HEIGHT);
     el.style.height = `${height}px`;
-    el.closest(".composer-shell")?.classList.toggle("is-multiline", height > 40);
+    setMultiline(height > 40);
   }, [text]);
 
   const interrupt = useCallback(async () => {
@@ -169,10 +167,21 @@ export function Composer({
             onRefresh();
           }}
           disabled={projects.length === 0}
-        />
+          showDefaultLabel={false}
+        >
+          <span className="proj-icon">
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path
+                d="M16.6182 9.33203H3.38184V12.7002C3.38184 14.1253 3.44124 14.5646 3.57129 14.916C3.80618 15.5324 4.59362 15.816 5.04199 15.8379C5.40624 15.8676 5.87469 15.8682 6.54981 15.8682H13.4502C14.1253 15.8682 14.5938 15.8676 14.958 15.8379C15.516 15.7551 16.0594 15.4438 16.4287 14.916C16.6176 13.8438 16.6182 13.3753 16.6182 12.7002V9.33203ZM3.38184 8.06836H16.6143C16.6105 7.81516 16.603 7.60256 16.5879 7.41699C16.5303 6.96862 16.2824 6.42183 15.7861 6.01367C15.3146 5.8088 14.5938 5.75684 13.4502 5.75684H11.1445C10.2158 5.71466 9.65236 5.50645 9.1836 5.1543L8.55957 4.57422C8.30416 4.34653 7.98784 4.19959 7.65137 4.15039C7.45779 4.13174 7.4043 4.13184 7.24512 4.13184H6.54981C5.87469 4.13184 5.40624 4.13238 5.04199 4.16211C4.59362 4.21966 4.04683 4.4676 3.63867 4.96387C3.38238 6.15624 3.38184 6.62469 3.38184 7.29981V8.06836Z"
+                fill="currentColor"
+              />
+            </svg>
+          </span>
+          <span className="proj-name">{projectLabel}</span>
+        </Dropdown>
       </div>
 
-      <div className="composer-shell">
+      <div className={`composer-shell${multiline ? " is-multiline" : ""}`}>
         <textarea
           ref={textareaRef}
           className="composer-input"
@@ -215,7 +224,29 @@ export function Composer({
                   fullAccess: value === "never",
                 })
               }
-            />
+              showDefaultLabel={false}
+            >
+              <span className="permission-hand">
+                <svg
+                  viewBox="0 0 18 18"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M7 11V3.5a1.5 1.5 0 0 1 3 0V11" />
+                  <path d="M10 5.5a1.5 1.5 0 0 1 3 0V11" />
+                  <path d="M13 7.5a1.5 1.5 0 0 1 3 0v3.5c0 3.3-2.2 5.5-5 5.5-2.8 0-5-2.2-5-5.5V8a1.5 1.5 0 0 1 3 0v3" />
+                  <path d="M4 11a1.5 1.5 0 0 0-1.5 1.5v.5" />
+                </svg>
+              </span>
+              <span>{fullAccess ? String(t("home.helpApproval", "Approve for me")) : String(t("home.askApproval", "Ask for approval"))}</span>
+              <svg className="chevron" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="m4 6 4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </Dropdown>
           </div>
 
           <div className="composer-toolbar-right">
@@ -229,7 +260,13 @@ export function Composer({
                   : [{ value: "", label: modelLabel }]
               }
               onChange={(value) => onSettingsChange({ activeModel: value })}
-            />
+              showDefaultLabel={false}
+            >
+              <span>{modelLabel}</span>
+              <svg className="chevron" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="m4 6 4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </Dropdown>
 
             <button
               className={`composer-send${running ? " composer-stop" : ""}`}

@@ -1,11 +1,23 @@
 /**
  * Settings shell: tab navigation plus the content host.
  *
- * Replaces settings.js entirely: every one of the nineteen official tabs now
- * renders a dedicated React component. There is no "not migrated" placeholder
- * and no JSON-dump fallback — a tab either has a real page or does not exist.
+ * DOM contract is the one settings.css was written against (see settings.js
+ * renderSettingsShell / relabelSettingsSidebar):
+ *
+ *   #view-settings.view-settings
+ *     aside.settings-sidebar
+ *       .settings-sidebar-head > .settings-back + label.settings-search
+ *       .settings-links > .settings-group > .settings-group-label + .settings-link[.ico + span]
+ *     .settings-main
+ *       button.settings-close-btn
+ *       .settings-content
+ *
+ * Earlier the sidebar used invented class names (settings-nav / settings-group-head
+ * / settings-link-label) that no stylesheet targeted, and omitted the back button
+ * and search box entirely — which is why the sidebar looked unstyled and wrong.
  */
 
+import { useMemo, useState } from "react";
 import { t } from "../../../src/js/i18n.js";
 import { navigate, useRoute } from "@/shell/useRoute";
 import { SETTINGS_GROUPS, findTab } from "./sections";
@@ -79,11 +91,9 @@ function TabContent({ id }: { id: string }) {
   }
 
   const tab = findTab(id);
-  const title = tab ? label(tab.labelKey, id) : id;
   return (
     <div className="settings-page-head">
-      <h1>{title}</h1>
-      <p>{label("settings.capability", "This page has no controls yet.")}</p>
+      <h1>{tab ? label(tab.labelKey, id) : id}</h1>
     </div>
   );
 }
@@ -91,32 +101,70 @@ function TabContent({ id }: { id: string }) {
 export function SettingsShell() {
   const route = useRoute();
   const activeId = route.sub ?? "general";
+  const [query, setQuery] = useState("");
+
+  // Filter groups/links the same way settings.js filterSettings() did: hide
+  // non-matching links and any group left with none.
+  const filteredGroups = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return SETTINGS_GROUPS;
+    return SETTINGS_GROUPS.map((group) => ({
+      ...group,
+      children: group.children.filter((tab) =>
+        label(tab.labelKey, tab.id).toLowerCase().includes(needle),
+      ),
+    })).filter((group) => group.children.length > 0);
+  }, [query]);
 
   return (
     <section className="view view-settings" id="view-settings">
       <aside className="settings-sidebar">
-        <nav className="settings-nav">
-          {SETTINGS_GROUPS.map((group) => (
-            <div className="settings-group" key={group.id}>
-              <div className="settings-group-head">{label(group.labelKey, group.id)}</div>
+        <div className="settings-sidebar-head">
+          <button
+            className="settings-back"
+            id="settings-back"
+            type="button"
+            onClick={() => navigate("home")}
+          >
+            {label("settings.back", "Back")}
+          </button>
+          <label className="settings-search">
+            <svg viewBox="0 0 18 18" aria-hidden="true">
+              <circle cx="7.7" cy="7.7" r="4.45" />
+              <path d="m11 11 3.45 3.45" />
+            </svg>
+            <input
+              id="settings-search-input"
+              type="text"
+              placeholder={label("settings.search", "Search settings")}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </label>
+        </div>
+
+        <div className="settings-links" id="settings-links">
+          {filteredGroups.map((group) => (
+            <div className="settings-group" data-group={group.id} key={group.id}>
+              <div className="settings-group-label">{label(group.labelKey, group.id)}</div>
               {group.children.map((tab) => (
                 <button
-                  className={"settings-link" + (tab.id === activeId ? " is-active" : "")}
+                  className={`settings-link${tab.id === activeId ? " is-active" : ""}`}
+                  data-link={tab.id}
                   key={tab.id}
                   type="button"
-                  data-link={tab.id}
                   aria-current={tab.id === activeId ? "page" : undefined}
                   onClick={() => navigate("settings", tab.id)}
                 >
-                  <span className="settings-link-icon">
+                  <span className="ico">
                     <SettingsIcon name={tab.icon} />
                   </span>
-                  <span className="settings-link-label">{label(tab.labelKey, tab.id)}</span>
+                  <span>{label(tab.labelKey, tab.id)}</span>
                 </button>
               ))}
             </div>
           ))}
-        </nav>
+        </div>
       </aside>
 
       <div className="settings-main" id="settings-main">

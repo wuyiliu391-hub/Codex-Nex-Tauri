@@ -76,7 +76,7 @@ export function Sidebar({ ctx, collapsed }: SidebarProps) {
     .slice(0, 20);
 
   return (
-    <aside className={`sidebar${collapsed ? " is-collapsed" : ""}`} id="sidebar" aria-hidden={collapsed}>
+    <aside className="sidebar" id="sidebar" aria-hidden={collapsed}>
       <div className="sidebar-brand">
         <button
           className="brand-title-wrap"

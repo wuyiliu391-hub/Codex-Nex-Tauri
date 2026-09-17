@@ -26,6 +26,14 @@ interface DropdownProps {
   disabled?: boolean;
   className?: string;
   ariaLabel?: string;
+  /**
+   * Custom trigger contents. The composer pills need the exact inner DOM the
+   * stylesheets target (.proj-icon/.proj-name, .permission-hand, .chevron)
+   * rather than the generic .ui-dropdown-label + caret.
+   */
+  children?: React.ReactNode;
+  /** Render the default label + caret (default true). Set false with children. */
+  showDefaultLabel?: boolean;
 }
 
 /** Minimum popover width, matching the vanilla control. */
@@ -40,6 +48,8 @@ export function Dropdown({
   disabled = false,
   className = "",
   ariaLabel,
+  children,
+  showDefaultLabel = true,
 }: DropdownProps) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(() =>
@@ -163,8 +173,8 @@ export function Dropdown({
         }}
         onKeyDown={onAnchorKeyDown}
       >
-        <span className="ui-dropdown-label">{selected?.label ?? ""}</span>
-        <span className="ui-dropdown-caret" aria-hidden="true" />
+        {children ?? (showDefaultLabel ? <span className="ui-dropdown-label">{selected?.label ?? ""}</span> : null)}
+        {showDefaultLabel ? <span className="ui-dropdown-caret" aria-hidden="true" /> : null}
       </button>
 
       {open ? (

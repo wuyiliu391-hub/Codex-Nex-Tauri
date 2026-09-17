@@ -24,6 +24,7 @@ import { App } from "./App";
 import { startEventBridge } from "./bridge/events";
 import { installRouter } from "./shell/useRoute";
 import { loadPreferences } from "./state/preferencesStore";
+import { startAppearance } from "./state/appearance";
 
 const container = document.getElementById("root");
 if (!container) {
@@ -37,7 +38,9 @@ installRouter();
 void startEventBridge();
 
 // Load shell preferences once; settings pages read them synchronously after.
-void loadPreferences();
+// Then apply appearance to the document root (theme class, type ladder, fonts,
+// datasets) and keep it in sync as preferences change.
+void loadPreferences().then(() => startAppearance());
 
 createRoot(container).render(
   <StrictMode>

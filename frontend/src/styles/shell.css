@@ -9,6 +9,10 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
+/* React mounts into #root, but the layout rules below assume .app-toolbar and
+   #app are laid out against <body>. display:contents removes #root's own box so
+   its children participate in body's grid without an extra wrapper layer. */
+#root { display: contents; }
 html {
   font-size: 15px; /* lock root — do not let appearance range blow type scale */
   -webkit-text-size-adjust: 100%;
@@ -92,8 +96,10 @@ body.sidebar-collapsed #app { grid-template-columns: 0 minmax(0, 1fr); }
 body.sidebar-collapsed .sidebar { visibility: hidden; }
 body.sidebar-collapsed .main { border-top-left-radius: 0; }
 body.settings-open #app { grid-template-columns: minmax(0, 1fr); padding-bottom: 0; background: var(--bg-sidebar); }
-body.settings-open > #app > .sidebar,
-body.settings-open > #app > .main { display: none; }
+/* Descendant (not child) so the #root wrapper added by React does not break
+   these — the settings view replaces the sidebar + main content entirely. */
+body.settings-open .sidebar,
+body.settings-open .main { display: none; }
 body.settings-open .app-toolbar { background: var(--bg-sidebar); }
 
 .app-toolbar {

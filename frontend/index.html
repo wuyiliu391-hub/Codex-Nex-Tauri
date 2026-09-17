@@ -87,10 +87,11 @@
       transition: opacity 260ms ease;
     }
     .startup-loader.is-hidden { opacity: 0; pointer-events: none; }
-    body.is-booting > .app-toolbar,
-    body.is-booting > #app { opacity: 0; visibility: hidden; }
-    body > .app-toolbar,
-    body > #app { transition: opacity 220ms ease-out; }
+    /* Descendant, not child: React wraps everything in #root. */
+    body.is-booting .app-toolbar,
+    body.is-booting #app { opacity: 0; visibility: hidden; }
+    body .app-toolbar,
+    body #app { transition: opacity 220ms ease-out; }
     .startup-loader__logo {
       position: relative; width: 56px; height: 56px;
       opacity: 0;

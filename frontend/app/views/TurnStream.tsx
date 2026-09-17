@@ -1,61 +1,68 @@
 /**
- * Turn stream view — the part of the React port that is already complete.
+ * Turn stream view — renders the live turn exactly as render.js did.
  *
- * Renders outstanding approvals first (they block the turn), then the item
- * stream through the block registry. Every value originates from a server
- * notification; there is no local simulation.
+ * The stylesheets target the vanilla DOM contract:
+ *   .thread > .message-row (.user / .live-turn) > .message-body > .message-part.part-text
+ * and the footers/heads render.js produced (.turn-head, .turn-elapsed,
+ * .turn-footer, .turn-changes). This component deliberately emits no wrapper
+ * elements of its own — earlier it wrapped everything in .turn-stream-view /
+ * .turn-stream, which no stylesheet knew about, so the thread lost all styling.
+ *
+ * Consecutive finished tools of the same kind are collapsed the way
+ * render.js `renderGroupedProcess` did, via `groupProcessItems`.
  */
 
 import { useTurnItems, useTurnState } from "@/state/hooks";
-import { Block } from "@/blocks/registry";
+import { Block, ProcGroup, groupProcessItems } from "@/blocks/registry";
 import { ApprovalHost } from "@/approvals/ApprovalHost";
 
 export function TurnStream() {
   const turn = useTurnState();
   const items = useTurnItems();
+  const nodes = groupProcessItems(items);
 
   return (
-    <div className="turn-stream-view">
+    <>
       <ApprovalHost />
 
-      {items.length === 0 ? (
-        <p className="turn-stream-empty">
-          No items yet. Items appear only when the server reports them.
-        </p>
-      ) : (
-        <div className="turn-stream">
-          {items.map((item) => (
-            <Block key={item.id} item={item} />
-          ))}
-        </div>
+      {nodes.map((node) =>
+        node.kind === "group" ? (
+          <ProcGroup key={`group-${node.items[0]!.id}`} kind={node.groupKind} items={node.items} />
+        ) : (
+          <Block key={node.item.id} item={node.item} />
+        ),
       )}
 
       {turn.tokenUsage ? (
-        <details className="turn-usage">
-          <summary>Token usage</summary>
-          <pre>{JSON.stringify(turn.tokenUsage, null, 2)}</pre>
-        </details>
+        <div className="turn-todo">
+          <span className="todo-label">Token usage</span>
+          <span className="todo-count">
+            {turn.tokenUsage.totalTokens ?? turn.tokenUsage.outputTokens ?? 0}
+          </span>
+        </div>
       ) : null}
 
       {turn.plan ? (
-        <ol className="turn-plan">
-          {turn.plan.map((step, i) => (
-            <li key={i}>
-              [{step.status}] {step.step}
-            </li>
-          ))}
-        </ol>
+        <div className="turn-todo">
+          <span className="todo-dot" aria-hidden="true" />
+          <span className="todo-label">
+            {turn.plan.filter((s) => s.status === "completed").length}/{turn.plan.length}
+          </span>
+          <span className="todo-count">
+            {turn.plan.find((s) => s.status === "in_progress")?.step ?? ""}
+          </span>
+        </div>
       ) : null}
 
-      {turn.warnings.length ? (
-        <ul className="turn-warnings">
-          {turn.warnings.map((w, i) => (
-            <li key={i}>
+      {turn.warnings.map((w, i) => (
+        <div className="message-row" key={i}>
+          <div className="message-body">
+            <div className="part-text">
               <code>{w.method}</code> — {w.message}
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </>
   );
 }
