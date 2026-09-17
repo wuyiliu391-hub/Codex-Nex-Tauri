@@ -13,6 +13,20 @@
 
 import { useSyncExternalStore } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { updateSettings as updateLegacySettings } from "../../src/js/state.js";
+import { applyLanguage } from "../../src/js/i18n.js";
+
+/**
+ * Vanilla `t()` / `currentLang()` read `store.settings.language` from
+ * state.js. React owns settings in this module — push language there whenever
+ * settings land so prompt cards / chrome resolve real strings, not raw keys.
+ */
+function syncLegacyI18n(language: string | undefined): void {
+  if (!language) return;
+  updateLegacySettings({ language });
+  applyLanguage();
+}
+
 
 export interface SessionSummary {
   id: string;
@@ -379,6 +393,7 @@ export async function refreshAppState(): Promise<void> {
       loaded: true,
       error: null,
     });
+    syncLegacyI18n(settings.language);
   } catch (err) {
     commit({
       ...state,
@@ -427,6 +442,7 @@ function normaliseSettings(raw: unknown): Partial<SettingsState> {
 export async function saveSettings(patch: Partial<SettingsState>): Promise<void> {
   const next = { ...state.settings, ...patch };
   commit({ ...state, settings: next });
+  syncLegacyI18n(next.language);
 
   try {
     // Dual-shape payload: camelCase for any frontend readers, snake_case for

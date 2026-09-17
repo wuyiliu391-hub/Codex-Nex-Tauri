@@ -23,8 +23,10 @@ import "./styles/modal.css";
 import { App } from "./App";
 import { startEventBridge } from "./bridge/events";
 import { installRouter } from "./shell/useRoute";
-import { loadPreferences } from "./state/preferencesStore";
+import { getPrefSection, loadPreferences } from "./state/preferencesStore";
 import { startAppearance } from "./state/appearance";
+import { applyLanguage } from "../src/js/i18n.js";
+import { updateSettings as updateLegacySettings } from "../src/js/state.js";
 
 const container = document.getElementById("root");
 if (!container) {
@@ -40,7 +42,12 @@ void startEventBridge();
 // Load shell preferences once; settings pages read them synchronously after.
 // Then apply appearance to the document root (theme class, type ladder, fonts,
 // datasets) and keep it in sync as preferences change.
-void loadPreferences().then(() => startAppearance());
+void loadPreferences().then(() => {
+  startAppearance();
+  const general = getPrefSection<{ language?: string }>("general");
+  if (general?.language) updateLegacySettings({ language: general.language });
+  applyLanguage();
+});
 
 createRoot(container).render(
   <StrictMode>

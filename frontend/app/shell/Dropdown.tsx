@@ -183,7 +183,9 @@ export function Dropdown({
           className="ui-popover"
           role="listbox"
           tabIndex={-1}
+          data-placement={placement.bottom !== undefined ? "top-start" : "bottom-start"}
           style={{
+            position: "fixed",
             left: placement.left,
             width: placement.width,
             ...(placement.top !== undefined ? { top: placement.top } : {}),

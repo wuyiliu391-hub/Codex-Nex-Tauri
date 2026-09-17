@@ -27,8 +27,64 @@ import {
 import { loadThreadFromSession } from "@/state/turnStore";
 import { useTurnState } from "@/state/hooks";
 
-/** Prompt cards shown on the blank home guide. Keys resolve under `home.prompt.*`. */
-const PROMPT_KEYS = ["explain", "build", "fix", "review"] as const;
+/**
+ * Prompt cards — same keys/order/DOM as vanilla home.js renderPromptCards.
+ * Keys must match i18n `home.prompt.*` (explore|build|review|fix). A wrong key
+ * makes `t()` return the raw key (the "home.prompt.explain" screenshot).
+ */
+const PROMPT_CARDS = [
+  {
+    key: "explore",
+    color: "blue",
+    icon: (
+      <svg viewBox="0 0 20 20" aria-hidden="true">
+        <circle cx="9" cy="9" r="5.2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        <path d="m13 13 3.2 3.2" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    key: "build",
+    color: "purple",
+    icon: (
+      <svg viewBox="0 0 20 20" aria-hidden="true">
+        <path
+          d="M12.5 3.5 16.5 7.5 8 16H4v-4L12.5 3.5Z"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+        />
+        <path d="m11 5 4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    key: "review",
+    color: "green",
+    icon: (
+      <svg viewBox="0 0 20 20" aria-hidden="true">
+        <path d="M4 4.5h12v11H4z" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M7 8h6M7 11h4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    key: "fix",
+    color: "orange",
+    icon: (
+      <svg viewBox="0 0 20 20" aria-hidden="true">
+        <path
+          d="M11 3.5c2.2 1 3.5 3.2 3.5 5.7 0 1.4-.5 2.7-1.3 3.7L16 15.7 14.7 17l-2.8-2.8A6 6 0 0 1 5 9.2C5 6.7 6.3 4.5 8.5 3.5L10 6l1-2.5Z"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.4"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
+] as const;
 
 function Hero() {
   return (
@@ -38,20 +94,22 @@ function Hero() {
           <path d="M11.65 18.34a4.3 4.3 0 0 1-2.89-1.19 4.4 4.4 0 0 1-1.3.22 4.4 4.4 0 0 1-3.56-1.83 4.3 4.3 0 0 1-.43-4.14A4.3 4.3 0 0 1 5.11 5.14a4.4 4.4 0 0 1 2.89-2.34 4.3 4.3 0 0 1 4.04.76 4.3 4.3 0 0 1 4.34 1.15 4.3 4.3 0 0 1 1.15 4.13 4.3 4.3 0 0 1-1.52 5.52 4.4 4.4 0 0 1-4.36 3.98ZM7.57 16.28a2.4 2.4 0 0 0 1.44-.35l3.1-1.78a.5.5 0 0 0 .16-.31v-1.42l-3.99 2.3a.8.8 0 0 1-.73 0l-3.11-1.8v.31a2.4 2.4 0 0 0 .4 1.55 2.4 2.4 0 0 0 1.14 1.1 2.4 2.4 0 0 0 1.59.4Z" />
         </svg>
       </div>
-      <h1 className="home-title">{String(t("home.title", "What are we building?"))}</h1>
-      <div className="prompt-cards">
-        {PROMPT_KEYS.map((key) => {
-          const label = String(t(`home.prompt.${key}`, ""));
-          if (!label) return null;
+      <h1 className="home-title">{String(t("home.title", "What should we build?"))}</h1>
+      <div className="prompt-cards" id="prompt-cards">
+        {PROMPT_CARDS.map((card) => {
+          const label = String(t(`home.prompt.${card.key}`, card.key));
           return (
             <button
               className="prompt-card"
-              key={key}
+              key={card.key}
               type="button"
-              data-prompt={key}
-              onClick={() => window.dispatchEvent(new CustomEvent("codex:use-prompt", { detail: label }))}
+              data-prompt={card.key}
+              onClick={() =>
+                window.dispatchEvent(new CustomEvent("codex:use-prompt", { detail: label }))
+              }
             >
-              {label}
+              <span className={`pc-ico ${card.color}`}>{card.icon}</span>
+              <span className="pc-label">{label}</span>
             </button>
           );
         })}
