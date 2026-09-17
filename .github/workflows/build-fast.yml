@@ -107,8 +107,10 @@ jobs:
           version: ${{ env.SCCACHE_VERSION }}
 
       # 3) Swatinem/rust-cache — registry + target + local workspace crates.
-      #    add-job-id-key: false + shared-key so build-fast / build-release
-      #    restore the same cache family instead of job-id shards.
+      #    add-job-id-key: false + shared-key keep one key family with
+      #    build-release. The extra `key: release-fast` differs from
+      #    release-full on purpose: profiles differ, sharing one target would
+      #    thrash fingerprints. Restore may still fall back on prefix-key.
       - name: Cache cargo registry & target
         id: rust-cache
         uses: Swatinem/rust-cache@v2

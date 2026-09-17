@@ -1,9 +1,8 @@
 name: lint-check
 
 # Fast, dependency-light quality gate. Runs in parallel with the build
-# workflows and never blocks them. Frontend checks need no npm install (Node 24
-# parses TypeScript natively); the Rust side is formatting only, so this stays
-# seconds rather than minutes.
+# workflows and never blocks them. Frontend checks are dependency-free scripts
+# plus npm typecheck; the Rust side is formatting only.
 
 on:
   push:
@@ -66,9 +65,12 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Setup Rust (stable, rustfmt)
-        uses: dtolnay/rust-toolchain@stable
+      # Pin rustfmt to the same toolchain as the build workflows so format
+      # checks do not drift when GitHub `stable` advances.
+      - name: Setup Rust (pinned 1.98.1, rustfmt)
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: "1.98.1"
           components: rustfmt
 
       # Formatting only — no compilation, so it stays fast and independent of

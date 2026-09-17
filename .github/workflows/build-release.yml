@@ -1,8 +1,9 @@
 name: build-release
 
-# Formal release packaging: fully optimised [profile.release] + installer
-# bundle. Shares Swatinem rust-cache + sccache GHA key family with
-# build-fast so the two workflows reuse compiled artifacts.
+# Formal release packaging: fully optimised workspace [profile.release] +
+# installer bundle. Shares Swatinem prefix-key/shared-key + sccache GHA with
+# build-fast; rust-cache `key: release-full` is separate from release-fast
+# because the cargo profiles differ.
 
 on:
   push:

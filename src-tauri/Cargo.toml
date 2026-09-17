@@ -76,9 +76,7 @@ in-process = [
     "dep:codex-feedback",
 ]
 
-[profile.release]
-codegen-units = 1
-lto = true
-opt-level = "s"
-panic = "abort"
-strip = true
+# NOTE: Cargo only honors [profile.*] at the workspace root. Do not add
+# [profile.release] here - it is ignored (CI log: "profiles for the non root
+# package will be ignored"). The effective release profile lives in the root
+# Cargo.toml; build-fast further overrides it via CARGO_PROFILE_RELEASE_* env.
