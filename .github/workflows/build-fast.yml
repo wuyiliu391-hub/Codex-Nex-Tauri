@@ -1,15 +1,19 @@
 name: build-fast
 
-# Daily iteration: a usable Tauri installer in the shortest possible wall-clock
-# time. Community cache stack (see docs/compose/change-notes/ci-cache-stack.md):
-#   1. Pin rustc (stable floats → rust-cache key thrash)
-#   2. Swatinem/rust-cache: target + workspace crates + shared-key
-#   3. Kill debuginfo so target/ stays small (Tauri official does this too)
-#   4. mozilla sccache GHA backend — rustc-invocation cache on top of rust-cache
+# Daily iteration: shell-only Tauri build + official prebuilt engine sidecar.
 #
-# Why not `cargo tauri build --profile ci-fast`?
-#   tauri-cli 2.11.x has no --profile flag. CARGO_PROFILE_RELEASE_* env vars
-#   speed up the default release profile; artifacts stay in target/release/.
+# Architecture for CI (deep UI integration without compiling 100+ codex crates):
+#   Frontend ──Tauri IPC──► src-tauri shell commands
+#                              │
+#                              └─► official codex-app-server.exe (sidecar WS)
+#
+# Full desktop features (pets/calendar/settings/...) live in the shell layer.
+# in-process (default Cargo feature) remains available for engine-core work;
+# this workflow uses --no-default-features so CI does not compile src/backend.
+#
+# Engine binary: openai/codex release rust-v0.154.0 (matches workspace pin).
+# tauri-cli has no --profile flag; CARGO_PROFILE_RELEASE_* keeps artifacts in
+# target/release/ while speeding codegen.
 
 on:
   push:
@@ -24,34 +28,34 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  # Binary is downloaded explicitly below; skip tauri sidecar existence check
+  # so a cache miss fails the download step, not a silent tauri check.
   TAURI_SKIP_SIDECAR_CHECK: "1"
   TAURI_CLI_VERSION: "2.11.4"
   CARGO_TARGET_DIR: ${{ github.workspace }}/target
-  # sccache docs: cargo incremental must be off when RUSTC_WRAPPER is sccache.
   CARGO_INCREMENTAL: "0"
   TOOLS_DIR: ${{ github.workspace }}/.tools
-  # ── debuginfo off (smaller target, better cache hit rate) ──
-  # Same knobs Tauri official CI uses; CARGO_PROFILE_* is also hashed into
-  # the Swatinem cache key via the CARGO env prefix — keep them stable.
+  # Official engine release (standalone app-server, x86_64 Windows).
+  CODEX_APP_SERVER_TAG: "rust-v0.154.0"
+  CODEX_APP_SERVER_NAME: "codex-app-server-x86_64-pc-windows-msvc.exe"
+  CODEX_APP_SERVER_DIR: ${{ github.workspace }}/src-tauri/binaries
+  # Fast release profile via env (default profile, target/release/).
   CARGO_PROFILE_RELEASE_OPT_LEVEL: "2"
   CARGO_PROFILE_RELEASE_LTO: "false"
   CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "256"
   CARGO_PROFILE_RELEASE_DEBUG: "0"
   CARGO_PROFILE_RELEASE_STRIP: "symbols"
   CARGO_PROFILE_DEV_DEBUG: "0"
-  # ── sccache → GitHub Actions cache backend ──
   SCCACHE_GHA_ENABLED: "on"
   SCCACHE_GHA_RW_MODE: "READ_WRITE"
-  # Asset names are sccache-vX.Y.Z-*.zip — the action URL-joins this string
-  # raw, so the leading "v" is required (0.18.0 → 404).
   SCCACHE_VERSION: "v0.18.0"
   RUSTC_WRAPPER: sccache
 
 jobs:
   build-fast:
-    name: Windows exe (fast, release profile override)
+    name: Windows shell + official app-server sidecar
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -88,14 +92,12 @@ jobs:
           $ErrorActionPreference = "Stop"
           npm run build
 
-      # 1) Pin rustc BEFORE rust-cache / sccache — both key off the compiler.
       - name: Setup Rust (pinned 1.98.1, MSVC)
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "1.98.1"
           targets: x86_64-pc-windows-msvc
 
-      # 2) sccache GHA backend credentials (mozilla docs/GHA.md).
       - name: Export sccache GHA credentials
         uses: actions/github-script@v7
         with:
@@ -108,20 +110,42 @@ jobs:
         with:
           version: ${{ env.SCCACHE_VERSION }}
 
-      # 3) Swatinem/rust-cache — registry + target + local workspace crates.
-      #    add-job-id-key: false + shared-key keep one key family with
-      #    build-release. The extra `key: release-fast` differs from
-      #    release-full on purpose: profiles differ, sharing one target would
-      #    thrash fingerprints. Restore may still fall back on prefix-key.
-      - name: Cache cargo registry & target
+      # Official engine binary (~230MB). Cached by release tag so push-to-push
+      # CI does not re-download. Lives where sidecar resolve_sidecar_source()
+      # already looks: src-tauri/binaries/<name>.exe (gitignored).
+      - name: Cache official codex-app-server
+        id: cache-engine
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CODEX_APP_SERVER_DIR }}/${{ env.CODEX_APP_SERVER_NAME }}
+          key: codex-app-server-${{ env.CODEX_APP_SERVER_TAG }}-win-x64
+
+      - name: Download official codex-app-server
+        if: steps.cache-engine.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $tag = $env:CODEX_APP_SERVER_TAG
+          $name = $env:CODEX_APP_SERVER_NAME
+          $dir = $env:CODEX_APP_SERVER_DIR
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          $url = "https://github.com/openai/codex/releases/download/$tag/$name"
+          $out = Join-Path $dir $name
+          Write-Host "GET $url"
+          Invoke-WebRequest -Uri $url -OutFile $out
+          $item = Get-Item $out
+          Write-Host ("downloaded {0} bytes={1}" -f $item.FullName, $item.Length)
+          if ($item.Length -lt 10MB) { throw "engine binary looks too small: $($item.Length)" }
+
+      - name: Shell-only rust-cache
         id: rust-cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: . -> target
           shared-key: tauri-win
-          key: release-fast
+          key: sidecar-shell
           cache-targets: true
-          cache-workspace-crates: true
+          cache-workspace-crates: false
           cache-all-crates: false
           cache-on-failure: true
           cache-bin: true
@@ -156,14 +180,19 @@ jobs:
           Add-Content -Path $env:GITHUB_PATH -Value $env:TOOLS_DIR
           Copy-Item (Join-Path $env:TOOLS_DIR "cargo-tauri.exe") (Join-Path $env:TOOLS_DIR "tauri.exe") -Force
 
-      - name: cargo tauri build (fast release + sccache)
+      # --no-default-features disables `in-process`, so cargo does not build
+      # src/backend/**/*. Engine comes from the official sidecar binary above.
+      - name: cargo tauri build (shell + sidecar)
         working-directory: src-tauri
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           cargo-tauri --version
           sccache --version
-          cargo tauri build
+          $engine = Join-Path $env:CODEX_APP_SERVER_DIR $env:CODEX_APP_SERVER_NAME
+          if (-not (Test-Path $engine)) { throw "engine binary missing: $engine" }
+          Write-Host "engine=$engine size=$((Get-Item $engine).Length)"
+          cargo tauri build --no-default-features
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: sccache stats
@@ -172,10 +201,18 @@ jobs:
         run: |
           try { sccache --show-stats } catch { Write-Host "sccache stats unavailable" }
 
-      - name: rust-cache hit
+      - name: Cache diagnostics
         if: always()
         shell: pwsh
-        run: Write-Host "rust-cache cache-hit=${{ steps.rust-cache.outputs.cache-hit }}"
+        run: |
+          Write-Host "engine cache-hit=${{ steps.cache-engine.outputs.cache-hit }}"
+          Write-Host "rust-cache cache-hit=${{ steps.rust-cache.outputs.cache-hit }}"
+          $engine = Join-Path $env:CODEX_APP_SERVER_DIR $env:CODEX_APP_SERVER_NAME
+          if (Test-Path $engine) {
+            Write-Host "engine present: $((Get-Item $engine).Length) bytes"
+          } else {
+            Write-Host "engine MISSING"
+          }
 
       - name: Upload fast exe
         uses: actions/upload-artifact@v4

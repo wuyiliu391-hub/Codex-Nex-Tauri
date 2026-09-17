@@ -60,9 +60,11 @@ codex-exec-server         = { path = "../src/backend/exec-server",         optio
 codex-feedback            = { path = "../src/backend/feedback",            optional = true }
 
 [features]
-# In-process native engine is the default: the official codex-rs sources under
-# src/backend run inside this process, so no external codex-app-server.exe is
-# needed. Opt out with --no-default-features to fall back to the sidecar.
+# default = in-process: link official codex-rs under src/backend (deep engine
+# work; heavy compile). CI / daily shell builds pass --no-default-features and
+# use the official prebuilt sidecar from openai/codex rust-v0.154.0
+# (codex-app-server-x86_64-pc-windows-msvc.exe under src-tauri/binaries/).
+# Full desktop UI is shell Tauri commands + sidecar, not the binary RPC alone.
 default = ["in-process"]
 in-process = [
     "dep:codex-app-server",

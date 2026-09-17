@@ -1,9 +1,8 @@
 name: build-release
 
-# Formal release packaging: fully optimised workspace [profile.release] +
-# installer bundle. Shares Swatinem prefix-key/shared-key + sccache GHA with
-# build-fast; rust-cache `key: release-full` is separate from release-fast
-# because the cargo profiles differ.
+# Formal release packaging: shell-only Tauri + official engine sidecar.
+# Same engine strategy as build-fast (openai/codex rust-v0.154.0 binary).
+# in-process builds are a separate opt-in path, not this workflow.
 
 on:
   push:
@@ -21,8 +20,9 @@ env:
   CARGO_TARGET_DIR: ${{ github.workspace }}/target
   CARGO_INCREMENTAL: "0"
   TOOLS_DIR: ${{ github.workspace }}/.tools
-  # Debuginfo off for cache size. Release still uses workspace [profile.release]
-  # LTO/opt via Cargo.toml; these env vars only zero out debug info.
+  CODEX_APP_SERVER_TAG: "rust-v0.154.0"
+  CODEX_APP_SERVER_NAME: "codex-app-server-x86_64-pc-windows-msvc.exe"
+  CODEX_APP_SERVER_DIR: ${{ github.workspace }}/src-tauri/binaries
   CARGO_PROFILE_RELEASE_DEBUG: "0"
   CARGO_PROFILE_DEV_DEBUG: "0"
   SCCACHE_GHA_ENABLED: "on"
@@ -32,9 +32,9 @@ env:
 
 jobs:
   build-release:
-    name: Windows release (full optimise + bundle)
+    name: Windows release (shell + official sidecar)
     runs-on: windows-latest
-    timeout-minutes: 90
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
@@ -58,7 +58,6 @@ jobs:
           npm ci --no-audit --no-fund
           npm run build
 
-      # Pin must match build-fast or the shared rust-cache key splits.
       - name: Setup Rust (pinned 1.98.1, MSVC)
         uses: dtolnay/rust-toolchain@master
         with:
@@ -77,15 +76,39 @@ jobs:
         with:
           version: ${{ env.SCCACHE_VERSION }}
 
-      - name: Cache cargo registry & target
+      - name: Cache official codex-app-server
+        id: cache-engine
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CODEX_APP_SERVER_DIR }}/${{ env.CODEX_APP_SERVER_NAME }}
+          key: codex-app-server-${{ env.CODEX_APP_SERVER_TAG }}-win-x64
+
+      - name: Download official codex-app-server
+        if: steps.cache-engine.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $tag = $env:CODEX_APP_SERVER_TAG
+          $name = $env:CODEX_APP_SERVER_NAME
+          $dir = $env:CODEX_APP_SERVER_DIR
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          $url = "https://github.com/openai/codex/releases/download/$tag/$name"
+          $out = Join-Path $dir $name
+          Write-Host "GET $url"
+          Invoke-WebRequest -Uri $url -OutFile $out
+          $item = Get-Item $out
+          Write-Host ("downloaded {0} bytes={1}" -f $item.FullName, $item.Length)
+          if ($item.Length -lt 10MB) { throw "engine binary looks too small: $($item.Length)" }
+
+      - name: Shell-only rust-cache
         id: rust-cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: . -> target
           shared-key: tauri-win
-          key: release-full
+          key: sidecar-shell
           cache-targets: true
-          cache-workspace-crates: true
+          cache-workspace-crates: false
           cache-all-crates: false
           cache-on-failure: true
           cache-bin: true
@@ -120,14 +143,16 @@ jobs:
           Add-Content -Path $env:GITHUB_PATH -Value $env:TOOLS_DIR
           Copy-Item (Join-Path $env:TOOLS_DIR "cargo-tauri.exe") (Join-Path $env:TOOLS_DIR "tauri.exe") -Force
 
-      - name: cargo tauri build (release + sccache)
+      - name: cargo tauri build (release shell + sidecar)
         working-directory: src-tauri
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           cargo-tauri --version
           sccache --version
-          cargo tauri build
+          $engine = Join-Path $env:CODEX_APP_SERVER_DIR $env:CODEX_APP_SERVER_NAME
+          if (-not (Test-Path $engine)) { throw "engine binary missing: $engine" }
+          cargo tauri build --no-default-features
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: sccache stats
@@ -135,11 +160,6 @@ jobs:
         shell: pwsh
         run: |
           try { sccache --show-stats } catch { Write-Host "sccache stats unavailable" }
-
-      - name: rust-cache hit
-        if: always()
-        shell: pwsh
-        run: Write-Host "rust-cache cache-hit=${{ steps.rust-cache.outputs.cache-hit }}"
 
       - name: Upload release exe
         uses: actions/upload-artifact@v4
