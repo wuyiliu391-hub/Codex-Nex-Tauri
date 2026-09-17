@@ -1,0 +1,113 @@
+# App-server method inventory (codex-cli 0.154.0)
+
+- Official schema methods: **195**
+- Project protocol strings: **137**
+- Overlap: **130**
+- Official-only (not in our lists): **65**
+- Ours-only (not in official extract): **7**
+
+## Official-only by prefix
+
+- `thread`: 10
+- `account`: 8
+- `plugin`: 8
+- `fs`: 6
+- `externalAgentConfig`: 4
+- `threadSection`: 4
+- `app`: 3
+- `marketplace`: 3
+- `experimentalFeature`: 2
+- `windowsSandbox`: 2
+- `applyPatchApproval`: 1
+- `configWarning`: 1
+- `deprecationNotice`: 1
+- `error`: 1
+- `execCommandApproval`: 1
+- `fuzzyFileSearch`: 1
+- `getAuthStatus`: 1
+- `getConversationSummary`: 1
+- `gitDiffToRemote`: 1
+- `guardianWarning`: 1
+- `initialize`: 1
+- `permissionProfile`: 1
+- `review`: 1
+- `skills`: 1
+- `warning`: 1
+
+## Official-only methods (full)
+
+- `account/login/cancel`
+- `account/login/start`
+- `account/logout`
+- `account/rateLimitResetCredit/consume`
+- `account/rateLimits/read`
+- `account/sendAddCreditsNudgeEmail`
+- `account/usage/read`
+- `account/workspaceMessages/read`
+- `app/installed`
+- `app/list`
+- `app/read`
+- `applyPatchApproval`
+- `configWarning`
+- `deprecationNotice`
+- `error`
+- `execCommandApproval`
+- `experimentalFeature/enablement/set`
+- `experimentalFeature/list`
+- `externalAgentConfig/detect`
+- `externalAgentConfig/import`
+- `externalAgentConfig/import/readHistories`
+- `externalAgentConfig/import/recordHistory`
+- `fs/copy`
+- `fs/createDirectory`
+- `fs/getMetadata`
+- `fs/remove`
+- `fs/unwatch`
+- `fs/watch`
+- `fuzzyFileSearch`
+- `getAuthStatus`
+- `getConversationSummary`
+- `gitDiffToRemote`
+- `guardianWarning`
+- `initialize`
+- `marketplace/add`
+- `marketplace/remove`
+- `marketplace/upgrade`
+- `permissionProfile/list`
+- `plugin/installed`
+- `plugin/reconcile`
+- `plugin/share/checkout`
+- `plugin/share/delete`
+- `plugin/share/list`
+- `plugin/share/save`
+- `plugin/share/updateTargets`
+- `plugin/skill/read`
+- `review/start`
+- `skills/extraRoots/set`
+- `thread/approveGuardianDeniedAction`
+- `thread/goal/clear`
+- `thread/goal/get`
+- `thread/goal/set`
+- `thread/inject_items`
+- `thread/metadata/update`
+- `thread/revert`
+- `thread/rollback`
+- `thread/section/move`
+- `thread/unsubscribe`
+- `threadSection/create`
+- `threadSection/delete`
+- `threadSection/list`
+- `threadSection/update`
+- `warning`
+- `windowsSandbox/readiness`
+- `windowsSandbox/setupStart`
+
+## Our-only strings (noise + shell notes)
+
+- `currentTime/read`
+- `plugin/search`
+- `project/create`
+- `project/list`
+- `project/read`
+- `server/diagnostics`
+- `thread/timeline/list`
