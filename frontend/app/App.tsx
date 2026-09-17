@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { onNotification, type NotificationEnvelope } from "./bridge/events";
+import { onNotification, onServerRequest, type NotificationEnvelope } from "./bridge/events";
 import { reduceNotification } from "./state/notificationReducer";
-import { resetTurn } from "./state/turnStore";
+import { addPendingRequest, removePendingRequest, resetTurn } from "./state/turnStore";
 import { useTurnItems, useTurnState } from "./state/hooks";
 import { Block } from "./blocks/registry";
+import { ApprovalHost } from "./approvals/ApprovalHost";
 import { NOTIFICATION_METHODS } from "@protocol/notifications";
 import { SERVER_REQUEST_METHODS } from "@protocol/requests";
 import { BLOCK_TYPES } from "@protocol/blocks";
@@ -48,6 +49,28 @@ export function App() {
     });
   }, []);
 
+  // Server→client requests block the turn until answered, so they get their
+  // own channel and their own UI surface.
+  useEffect(() => {
+    return onServerRequest((env) => {
+      addPendingRequest({
+        id: env.id,
+        method: env.method,
+        params: env.params,
+        receivedAt: env.receivedAt,
+      });
+    });
+  }, []);
+
+  // A request that the server resolves itself (e.g. timed out) must disappear.
+  useEffect(() => {
+    return onNotification((env) => {
+      if (env.method !== "serverRequest/resolved") return;
+      const id = env.params["requestId"] ?? env.params["request_id"];
+      if (typeof id === "string" || typeof id === "number") removePendingRequest(id);
+    });
+  }, []);
+
   return (
     <div className="app-shell" style={{ padding: 24, fontFamily: "var(--font-sans)" }}>
       <h1 style={{ fontSize: 20, margin: "0 0 4px" }}>Codex — React shell (batch 2)</h1>
@@ -84,6 +107,8 @@ export function App() {
         </section>
 
         <section>
+          <ApprovalHost />
+
           <h2 style={{ fontSize: 14, margin: "0 0 8px" }}>Turn items ({items.length})</h2>
           {items.length === 0 ? (
             <p style={{ color: "#777", fontSize: 12 }}>

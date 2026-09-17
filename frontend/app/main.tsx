@@ -15,6 +15,9 @@ import "../src/styles/settings.css";
 import "../src/styles/settings-pages.css";
 import "../src/styles/dark.css";
 
+// React-owned styles for surfaces the vanilla layer never had.
+import "./styles/approvals.css";
+
 import { App } from "./App";
 import { startEventBridge } from "./bridge/events";
 

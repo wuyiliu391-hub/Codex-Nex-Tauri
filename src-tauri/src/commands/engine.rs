@@ -161,6 +161,26 @@ pub async fn resolve_approval(
     engine.respond(request_id, json!({ "decision": decision }))
 }
 
+/// Respond to any server→client request with an arbitrary JSON result.
+///
+/// `resolve_approval` only carries a boolean, which cannot express the full
+/// official decision set:
+///   accept / acceptForSession / decline / cancel            (no payload)
+///   acceptWithExecpolicyAmendment { execpolicyAmendment }   ("always allow")
+///   applyNetworkPolicyAmendment   { networkPolicyAmendment }
+///
+/// The server tells the client which of these to offer via the request's
+/// `availableDecisions`, so the client must be able to echo back exactly what
+/// it was given. This command forwards the result verbatim to the request id.
+#[tauri::command]
+pub async fn respond_server_request(
+    engine: State<'_, EngineHandle>,
+    request_id: Value,
+    result: Value,
+) -> Result<(), String> {
+    engine.respond(request_id, result)
+}
+
 /// List model providers from config/read. Engine has no dedicated
 /// `modelProvider/list` — providers live in config.
 #[tauri::command]

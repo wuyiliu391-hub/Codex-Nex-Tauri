@@ -81,6 +81,7 @@ pub fn run() {
             commands::engine::send_message,
             commands::engine::interrupt_session,
             commands::engine::resolve_approval,
+            commands::engine::respond_server_request,
             commands::engine::list_providers,
             commands::engine::save_provider,
             commands::engine::probe_provider,

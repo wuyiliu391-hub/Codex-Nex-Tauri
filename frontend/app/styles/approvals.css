@@ -1,0 +1,246 @@
+/* Approval card + inline user input.
+   Project rule: component CSS must not contain #rrggbb literals — use tokens
+   or rgba() only. Verified by scripts/verify-agent-a-hex.cjs. */
+
+.approval-host {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.approval-card {
+  padding: 14px 16px;
+  border: 1px solid rgba(13, 13, 13, .12);
+  border-radius: 12px;
+  background: var(--bg-canvas, #fff);
+}
+
+.approval-card.is-unhandled {
+  border-color: rgba(209, 126, 32, .5);
+}
+
+.approval-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.approval-card-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.approval-card-method {
+  color: rgba(13, 13, 13, .45);
+  font-size: 11px;
+}
+
+.approval-card-section {
+  margin-bottom: 10px;
+}
+
+.approval-card-label {
+  margin-bottom: 4px;
+  color: rgba(13, 13, 13, .55);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.approval-card-command {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(13, 13, 13, .04);
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.approval-card-meta {
+  margin-top: 4px;
+  color: rgba(13, 13, 13, .5);
+  font-size: 11px;
+}
+
+.approval-card-reason-toggle {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(13, 13, 13, .55);
+  font: inherit;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  cursor: pointer;
+}
+
+.approval-card-reason {
+  margin: 6px 0 0;
+  color: rgba(13, 13, 13, .75);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.approval-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.approval-card-btn {
+  padding: 7px 14px;
+  border: 1px solid rgba(13, 13, 13, .16);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color .12s ease, background-color .12s ease;
+}
+
+.approval-card-btn:hover:not(:disabled) {
+  border-color: rgba(13, 13, 13, .34);
+}
+
+.approval-card-btn:disabled {
+  opacity: .5;
+  cursor: default;
+}
+
+.approval-card-btn.is-primary {
+  border-color: transparent;
+  background: var(--accent, rgba(13, 13, 13, .85));
+  color: #fff;
+}
+
+.approval-card-btn.is-danger {
+  color: rgba(176, 42, 42, .95);
+  border-color: rgba(176, 42, 42, .35);
+}
+
+.approval-card-error {
+  margin-top: 10px;
+  color: rgba(176, 42, 42, .95);
+  font-size: 11px;
+}
+
+/* ── inline user input ─────────────────────────────────────────────── */
+
+.user-input-card {
+  padding: 14px 16px;
+  border: 1px solid rgba(13, 13, 13, .12);
+  border-radius: 12px;
+  background: var(--bg-canvas, #fff);
+}
+
+.user-input-question + .user-input-question {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(13, 13, 13, .08);
+}
+
+.user-input-header {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.user-input-body {
+  margin: 4px 0 10px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.user-input-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.user-input-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border: 1px solid rgba(13, 13, 13, .14);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.user-input-option.is-selected {
+  border-color: var(--accent, rgba(13, 13, 13, .7));
+  background: rgba(13, 13, 13, .04);
+}
+
+.user-input-option-label {
+  font-size: 12px;
+}
+
+.user-input-option-desc {
+  color: rgba(13, 13, 13, .5);
+  font-size: 11px;
+}
+
+.user-input-field {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba(13, 13, 13, .14);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+}
+
+.user-input-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+/* ── dark theme ────────────────────────────────────────────────────── */
+
+html.theme-dark .approval-card,
+html.theme-dark .user-input-card {
+  background: rgba(255, 255, 255, .03);
+  border-color: rgba(255, 255, 255, .1);
+}
+
+html.theme-dark .approval-card-command {
+  background: rgba(255, 255, 255, .06);
+}
+
+html.theme-dark .approval-card-method,
+html.theme-dark .approval-card-label,
+html.theme-dark .approval-card-meta,
+html.theme-dark .approval-card-reason-toggle,
+html.theme-dark .user-input-option-desc {
+  color: rgba(255, 255, 255, .5);
+}
+
+html.theme-dark .approval-card-reason,
+html.theme-dark .user-input-body {
+  color: rgba(255, 255, 255, .82);
+}
+
+html.theme-dark .approval-card-btn,
+html.theme-dark .user-input-option,
+html.theme-dark .user-input-field {
+  border-color: rgba(255, 255, 255, .16);
+}
+
+html.theme-dark .user-input-option.is-selected {
+  background: rgba(255, 255, 255, .07);
+}

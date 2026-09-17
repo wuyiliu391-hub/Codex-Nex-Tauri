@@ -20,6 +20,10 @@
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
     "forceConsistentCasingInFileNames": true,
+    // The vanilla data layer (i18n tables, pet catalog, icon paths) is imported
+    // as-is during the migration. Allow it without type-checking its internals.
+    "allowJs": true,
+    "checkJs": false,
 
     "baseUrl": ".",
     "paths": {
