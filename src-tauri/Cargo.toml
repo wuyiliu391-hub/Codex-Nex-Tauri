@@ -50,7 +50,11 @@ codex-exec-server         = { path = "../src/backend/exec-server",         optio
 codex-feedback            = { path = "../src/backend/feedback",            optional = true }
 
 [features]
-default = ["in-process"]
+# TEMP (pre-v1): shell-only default. The in-process native backend under
+# src/backend is kept intact but NOT compiled by default — frontend work is
+# still in progress and v1 must not pay backend build time in CI.
+# Re-enable locally with: cargo tauri dev --features in-process
+default = []
 in-process = [
     "dep:codex-app-server",
     "dep:codex-app-server-protocol",
