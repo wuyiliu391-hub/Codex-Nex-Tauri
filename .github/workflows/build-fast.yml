@@ -82,19 +82,35 @@ jobs:
           $ErrorActionPreference = "Stop"
           npm run build
 
-      - name: Setup Rust (stable, MSVC)
-        uses: dtolnay/rust-toolchain@stable
+      # Pin the toolchain. `stable` floats — a new rustc release changes the
+      # rust-cache key and forces a full recompile of the 100+ workspace crates.
+      - name: Setup Rust (pinned 1.98.1, MSVC)
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: "1.98.1"
           targets: x86_64-pc-windows-msvc
 
-      # Shared cache key across build-fast and build-release so a release build
-      # reuses everything the fast build already compiled.
+      # Swatinem/rust-cache — the project already used this (方案1). Keep it
+      # aligned with the recommended knobs:
+      #   workspaces: . -> target     cache the project target/ dir
+      #   cache-targets: true         restore/save target (default, set explicit)
+      #   cache-workspace-crates: true  also cache local codex-* workspace members
+      #   shared-key: tauri-win       same key family as build-release
+      #   cache-on-failure: true      save even when compile fails (so the next
+      #                               job does not start from zero again)
+      #
+      # Cache key still includes Cargo.lock + rustc version + workspace member
+      # Cargo.tomls + (by default) relevant env. Changing any of those, or the
+      # first run after introducing CARGO_PROFILE_RELEASE_*, is a miss and looks
+      # like "recompiling everything". That is Cargo + rust-cache normal, not a
+      # missing cache step.
       - name: Cache cargo registry & target
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: . -> target
           shared-key: tauri-win
-          cache-workspace-crates: "true"
+          cache-targets: true
+          cache-workspace-crates: true
           cache-on-failure: true
           cache-bin: true
 

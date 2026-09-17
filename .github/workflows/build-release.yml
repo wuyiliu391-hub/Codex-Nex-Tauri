@@ -49,9 +49,11 @@ jobs:
           npm ci --no-audit --no-fund
           npm run build
 
-      - name: Setup Rust (stable, MSVC)
-        uses: dtolnay/rust-toolchain@stable
+      # Must match build-fast so the shared rust-cache key stays valid.
+      - name: Setup Rust (pinned 1.98.1, MSVC)
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: "1.98.1"
           targets: x86_64-pc-windows-msvc
 
       - name: Cache cargo registry & target
@@ -59,7 +61,8 @@ jobs:
         with:
           workspaces: . -> target
           shared-key: tauri-win
-          cache-workspace-crates: "true"
+          cache-targets: true
+          cache-workspace-crates: true
           cache-on-failure: true
           cache-bin: true
 
