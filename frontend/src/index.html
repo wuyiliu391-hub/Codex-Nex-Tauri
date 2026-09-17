@@ -15,6 +15,72 @@
   <link rel="stylesheet" href="/styles/settings.css" />
   <link rel="stylesheet" href="/styles/settings-pages.css" />
   <link rel="stylesheet" href="/styles/dark.css" />
+  <!-- Splash fail-safe.
+       This MUST be a plain script, not a module.
+
+       If /js/bootstrap.js fails to parse or link, no module code runs at all —
+       including the setTimeout fallback declared inside it — and the app sits
+       on the splash screen forever with no way out. That is exactly what
+       happened when bridge.js shipped a stray "*" comment line: the whole
+       module graph was rejected, bootstrap.js never executed, and the built
+       app span on the startup animation indefinitely.
+
+       A plain script is not part of the module graph, so it always runs. It
+       both times out and surfaces the underlying error instead of leaving the
+       user staring at a shimmer that never ends. -->
+  <script>
+    (function () {
+      // Slightly longer than the 12s fallback inside bootstrap.js so a merely
+      // slow boot still gets its own (cleaner) path first.
+      var FAILSAFE_MS = 15000;
+      var revealed = false;
+
+      function reveal(reason) {
+        if (revealed) return;
+        revealed = true;
+        window.__codexSplashRevealed = true;
+        var loader = document.getElementById("startup-loader");
+        if (document.body) document.body.classList.remove("is-booting");
+        if (loader) {
+          loader.classList.add("is-hidden");
+          setTimeout(function () {
+            if (loader.parentNode) loader.remove();
+          }, 400);
+        }
+        if (reason) {
+          var box = document.getElementById("startup-error");
+          if (box) {
+            box.textContent = reason;
+            box.hidden = false;
+          }
+        }
+      }
+
+      // bootstrap.js clears this on a successful boot.
+      window.__codexSplashFailSafe = setTimeout(function () {
+        reveal(null);
+      }, FAILSAFE_MS);
+      window.__codexRevealSplash = reveal;
+
+      // A module that fails to parse or load fires a window error event. This
+      // fires long before the timeout, so the user sees the real cause.
+      window.addEventListener(
+        "error",
+        function (e) {
+          var msg = "";
+          if (e && e.message) {
+            msg = e.message + (e.filename ? " (" + e.filename + ":" + e.lineno + ")" : "");
+          } else if (e && e.target && e.target.src) {
+            msg = "Failed to load " + e.target.src;
+          }
+          if (!msg) return;
+          window.__codexBootError = msg;
+          reveal("The interface failed to start.\n\n" + msg);
+        },
+        true,
+      );
+    })();
+  </script>
   <script type="module" src="/js/bootstrap.js"></script>
   <style>
     /* Startup splash loader (ported from official Codex index.html) */
@@ -73,6 +139,19 @@
     }
     @keyframes startup-openai-blossom-fade-in { 0% { opacity: 0; } 100% { opacity: 1; } }
     @keyframes startup-openai-blossom-shimmer { 0% { background-position: 140% 0; } 100% { background-position: -105% 0; } }
+    /* Shown by the splash fail-safe when the module graph never starts. */
+    .startup-error {
+      position: fixed; inset: 0; z-index: 10000;
+      display: flex; align-items: center; justify-content: center;
+      padding: 40px;
+      background: var(--startup-background);
+      color: #2b2b2b;
+      font: 12px/1.7 ui-monospace, "Cascadia Mono", Consolas, monospace;
+      text-align: left; white-space: pre-wrap; word-break: break-word;
+      -webkit-app-region: drag;
+    }
+    .startup-error[hidden] { display: none; }
+    html.theme-dark .startup-error { color: #e6e6e6; }
   </style>
 </head>
 <body class="is-booting">
@@ -84,6 +163,7 @@
       <div class="startup-loader__overlay"></div>
     </div>
   </div>
+  <div class="startup-error" id="startup-error" hidden></div>
   <header class="app-toolbar" id="app-toolbar" data-tauri-drag-region>
     <div class="toolbar-navigation">
       <button class="toolbar-button" id="titlebar-sidebar" type="button" aria-label="Toggle sidebar" data-i18n-aria="menu.toggleSidebar">
