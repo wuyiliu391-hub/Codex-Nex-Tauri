@@ -3,7 +3,8 @@
 Tauri v2 桌面壳 + **官方 Codex app-server**（默认预编译 sidecar，`rust-v0.154.0`）。
 
 - **架构分层（必读）**：[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
-- 历史迁移说明：[MIGRATION.md](./MIGRATION.md)（早期文档，产品路径以 ARCHITECTURE 为准）
+- **目录布局**：[docs/LAYOUT.md](./docs/LAYOUT.md)
+- 历史迁移说明：[docs/MIGRATION.md](./docs/MIGRATION.md)（早期文档，产品路径以 ARCHITECTURE 为准）
 - 引擎协议细节：[docs/RUST_BACKEND.md](./docs/RUST_BACKEND.md)
 - 官方方法面差分：[docs/official-ui/APPSERVER-METHOD-INVENTORY-0.154.0.md](./docs/official-ui/APPSERVER-METHOD-INVENTORY-0.154.0.md)
 

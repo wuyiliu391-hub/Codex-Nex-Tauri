@@ -73,7 +73,7 @@
 | `.github/workflows/*` | 交付 | shell-only CI + 官方引擎下载 |
 | `scripts/diff-official-appserver-schema.mjs` | 工具 | 官方 generate-ts 与项目协议差分 |
 
-历史文档 `MIGRATION.md` 记录早期 sidecar 构想，**日常产品路径以本文为准**。
+历史文档 `docs/MIGRATION.md` 记录早期 sidecar 构想，**日常产品路径以本文为准**。
 
 ---
 
@@ -249,7 +249,7 @@ UI 目标：**旧基线可辨识 + 真实 IPC**，不是营销级像素对齐。
 | 文档 | 内容 |
 |------|------|
 | [README.md](./README.md) | 项目入口 |
-| [MIGRATION.md](./MIGRATION.md) | 历史迁移方案（sidecar 构想期） |
+| [docs/MIGRATION.md](./MIGRATION.md) | 历史迁移方案（sidecar 构想期） |
 | [docs/RUST_BACKEND.md](./docs/RUST_BACKEND.md) | 引擎集成细节 |
 | [docs/official-ui/APPSERVER-METHOD-INVENTORY-0.154.0.md](./docs/official-ui/APPSERVER-METHOD-INVENTORY-0.154.0.md) | 官方方法面清单 |
 | [docs/compose/change-notes/](./docs/compose/change-notes/) | 变更记录 |

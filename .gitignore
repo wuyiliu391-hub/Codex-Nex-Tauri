@@ -49,3 +49,6 @@ scratch/
 
 codex-x86_64-pc-windows-msvc.exe
 codex-aarch64-pc-windows-msvc.exe
+
+# Local workspace junk
+.agnes/
