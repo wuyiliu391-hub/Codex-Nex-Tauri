@@ -128,13 +128,21 @@ function notImplementedVoid(method) {
  */
 function extractSessions(resp) {
   if (!resp) return [];
-  if (Array.isArray(resp)) return resp;
+  let raw;
+  if (Array.isArray(resp)) raw = resp;
   // Official v0.154.0
-  if (Array.isArray(resp.data)) return resp.data;
-  if (Array.isArray(resp.threads)) return resp.threads;
-  if (Array.isArray(resp.items)) return resp.items;
-  if (resp.threads && Array.isArray(resp.threads.threads)) return resp.threads.threads;
-  return [];
+  else if (Array.isArray(resp.data)) raw = resp.data;
+  else if (Array.isArray(resp.threads)) raw = resp.threads;
+  else if (Array.isArray(resp.items)) raw = resp.items;
+  else if (resp.threads && Array.isArray(resp.threads.threads)) raw = resp.threads.threads;
+  else raw = [];
+  // Normalize each thread: when projectId is absent or empty, fall back to cwd.
+  // This keeps home.js currentProjectLabel() working when UI uses cwd as project.id.
+  return raw.map((s) => {
+    if (!s || typeof s !== "object") return s;
+    if (!s.projectId && s.cwd) return { ...s, projectId: s.cwd };
+    return s;
+  });
 }
 
 /**
@@ -243,6 +251,70 @@ async function savePullRequestsLocal(prs) {
 // ── Composite GetState ──
 
 /**
+ * Reconstruct a minimal messages[] array from thread/timeline/list items.
+ * Official app-server thread/read returns empty messages; the real payload lives
+ * only in real-time events. We build skeleton pairs so history view can render:
+ *   - user bubble  (role:"user",  text: preview on first turn or blank)
+ *   - assistant    (role:"assistant", durationMs from turnCompleted)
+ * This is display-only — no parts/tools, just the timing header and branch footer.
+ */
+function buildMessagesFromTimeline(items, firstPreview) {
+  if (!items.length) return [];
+  const messages = [];
+  const sortedCompleted = items
+    .filter((it) => it.type === "turnCompleted" && it.turnId)
+    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  for (let i = 0; i < sortedCompleted.length; i++) {
+    const turn = sortedCompleted[i];
+    // user bubble
+    messages.push({
+      id: `u-${turn.turnId}`,
+      role: "user",
+      // Only the first message carries the thread preview; rest are blank
+      text: i === 0 ? (firstPreview || "") : "",
+      parts: [],
+      createdAt: turn.startedAt ? turn.startedAt * 1000 : undefined,
+    });
+    // assistant turn footer
+    messages.push({
+      id: `a-${turn.turnId}`,
+      role: "assistant",
+      text: "",
+      parts: [],
+      durationMs: turn.durationMs || 0,
+      turnId: turn.turnId,
+      status: turn.status,
+      createdAt: turn.completedAt ? turn.completedAt * 1000 : undefined,
+    });
+  }
+  return messages;
+}
+
+
+ * Official Codex has no separate project concept — every thread carries a cwd.
+ * We deduplicate by cwd and produce { id, name, path } objects compatible with
+ * home.js renderProjectList() and currentProjectLabel()/currentProjectPath().
+ *
+ * id   = cwd (used as projectId key so session.projectId === project.id works
+ *         only when new_session is called with cwd as projectPath; see engine.rs)
+ * name = last path segment (basename)
+ * path = full cwd
+ */
+function extractProjectsFromSessions(sessions) {
+  if (!Array.isArray(sessions) || !sessions.length) return [];
+  const seen = new Set();
+  const projects = [];
+  for (const s of sessions) {
+    const cwd = s.cwd || s.path || "";
+    if (!cwd || seen.has(cwd)) continue;
+    seen.add(cwd);
+    const name = cwd.replace(/\\/g, "/").split("/").filter(Boolean).pop() || cwd;
+    projects.push({ id: cwd, name, path: cwd });
+  }
+  return projects;
+}
+
+/**
  * Merge local shell state + best-effort engine data into the shape
  * bootstrap.js refreshState() expects.
  *
@@ -258,7 +330,7 @@ async function savePullRequestsLocal(prs) {
 async function compositeGetState() {
   const local = await invoke("get_state");
 
-  const [sessionsR, providersR, mcpR, skillsR, pluginsR, depsR, scheduledR, prsR] =
+  const [sessionsR, providersR, mcpR, skillsR, pluginsR, depsR, scheduledR, prsR, configR] =
     await Promise.allSettled([
       invoke("list_sessions", { archived: false }),
       invoke("list_providers"),
@@ -268,16 +340,24 @@ async function compositeGetState() {
       invoke("check_dependencies"),
       listScheduledTasksLocal(),
       listPullRequestsLocal(),
+      invoke("rpc_raw", { method: "config/read", params: {} }),
     ]);
 
   const sessions = sessionsR.status === "fulfilled" ? extractSessions(sessionsR.value) : [];
   const providers = providersR.status === "fulfilled" ? extractProviders(providersR.value) : [];
+
+  // Extract engine config (model/provider/effort/approval) from config/read
+  const engineCfg = configR.status === "fulfilled" ? (configR.value?.config || configR.value || {}) : {};
   const mcpServers = mcpR.status === "fulfilled" ? extractMcpServers(mcpR.value) : [];
   const skills = skillsR.status === "fulfilled" ? (Array.isArray(skillsR.value) ? skillsR.value : skillsR.value?.skills || []) : [];
   const plugins = pluginsR.status === "fulfilled" ? (Array.isArray(pluginsR.value) ? pluginsR.value : pluginsR.value?.plugins || []) : [];
   const dependencies = depsR.status === "fulfilled" ? (Array.isArray(depsR.value) ? depsR.value : []) : [];
   const scheduled = scheduledR.status === "fulfilled" && Array.isArray(scheduledR.value) ? scheduledR.value : seedScheduledTasks();
   const pullRequests = prsR.status === "fulfilled" && Array.isArray(prsR.value) ? prsR.value : [];
+
+  // Build projects from unique session cwd values (official Codex has no separate project list)
+  // Each unique cwd becomes a synthetic project entry compatible with home.js renderProjectList()
+  const projects = extractProjectsFromSessions(sessions);
 
   return {
     // local shell
@@ -298,8 +378,11 @@ async function compositeGetState() {
     dependencies,
     scheduled,
     pullRequests,
+    // projects derived from sessions
+    projects,
+    // engine config: model / provider / effort — used by bootstrap.js to seed store.settings
+    engineConfig: engineCfg,
     // not yet ported — empty so UI degrades gracefully
-    projects: [],
     connections: [],
     hooks: [],
     worktrees: [],
@@ -316,7 +399,32 @@ export const api = {
   GetState: () => compositeGetState(),
   CheckDependencies: () => invoke("check_dependencies"),
   GetSettings: () => invoke("get_settings"),
-  SaveSettings: (settings) => invoke("save_settings", { settings }),
+  SaveSettings: async (settings) => {
+    // 1. Persist to local shell-state (always)
+    await invoke("save_settings", { settings });
+    // 2. Dual-write model/effort/approvalPolicy to the engine config.toml
+    //    via config/batchWrite. Only send fields that map to official leaf keys.
+    try {
+      const writes = [];
+      if (settings.activeModel)      writes.push({ key: "model",                    value: String(settings.activeModel) });
+      if (settings.activeProviderId) writes.push({ key: "model_provider",           value: String(settings.activeProviderId) });
+      if (settings.modelReasoningEffort) {
+        writes.push({ key: "model_reasoning_effort", value: String(settings.modelReasoningEffort) });
+      }
+      // approvalPolicy: local "ask" → engine "on-request", "never" → "never"
+      if (settings.approvalPolicy != null) {
+        const policyMap = { ask: "on-request", never: "never", "on-request": "on-request" };
+        const mapped = policyMap[settings.approvalPolicy] ?? "on-request";
+        writes.push({ key: "approval_policy", value: mapped });
+      }
+      if (writes.length) {
+        await invoke("rpc_raw", { method: "config/batchWrite", params: { writes } });
+      }
+    } catch (e) {
+      // Engine offline → degrade gracefully; local persist already succeeded
+      console.warn("[bridge] config/batchWrite failed (engine offline?):", e?.message || e);
+    }
+  },
   GetPreferences: () => invoke("get_preferences"),
   SavePreferences: (preferences) => invoke("save_preferences", { preferences }),
   ListShortcuts: () => invoke("list_shortcuts"),
@@ -363,7 +471,24 @@ OpenPath: (path) => shellOpen(path),
   NewSession: (projectPath) => invoke("new_session", { projectPath }),
   ListSessions: () => invoke("list_sessions", { archived: false }),
   ListArchivedSessions: () => invoke("list_sessions", { archived: true }),
-  GetSession: (sessionId) => invoke("get_session", { sessionId }),
+  GetSession: async (sessionId) => {
+    const thread = await invoke("get_session", { sessionId });
+    // Official app-server thread/read returns messages:[] (empty).
+    // Augment with timeline-based message skeletons so history view can at least
+    // show turn footers (elapsed time, branch divider) for past turns.
+    if (thread && (!thread.messages || !thread.messages.length)) {
+      try {
+        const tlR = await tryInvoke("get_runtime_events", { sessionId });
+        if (tlR.ok) {
+          const items = Array.isArray(tlR.data?.data) ? tlR.data.data : [];
+          const preview = thread.preview || "";
+          const messages = buildMessagesFromTimeline(items, preview);
+          if (messages.length) thread.messages = messages;
+        }
+      } catch { /* keep empty messages */ }
+    }
+    return thread;
+  },
   DeleteSession: (sessionId) => invoke("delete_session", { sessionId }),
   ArchiveSession: (sessionId) => invoke("archive_session", { sessionId }),
   UnarchiveSession: (sessionId) => invoke("unarchive_session", { sessionId }),
@@ -391,11 +516,28 @@ OpenPath: (path) => shellOpen(path),
     return r.ok ? !!r.data?.connected : false;
   },
   IsSessionRunning: async (sessionId) => {
-    // Check session runtime status via get_session
-    const r = await tryInvoke("get_session", { sessionId });
+    // Official app-server: thread.runtime is absent; use thread/timeline/list to check
+    // if there is a turnStarted event with no matching turnCompleted/turnFailed/turnCancelled.
+    const r = await tryInvoke("get_runtime_events", { sessionId });
     if (!r.ok) return false;
-    const s = r.data;
-    return s?.runtime?.status === "running" || s?.status === "running";
+    const items = Array.isArray(r.data?.data) ? r.data.data : (Array.isArray(r.data) ? r.data : []);
+    // If the endpoint returns activeRealtimeSessionAtPageStart, use that as the primary signal.
+    if (r.data?.activeRealtimeSessionAtPageStart != null) {
+      return !!r.data.activeRealtimeSessionAtPageStart;
+    }
+    // Fallback: look for a turnStarted with no matching completion event
+    const completedIds = new Set();
+    for (const item of items) {
+      if (item.type === "turnCompleted" || item.type === "turnFailed" || item.type === "turnCancelled") {
+        if (item.turnId) completedIds.add(item.turnId);
+      }
+    }
+    for (const item of items) {
+      if (item.type === "turnStarted" && item.turnId && !completedIds.has(item.turnId)) {
+        return true;
+      }
+    }
+    return false;
   },
 
   // ── Engine: turns / messages ──

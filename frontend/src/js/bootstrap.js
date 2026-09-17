@@ -77,6 +77,39 @@ async function refreshState() {
     store.memory = snap.memory || [];
     store.archived = (snap.sessions || []).filter((s) => s.archived);
 
+    // Seed model/provider/effort from engine config/read on first boot only.
+    // Local shell-state takes precedence once the user has saved settings.
+    // engineConfig arrives as snap.engineConfig from bridge.js compositeGetState().
+    if (!hasBooted && snap.engineConfig) {
+      const ec = snap.engineConfig;
+      // Only overwrite when local shell has default / empty values
+      if (ec.model && !store.settings.activeModel) {
+        store.settings = { ...store.settings, activeModel: ec.model };
+      }
+      if (ec.model_provider && !store.settings.activeProviderId) {
+        store.settings = { ...store.settings, activeProviderId: ec.model_provider };
+      }
+      if (ec.model_reasoning_effort && store.settings.modelReasoningEffort === "xhigh") {
+        // map engine effort to UI key: null → keep default
+        const effortMap = { "low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "ultra": "ultra", "minimal": "low" };
+        const mapped = effortMap[ec.model_reasoning_effort?.toLowerCase()];
+        if (mapped) store.settings = { ...store.settings, modelReasoningEffort: mapped };
+      }
+      // Sync approval_policy from engine → UI (on-request → ask, never → never)
+      if (ec.approval_policy && !store.settings.approvalPolicy) {
+        const approvalMap = { "on-request": "ask", "never": "never" };
+        const approvalMapped = approvalMap[ec.approval_policy];
+        if (approvalMapped) {
+          store.settings = {
+            ...store.settings,
+            approvalPolicy: approvalMapped,
+            fullAccess: approvalMapped === "never",
+            defaultPermissions: approvalMapped === "never" ? "full" : "workspace",
+          };
+        }
+      }
+    }
+
     // First boot always opens the blank home guide (never restore last session).
     // Later refreshes keep the currently open conversation so history view stays intact.
     if (!hasBooted) {
@@ -87,11 +120,14 @@ async function refreshState() {
       const next = (store.sessions || []).find((s) => s.id === previousActiveId) || null;
       store.activeSessionId = next?.id || null;
       store.activeSession = next;
-      store.running = next?.runtime?.status === "running";
-      /* sync running from runtime */
+      // Official app-server: thread.runtime is absent — IsSessionRunning uses timeline/list.
+      // During a background refresh we leave liveTurn.active as the authority for running state;
+      // only clear it if the agent-events poll has already set it to false.
+      store.running = liveTurn.active ? true : false;
+      /* sync running from liveTurn */
       if (!store.running && liveTurn.active) {
         liveTurn.active = false;
-        liveTurn.phase = next?.runtime?.status || "completed";
+        liveTurn.phase = "completed";
       }
       // Prefer full message payload when available from backend.
       if (next?.id && (!next.messages || !next.messages.length)) {
