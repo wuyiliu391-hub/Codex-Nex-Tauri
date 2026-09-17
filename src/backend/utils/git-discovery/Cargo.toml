@@ -1,0 +1,18 @@
+[package]
+name = "codex-utils-git-discovery"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+codex-git-utils = { workspace = true }
+codex-utils-absolute-path = { workspace = true }
+futures = { workspace = true, features = ["std"] }
+tokio = { workspace = true, features = ["sync"] }
+tracing = { workspace = true }
+
+[lib]
+doctest = false
