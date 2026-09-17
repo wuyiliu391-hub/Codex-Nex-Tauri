@@ -63,6 +63,30 @@ export function beginTurn(params: { threadId?: string; turnId?: string }, at: nu
   });
 }
 
+/**
+ * Show the user's message immediately while the turn spins up.
+ *
+ * This is the one place the UI shows something before the server confirms it.
+ * The alternative — waiting for `turn/started` — leaves the composer feeling
+ * dead for the round-trip. If the send fails the caller must call resetTurn(),
+ * so a failed send never leaves a phantom bubble behind.
+ */
+export function beginUserTurn(sessionId: string, text: string): void {
+  const id = `user-${Date.now()}`;
+  commit({
+    ...state,
+    sessionId,
+    active: true,
+    phase: "commentary",
+    startedAt: Date.now(),
+    items: {
+      ...state.items,
+      [id]: newItem(id, "user-message", { text, status: "completed" }),
+    },
+    order: [...state.order, id],
+  });
+}
+
 /** Insert or update an item, preserving arrival order. */
 export function upsertItem(id: string, patch: Partial<TurnItem> & { type: string }): void {
   const existing = state.items[id];

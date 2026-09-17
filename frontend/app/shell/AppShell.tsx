@@ -13,10 +13,9 @@ import { Sidebar } from "./Sidebar";
 import { navigate, useRoute } from "./useRoute";
 import type { ShellContext } from "./actions";
 import { getAppState, refreshAppState, setActiveSession } from "@/state/appStore";
-import { TurnStream } from "@/views/TurnStream";
+import { HomeView } from "@/views/HomeView";
 
-/** Views still served by the vanilla layer. `home` is partially ported: the
- *  turn stream lives in React, the composer does not yet. */
+/** Views still served by the vanilla layer. */
 const NOT_MIGRATED: Record<string, string> = {
   settings: "Settings (19 tabs)",
   scheduled: "Scheduled",
@@ -25,13 +24,7 @@ const NOT_MIGRATED: Record<string, string> = {
 };
 
 function ViewHost({ view, sub }: { view: string; sub: string | null }) {
-  if (view === "home") {
-    return (
-      <section className="view view-home" id="view-home">
-        <TurnStream />
-      </section>
-    );
-  }
+  if (view === "home") return <HomeView />;
 
   const pending = NOT_MIGRATED[view];
   if (!pending) {

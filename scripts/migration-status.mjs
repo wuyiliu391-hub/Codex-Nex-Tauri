@@ -47,7 +47,7 @@ const MODULES = [
   // ── UI layer still to port ──
   {
     file: "home.js",
-    status: "pending",
+    status: "ported",
     replaces: ["frontend/app/views/HomeView.tsx", "frontend/app/views/Composer.tsx"],
   },
   {
