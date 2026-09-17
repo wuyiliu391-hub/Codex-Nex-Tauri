@@ -15,7 +15,12 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["tray-icon", "protocol-asset"] }
+# Pinned exact: floating "2" resolved tauri-runtime-wry 2.10.1 against newer
+# tauri-runtime/wry and broke the build (E0046 missing
+# eval_script_with_callback, E0277 new-window handler Send-ness).
+# 2.11.5/2.11.4 is the coherent, high-download set (2026-06/07).
+# Bump deliberately, never float, until a Cargo.lock covers src-tauri.
+tauri = { version = "=2.11.5", features = ["tray-icon", "protocol-asset"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-shell = "2"
 tauri-plugin-fs = "2"

@@ -84,6 +84,14 @@ jobs:
       # Do NOT regenerate with System.Drawing — RC.EXE rejects that fake ICO.
 
       # Binary is cargo-tauri; invoke as `cargo tauri` (cargo subcommand) or cargo-tauri.
+      # Print the resolved wry stack first so a future version-skew failure is diagnosable.
+      - name: Show resolved tauri versions
+        working-directory: src-tauri
+        shell: pwsh
+        run: |
+          cargo tree --depth 0 -p tauri -p tauri-runtime -p tauri-runtime-wry -p wry -p tao 2>&1 | Select-String " v"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: cargo tauri build
         working-directory: src-tauri
         shell: pwsh
