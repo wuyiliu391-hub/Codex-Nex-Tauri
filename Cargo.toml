@@ -491,6 +491,53 @@ zstd = "0.13"
 wiremock = "0.6"
 zeroize = "1.8.2"
 
+[workspace.lints]
+rust = {}
+
+[workspace.lints.clippy]
+await_holding_invalid_type = "warn"
+await_holding_lock = "warn"
+disallowed_methods = "warn"
+expect_used = "warn"
+identity_op = "warn"
+manual_clamp = "warn"
+manual_filter = "warn"
+manual_find = "warn"
+manual_flatten = "warn"
+manual_map = "warn"
+manual_memcpy = "warn"
+manual_non_exhaustive = "warn"
+manual_ok_or = "warn"
+manual_range_contains = "warn"
+manual_retain = "warn"
+manual_strip = "warn"
+manual_try_fold = "warn"
+manual_unwrap_or = "warn"
+needless_borrow = "warn"
+needless_borrowed_reference = "warn"
+needless_collect = "warn"
+needless_late_init = "warn"
+needless_option_as_deref = "warn"
+needless_question_mark = "warn"
+needless_update = "warn"
+redundant_clone = "warn"
+redundant_closure = "warn"
+redundant_closure_for_method_calls = "warn"
+redundant_static_lifetimes = "warn"
+trivially_copy_pass_by_ref = "warn"
+uninlined_format_args = "warn"
+unnecessary_filter_map = "warn"
+unnecessary_lazy_evaluations = "warn"
+unnecessary_sort_by = "warn"
+unnecessary_to_owned = "warn"
+unwrap_used = "warn"
+
+[workspace.metadata.cargo-shear]
+ignored = [
+    "icu_provider",
+    "openssl-sys",
+]
+
 [profile.dev]
 # Keep line tables/backtraces while avoiding expensive full variable debug info
 # across local dev builds.
