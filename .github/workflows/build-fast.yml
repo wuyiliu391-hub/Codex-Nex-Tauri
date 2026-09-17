@@ -1,9 +1,17 @@
 name: build-fast
 
 # Daily iteration: a usable Tauri installer in the shortest possible wall-clock
-# time. Shallow + recursive submodules, the ci-fast cargo profile (opt-level 2,
-# no LTO, codegen-units 256), no tests, no lint. For a fully optimised,
-# reproducible installer use build-release.yml.
+# time. Shallow + recursive submodules, a fast override of the default cargo
+# release profile (opt-level 2, no LTO, high codegen units), no tests, no lint.
+# For a fully optimised, reproducible installer use build-release.yml.
+#
+# Why not `cargo tauri build --profile ci-fast`?
+#   tauri-cli 2.11.x has no --profile flag (it rejects the arg). Passing
+#   `-- --profile ci-fast` would compile under that profile, but the CLI still
+#   looks for the binary under target/release/, so bundling fails. The official
+#   Cargo way to speed up the release profile without renaming it is the
+#   CARGO_PROFILE_RELEASE_* environment variables, which keeps artifacts in
+#   target/release/ where tauri expects them.
 
 on:
   push:
@@ -23,10 +31,17 @@ env:
   CARGO_TARGET_DIR: ${{ github.workspace }}/target
   CARGO_INCREMENTAL: "0"
   TOOLS_DIR: ${{ github.workspace }}/.tools
+  # Mirror of [profile.ci-fast] applied onto the default release profile so
+  # `cargo tauri build` (no --profile) produces a fast binary in target/release.
+  CARGO_PROFILE_RELEASE_OPT_LEVEL: "2"
+  CARGO_PROFILE_RELEASE_LTO: "false"
+  CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "256"
+  CARGO_PROFILE_RELEASE_DEBUG: "false"
+  CARGO_PROFILE_RELEASE_STRIP: "symbols"
 
 jobs:
   build-fast:
-    name: Windows exe (fast, ci-fast profile)
+    name: Windows exe (fast, release profile override)
     runs-on: windows-latest
     timeout-minutes: 45
 
@@ -111,15 +126,15 @@ jobs:
           Add-Content -Path $env:GITHUB_PATH -Value $env:TOOLS_DIR
           Copy-Item (Join-Path $env:TOOLS_DIR "cargo-tauri.exe") (Join-Path $env:TOOLS_DIR "tauri.exe") -Force
 
-      # ci-fast: opt-level 2, no LTO, high codegen parallelism. Output lands in
-      # target/ci-fast/ (not target/release/), which the artifact paths reflect.
-      - name: cargo tauri build (ci-fast)
+      # Default release profile, overridden by CARGO_PROFILE_RELEASE_* above.
+      # Output and bundles land in target/release/ (not target/ci-fast/).
+      - name: cargo tauri build (fast release)
         working-directory: src-tauri
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           cargo-tauri --version
-          cargo tauri build --profile ci-fast
+          cargo tauri build
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Upload fast exe
@@ -127,8 +142,8 @@ jobs:
         with:
           name: Codex-fast-exe
           path: |
-            **/target/ci-fast/Codex.exe
-            **/target/ci-fast/codex-tauri.exe
+            **/target/release/Codex.exe
+            **/target/release/codex-tauri.exe
           if-no-files-found: warn
           retention-days: 7
 
@@ -137,7 +152,7 @@ jobs:
         with:
           name: Codex-fast-installers
           path: |
-            **/target/ci-fast/bundle/nsis/*.exe
-            **/target/ci-fast/bundle/msi/*.msi
+            **/target/release/bundle/nsis/*.exe
+            **/target/release/bundle/msi/*.msi
           if-no-files-found: warn
           retention-days: 7

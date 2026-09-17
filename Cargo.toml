@@ -572,13 +572,15 @@ debug = "limited"
 inherits = "test"
 opt-level = 0
 
-# Fast iteration profile for the build-fast.yml workflow.
+# Fast iteration profile (local convenience). CI does NOT pass this via
+# `cargo tauri build --profile` — tauri-cli 2.11 has no --profile flag, and a
+# custom profile also lands the binary outside target/release where the CLI
+# looks. build-fast.yml instead overrides the default release profile with
+# CARGO_PROFILE_RELEASE_* env vars (same knobs as below).
 #
 # Inherits release so the binary is actually usable, but trades optimisation for
-# wall-clock time: no LTO, high codegen parallelism, opt-level 2. This is what
-# daily push/PR builds use — the point is a Tauri installer in a few minutes,
-# not the smallest/safest binary. Release packaging (build-release.yml) keeps
-# the fully-optimised [profile.release].
+# wall-clock time: no LTO, high codegen parallelism, opt-level 2. Release
+# packaging (build-release.yml) keeps the fully-optimised [profile.release].
 [profile.ci-fast]
 inherits = "release"
 opt-level = 2
