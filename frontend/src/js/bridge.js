@@ -412,10 +412,30 @@ OpenPath: (path) => shellOpen(path),
   ListProviders: () => invoke("list_providers"),
   SaveProvider: (provider) => invoke("save_provider", { provider }),
   DeleteProvider: (id) => notImplementedVoid("DeleteProvider"),
-  ProbeProvider: (providerId, baseUrl, apiKey, model, wireApi, requiresOpenaiAuth, requiresAzure, requiresAws) =>
-    invoke("probe_provider", { providerId }),
-  DiscoverProviderModels: (providerId, baseUrl, apiKey) =>
-    invoke("rpc_raw", { method: "model/list", params: { providerId } }),
+  // Positional order is authoritative from the caller (settings.js):
+  //   (providerId, baseUrl, protocol, apiKey, model, …)
+  // Do NOT rename these to match a guess at the old Go signature — the args
+  // used to be silently dropped, which made 运行检查 always fail.
+  ProbeProvider: (providerId, baseUrl, protocol, apiKey, model) =>
+    invoke("probe_provider", {
+      providerId: providerId || "",
+      baseUrl: baseUrl || "",
+      protocol: protocol || "openai_chat",
+      apiKey: apiKey || "",
+      model: model || "",
+    }),
+  // Was a dead `model/list` rpc_raw call (that method ignores providerId and
+  // returns a static catalog). Now reuses the real gateway probe.
+  DiscoverProviderModels: async (providerId, baseUrl, apiKey) => {
+    const r = await tryInvoke("probe_provider", {
+      providerId: providerId || "",
+      baseUrl: baseUrl || "",
+      protocol: "openai_chat",
+      apiKey: apiKey || "",
+      model: "",
+    });
+    return r.ok && r.data?.ok ? r.data.models || [] : [];
+  },
   ListProviderCatalog: () => notImplementedList("ListProviderCatalog"),
   InstallProviderFromCatalog: (id) => notImplemented("InstallProviderFromCatalog"),
   NormalizeProviderURL: (url, kind) => Promise.resolve(url),

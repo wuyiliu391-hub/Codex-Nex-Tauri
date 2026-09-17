@@ -1,8 +1,28 @@
 //! Local desktop shell state (UI-only). Agent/session state lives in codex-app-server.
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
+
+/// Environment variable name that carries a provider's API key to the sidecar.
+///
+/// config.toml only ever stores this *name* (as the provider's `env_key`); the
+/// secret itself lives in the shell store and is injected into the sidecar's
+/// environment at spawn time, so it never lands in a plaintext config file.
+pub fn provider_env_key(provider_id: &str) -> String {
+    let sanitized: String = provider_id
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() {
+                c.to_ascii_uppercase()
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    format!("CODEX_PROVIDER_{sanitized}_API_KEY")
+}
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct Settings {
@@ -139,6 +159,9 @@ pub struct InnerState {
     pub shortcuts: Vec<Shortcut>,
     pub scheduled_tasks: Vec<ScheduledTask>,
     pub pull_requests: Vec<serde_json::Value>,
+    /// providerId -> API key. Injected into the sidecar environment as the
+    /// provider's `env_key` at spawn time (see [`provider_env_key`]).
+    pub provider_secrets: HashMap<String, String>,
 }
 
 impl AppState {
@@ -221,6 +244,8 @@ struct ShellStateFile {
     scheduled_tasks: Vec<ScheduledTask>,
     #[serde(default)]
     pull_requests: Vec<serde_json::Value>,
+    #[serde(default)]
+    provider_secrets: HashMap<String, String>,
 }
 
 impl ShellStateFile {
@@ -236,6 +261,7 @@ impl ShellStateFile {
             shortcuts: inner.shortcuts.clone(),
             scheduled_tasks: inner.scheduled_tasks.clone(),
             pull_requests: inner.pull_requests.clone(),
+            provider_secrets: inner.provider_secrets.clone(),
         }
     }
 
@@ -251,6 +277,7 @@ impl ShellStateFile {
             shortcuts: self.shortcuts,
             scheduled_tasks: self.scheduled_tasks,
             pull_requests: self.pull_requests,
+            provider_secrets: self.provider_secrets,
         }
     }
 }

@@ -3,7 +3,7 @@
 export const pagesEn = {
   // account / providers
   "account.title": "Custom providers",
-  "account.desc": "Connect OpenAI-compatible chat, Responses, Anthropic Messages, or Ollama. Keys stay in the local vault.",
+  "account.desc": "Connect OpenAI-compatible chat, Responses, Anthropic Messages, or Ollama. The key is kept in local app storage and injected into the engine as an env var — never written to config.toml.",
   "account.active": "Active for new tasks",
   "account.provider": "Provider",
   "account.providerDesc": "Default supplier used by the composer.",
@@ -38,7 +38,7 @@ export const pagesEn = {
   "account.normalize": "Normalize",
   "account.apiKey": "API key",
   "account.apiKeyKeep": "Leave blank to keep the saved key.",
-  "account.apiKeyNew": "Stored in the local secret vault.",
+  "account.apiKeyNew": "Kept in local app storage and injected as an env var; not written to config.toml.",
   "account.models": "Models",
   "account.defaultModel": "Default model",
   "account.defaultModelDesc": "Used when this provider is active.",
@@ -63,6 +63,8 @@ export const pagesEn = {
   "account.probing": "Probing…",
   "account.probeOk": "Probe passed",
   "account.probeIssues": "Probe issues",
+  "account.probeModelsUnit": "models",
+  "account.probeModelMissing": "default model not in list",
   "account.stream": "Stream",
   "account.tools": "Tools",
   "account.vision": "Vision",
@@ -468,7 +470,7 @@ export const pagesEn = {
 
 export const pagesZhCN = {
   "account.title": "自定义供应商",
-  "account.desc": "连接 OpenAI 兼容 Chat、Responses、Anthropic Messages 或 Ollama。密钥保存在本地保险库。",
+  "account.desc": "连接 OpenAI 兼容 Chat、Responses、Anthropic Messages 或 Ollama。密钥保存在本机应用存储，以环境变量注入引擎，不写入 config.toml。",
   "account.active": "新建任务默认",
   "account.provider": "提供商",
   "account.providerDesc": "撰写器使用的默认供应商。",
@@ -503,7 +505,7 @@ export const pagesZhCN = {
   "account.normalize": "规范化",
   "account.apiKey": "API 密钥",
   "account.apiKeyKeep": "留空以保留已保存的密钥。",
-  "account.apiKeyNew": "保存在本地密钥保险库。",
+  "account.apiKeyNew": "保存在本机应用存储，以环境变量注入引擎，不写入 config.toml。",
   "account.models": "模型",
   "account.defaultModel": "默认模型",
   "account.defaultModelDesc": "此提供商激活时使用。",
@@ -528,6 +530,8 @@ export const pagesZhCN = {
   "account.probing": "探测中…",
   "account.probeOk": "探测通过",
   "account.probeIssues": "探测有问题",
+  "account.probeModelsUnit": "个模型",
+  "account.probeModelMissing": "未找到填写的默认模型",
   "account.stream": "流式",
   "account.tools": "工具",
   "account.vision": "视觉",

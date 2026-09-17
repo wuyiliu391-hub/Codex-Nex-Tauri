@@ -42,6 +42,11 @@ notify-rust = "4"
 cron = "0.12"
 walkdir = "2"
 regex = "1"
+# The provider probe ("运行检查") must talk HTTP straight to the configured
+# gateway. Routing it through the engine is useless: app-server's `model/list`
+# ignores `providerId` and returns a static catalog. Version matches the
+# workspace declaration so it resolves to the already-locked 0.12.
+reqwest = { version = "0.12", features = ["json"] }
 
 # ─── In-process native engine backend ─────────────────────────────────────────
 codex-app-server          = { path = "../src/backend/app-server",          optional = true }

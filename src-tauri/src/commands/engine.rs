@@ -201,43 +201,267 @@ pub async fn list_providers(engine: State<'_, EngineHandle>) -> Result<Value, St
     }
 }
 
-/// Write a provider into config via config/batchWrite.
+/// Persist a provider into config.toml using **official schema fields only**.
+///
+/// The old version wrote the whole UI object — including `apiKey`, `models`,
+/// `contextWindow`, `maxOutputTokens`, `hasApiKey` — under
+/// `model_providers.<id>`. None of those are real config keys, so the key was
+/// silently ignored by the engine (the provider could never authenticate) while
+/// still being written to disk in plaintext.
+///
+/// Now:
+/// - only `name` / `base_url` / `wire_api` / `requires_openai_auth` / `env_key`
+///   are written, as individual leaf keys;
+/// - sibling keys already in the file (e.g. `experimental_bearer_token`) are
+///   deliberately left untouched;
+/// - the secret goes into the shell store and is injected into the sidecar
+///   environment as the `env_key` variable at spawn time.
 #[tauri::command]
 pub async fn save_provider(
+    app: tauri::AppHandle,
     engine: State<'_, EngineHandle>,
     provider: Value,
 ) -> Result<Value, String> {
+    use tauri::Manager as _;
+
     let id = provider
         .get("id")
         .and_then(|v| v.as_str())
-        .unwrap_or("custom")
+        .unwrap_or("")
+        .trim()
         .to_string();
-    let mut value = provider.clone();
-    if let Some(obj) = value.as_object_mut() {
-        obj.remove("id");
+    if id.is_empty() {
+        return Err("provider id is required".into());
     }
-    rpc(
+
+    let name = provider
+        .get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or(id.as_str())
+        .trim()
+        .to_string();
+    let base_url = provider
+        .get("baseUrl")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .trim_end_matches('/')
+        .to_string();
+    let api_key = provider
+        .get("apiKey")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
+
+    // 0.154 dropped `wire_api = "chat"`; `responses` is the only supported wire,
+    // so the UI's protocol choice no longer maps onto a config field.
+    const WIRE_API: &str = "responses";
+    let env_key = crate::state::provider_env_key(&id);
+
+    // Store the secret outside config.toml and mark the provider dirty so the
+    // next sidecar spawn picks it up.
+    if !api_key.is_empty() {
+        if let Some(state) = app.try_state::<crate::state::AppState>() {
+            if let Ok(mut inner) = state.inner.lock() {
+                inner.provider_secrets.insert(id.clone(), api_key.clone());
+            }
+            state.save().map_err(|e| e.to_string())?;
+        }
+    }
+
+    let mut edits = vec![
+        json!({
+            "keyPath": format!("model_providers.{id}.name"),
+            "value": name,
+            "mergeStrategy": "replace",
+        }),
+        json!({
+            "keyPath": format!("model_providers.{id}.base_url"),
+            "value": base_url,
+            "mergeStrategy": "replace",
+        }),
+        json!({
+            "keyPath": format!("model_providers.{id}.wire_api"),
+            "value": WIRE_API,
+            "mergeStrategy": "replace",
+        }),
+        json!({
+            "keyPath": format!("model_providers.{id}.requires_openai_auth"),
+            "value": false,
+            "mergeStrategy": "replace",
+        }),
+    ];
+    if !api_key.is_empty() {
+        edits.push(json!({
+            "keyPath": format!("model_providers.{id}.env_key"),
+            "value": env_key.clone(),
+            "mergeStrategy": "replace",
+        }));
+    }
+
+    let result = rpc(
         &engine,
         CONFIG_BATCH_WRITE,
-        json!({
-            "edits": [{
-                "keyPath": format!("model_providers.{id}"),
-                "value": value,
-                "mergeStrategy": "replace",
-            }],
-            "reloadUserConfig": true,
-        }),
+        json!({ "edits": edits, "reloadUserConfig": true }),
     )
-    .await
+    .await?;
+
+    Ok(json!({
+        "ok": true,
+        "id": id,
+        "envKey": env_key,
+        "keyStored": !api_key.is_empty(),
+        "note": "API key 保存在本机 shell 存储，通过 env_key 注入引擎环境，不写入 config.toml；重启应用后生效。",
+        "result": result,
+    }))
 }
 
-/// Probe models for a provider.
+/// Probe a provider by talking HTTP straight to its gateway.
+///
+/// app-server has **no** provider-probe method: `model/list` ignores
+/// `providerId` and returns a static catalog, so routing the check through the
+/// engine proves nothing. The shell therefore performs the check itself:
+/// `GET {base}/models` for OpenAI-compatible gateways, with protocol-specific
+/// fallbacks for Anthropic and Ollama.
+///
+/// Never returns `Err` for a reachable-but-failing gateway — the failure is
+/// reported as `{ ok: false, error }` so the UI can show it inline.
 #[tauri::command]
 pub async fn probe_provider(
-    engine: State<'_, EngineHandle>,
-    provider_id: String,
+    provider_id: Option<String>,
+    base_url: Option<String>,
+    protocol: Option<String>,
+    api_key: Option<String>,
+    model: Option<String>,
 ) -> Result<Value, String> {
-    rpc(&engine, MODEL_LIST, json!({ "providerId": provider_id })).await
+    let base = base_url
+        .unwrap_or_default()
+        .trim()
+        .trim_end_matches('/')
+        .to_string();
+    if base.is_empty() {
+        return Ok(json!({ "ok": false, "error": "Base URL 为空" }));
+    }
+    if !base.starts_with("http://") && !base.starts_with("https://") {
+        return Ok(json!({
+            "ok": false,
+            "error": "Base URL 必须以 http:// 或 https:// 开头",
+        }));
+    }
+
+    let proto = protocol.unwrap_or_else(|| "openai_chat".into());
+    let key = api_key.unwrap_or_default().trim().to_string();
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(20))
+        .build()
+        .map_err(|e| format!("build http client: {e}"))?;
+
+    // Candidate endpoints, most-likely first. `style` picks the auth header.
+    let mut candidates: Vec<(String, &'static str)> = Vec::new();
+    match proto.as_str() {
+        "anthropic" => {
+            candidates.push((format!("{base}/v1/models"), "anthropic"));
+            candidates.push((format!("{base}/models"), "anthropic"));
+        }
+        "ollama" => {
+            candidates.push((format!("{base}/api/tags"), "ollama"));
+            candidates.push((format!("{base}/models"), "openai"));
+        }
+        _ => {
+            candidates.push((format!("{base}/models"), "openai"));
+            if !base.ends_with("/v1") {
+                candidates.push((format!("{base}/v1/models"), "openai"));
+            }
+        }
+    }
+
+    let mut last_err = String::new();
+    for (url, style) in candidates {
+        let mut req = client.get(&url);
+        if !key.is_empty() {
+            req = match style {
+                "anthropic" => req
+                    .header("x-api-key", &key)
+                    .header("anthropic-version", "2023-06-01"),
+                _ => req.header("authorization", format!("Bearer {key}")),
+            };
+        }
+
+        let resp = match req.send().await {
+            Ok(r) => r,
+            Err(e) => {
+                last_err = format!("{url} → {e}");
+                continue;
+            }
+        };
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        if !status.is_success() {
+            last_err = format!(
+                "{url} → HTTP {} {}",
+                status.as_u16(),
+                truncate_chars(&body, 160)
+            );
+            continue;
+        }
+
+        let models = extract_model_ids(&body);
+        let model_found = model
+            .as_deref()
+            .map(str::trim)
+            .filter(|m| !m.is_empty())
+            .map(|m| models.iter().any(|x| x.eq_ignore_ascii_case(m)));
+        return Ok(json!({
+            "ok": true,
+            "providerId": provider_id,
+            "endpoint": url,
+            "status": status.as_u16(),
+            "models": models,
+            "modelCount": models.len(),
+            "modelFound": model_found,
+        }));
+    }
+
+    Ok(json!({ "ok": false, "providerId": provider_id, "error": last_err }))
+}
+
+/// Pull model ids out of an OpenAI (`data[].id`), Ollama (`models[].name`) or
+/// bare-array payload. Unknown shapes yield an empty list, not an error.
+fn extract_model_ids(body: &str) -> Vec<String> {
+    let Ok(value) = serde_json::from_str::<Value>(body) else {
+        return Vec::new();
+    };
+    let arr = value
+        .get("data")
+        .and_then(|d| d.as_array())
+        .or_else(|| value.get("models").and_then(|d| d.as_array()))
+        .or_else(|| value.as_array());
+    let Some(arr) = arr else {
+        return Vec::new();
+    };
+    arr.iter()
+        .filter_map(|m| {
+            m.get("id")
+                .and_then(|x| x.as_str())
+                .or_else(|| m.get("name").and_then(|x| x.as_str()))
+                .or_else(|| m.get("model").and_then(|x| x.as_str()))
+        })
+        .map(str::to_string)
+        .collect()
+}
+
+/// Char-safe truncation for error bodies (may contain CJK).
+fn truncate_chars(s: &str, max: usize) -> String {
+    let s = s.trim();
+    if s.chars().count() <= max {
+        s.to_string()
+    } else {
+        let mut out: String = s.chars().take(max).collect();
+        out.push('…');
+        out
+    }
 }
 
 /// List MCP servers from official mcpServerStatus/list.

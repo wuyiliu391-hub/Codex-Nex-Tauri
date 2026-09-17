@@ -28,7 +28,7 @@ From `app-server/src/main.rs`:
 | CLI flag | Default | Notes |
 |----------|---------|-------|
 | `--listen URL` | `stdio://` | Supported: `stdio://`, `unix://`, `unix://PATH`, `ws://IP:PORT`, `off` |
-| `--session-source SOURCE` | `vscode` | Free-form string; known values map to product restrictions. `codex-desktop` → `SessionSource::Custom`. |
+| `--session-source SOURCE` | `vscode` | ⚠️ **Not present in the shipped 0.154.0-alpha.6.2 binary** — passing it aborts startup. Probed at runtime; only forwarded when `--help` advertises it. |
 | `--strict-config` | false | Reject unknown config.toml fields. |
 | `--remote-control` | false | Hidden; enables remote-control without persistence. |
 
@@ -83,11 +83,29 @@ place (official also keeps prior versions for rollback).
 
 ### Spawn argv
 
+The binary ships in two shapes and `sidecar.rs` **probes which one it is** by
+running `<bin> app-server --help` and `<bin> --help` (see
+`probe_invocation`). Do not assume from the filename — the official multi-call
+`codex.exe` is routinely dropped in under the standalone filename.
+
 ```
-codex-app-server.exe --listen ws://127.0.0.1:17457 --session-source codex-desktop
+# standalone codex-app-server.exe
+codex-app-server.exe --listen ws://127.0.0.1:17457
+
+# multi-call codex.exe (what the official desktop installs)
+codex.exe app-server --listen ws://127.0.0.1:17457
 ```
 
 `settings.app_server_listen` overrides the listen URL when non-empty.
+
+> **Correction (2026-09-17, measured on `codex-cli 0.154.0-alpha.6.2`).**
+> The earlier claim that the shipped binary accepts `--session-source` is
+> **wrong**. `codex.exe app-server --session-source …` exits immediately with
+> `error: unexpected argument '--session-source' found`, so nothing ever binds
+> the port and every RPC fails with `os error 10061` (connection refused).
+> The flag exists in the source tree this doc was written against, but not in
+> the released alpha. `probe_invocation` now reads the `--help` text and only
+> passes `--session-source` when the build actually advertises it.
 
 ### Building the sidecar
 
@@ -271,15 +289,29 @@ rejected by plugin:event validation), e.g.
 
 ## Prebuilt binary requirement
 
-A working desktop **requires a prebuilt** `codex-app-server.exe`
-(target `x86_64-pc-windows-msvc`) matching v0.154.0:
+A working desktop **requires a prebuilt** engine binary
+(target `x86_64-pc-windows-msvc`) matching v0.154.0. Either shape works:
 
 1. Drop it at `src-tauri/binaries/codex-app-server-x86_64-pc-windows-msvc.exe`, **or**
 2. Set `CODEX_APP_SERVER` / `settings.app_server_binary` to an absolute path, **or**
 3. Put `codex-app-server.exe` on `PATH`.
 
-Without it the shell still boots; `engine_status.connected == false` and
-engine-backed UI degrades to empty lists.
+**Where to get it without building anything.** The official Windows desktop
+already ships a suitable multi-call binary — no `cargo` needed:
+
+```
+%LOCALAPPDATA%\OpenAI\Codex\bin\<content-hash>\codex.exe
+%USERPROFILE%\.codex\plugins\.plugin-appserver\codex.exe
+```
+
+Verified on this machine: `codex-cli 0.154.0-alpha.6.2`, ~284 MB, and
+`codex.exe app-server --listen ws://127.0.0.1:17457` binds the port in ~250 ms.
+Copy it to the path in (1) — the filename does not need to match the real
+shape, because `probe_invocation` detects the subcommand requirement at runtime.
+
+Without a binary the shell still boots; `engine_status.connected == false` and
+engine-backed UI degrades to empty lists. Startup also logs an explicit
+`no codex-app-server binary resolved` warning instead of failing silently.
 
 ---
 

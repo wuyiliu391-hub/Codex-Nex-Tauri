@@ -1070,9 +1070,18 @@ function openProviderEditor(root, providerId) {
         true,
         false,
       );
-      resultEl.textContent = result?.ok
-        ? t("account.probeOk")
-        : result?.error || t("account.checksFailed");
+      if (result?.ok) {
+        const n = result.modelCount ?? (result.models || []).length;
+        const parts = [`${t("account.probeOk")} · ${n} ${t("account.probeModelsUnit", "models")}`];
+        if (result.modelFound === false) {
+          parts.push(t("account.probeModelMissing", "default model not in list"));
+        }
+        resultEl.textContent = parts.join(" · ");
+        resultEl.classList.toggle("is-warn", result.modelFound === false);
+      } else {
+        resultEl.textContent = result?.error || t("account.checksFailed");
+        resultEl.classList.remove("is-warn");
+      }
     } catch (e) {
       resultEl.textContent = String(e.message || e);
     }

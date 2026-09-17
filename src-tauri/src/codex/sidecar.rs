@@ -205,10 +205,41 @@ impl EngineHandle {
         let bin = resolve_and_install_sidecar(app);
         let mut child = None;
 
+        // Provider API keys are kept in the shell store and handed to the
+        // sidecar as environment variables, so config.toml only ever carries
+        // the `env_key` *name*. See `state::provider_env_key`.
+        let provider_env: Vec<(String, String)> = match app.try_state::<AppState>() {
+            Some(state) => match state.inner.lock() {
+                Ok(inner) => inner
+                    .provider_secrets
+                    .iter()
+                    .map(|(id, secret)| (crate::state::provider_env_key(id), secret.clone()))
+                    .collect(),
+                Err(_) => Vec::new(),
+            },
+            None => Vec::new(),
+        };
+
         if bin.exists() {
+            let invocation = probe_invocation(&bin);
             let mut cmd = Command::new(&bin);
+            for (name, value) in &provider_env {
+                cmd.env(name, value);
+            }
+            // The official desktop ships a multi-call `codex.exe`; the app-server
+            // transport only starts when the `app-server` subcommand comes first.
+            // A standalone `codex-app-server.exe` takes no subcommand.
+            for arg in &invocation.prefix {
+                cmd.arg(arg);
+            }
             cmd.arg("--listen").arg(&settings_listen);
-            cmd.arg("--session-source").arg(SESSION_SOURCE);
+            // Only pass `--session-source` when this build accepts it. The shipped
+            // 0.154.0-alpha binary rejects it as an unknown argument and exits
+            // immediately, leaving nothing listening on the port (symptom:
+            // "由于目标计算机积极拒绝，无法连接" / os error 10061).
+            if invocation.session_source {
+                cmd.arg("--session-source").arg(SESSION_SOURCE);
+            }
             // Hide the console window on Windows release builds.
             #[cfg(windows)]
             {
@@ -218,13 +249,25 @@ impl EngineHandle {
             }
             match cmd.spawn() {
                 Ok(c) => {
-                    tracing::info!(path=%bin.display(), listen=%settings_listen, "spawned codex-app-server");
+                    tracing::info!(
+                        path=%bin.display(),
+                        listen=%settings_listen,
+                        prefix=?invocation.prefix,
+                        session_source=invocation.session_source,
+                        "spawned codex-app-server"
+                    );
                     child = Some(c);
                 }
                 Err(e) => {
                     tracing::warn!(error=%e, path=%bin.display(), "failed to spawn codex-app-server");
                 }
             }
+        } else {
+            tracing::warn!(
+                "no codex-app-server binary resolved; engine stays disconnected. \
+                 Put it at src-tauri/binaries/codex-app-server-x86_64-pc-windows-msvc.exe, \
+                 set CODEX_APP_SERVER, or set settings.app_server_binary."
+            );
         }
 
         Ok(Self {
@@ -297,6 +340,53 @@ impl EngineHandle {
             .unwrap_or_else(|_| DEFAULT_LISTEN_URL.to_string())
     }
 
+    /// True when we spawned a sidecar and it has not exited yet.
+    fn sidecar_alive(&self) -> bool {
+        self.child
+            .lock()
+            .map(|mut guard| match guard.as_mut() {
+                Some(child) => matches!(child.try_wait(), Ok(None)),
+                None => false,
+            })
+            .unwrap_or(false)
+    }
+
+    /// Connect (and handshake), retrying briefly while a freshly spawned
+    /// sidecar finishes binding its port.
+    ///
+    /// Without this the first RPC after a cold start races the sidecar's
+    /// startup and surfaces as a spurious
+    /// `connect codex-app-server: ... os error 10061`.
+    /// When no sidecar was spawned we fail fast instead of stalling the UI.
+    async fn connect_with_retry(&self, url: &str) -> Result<CodexClient, String> {
+        const ATTEMPTS: u32 = 40;
+        const DELAY_MS: u64 = 250;
+        let budget = if self.sidecar_alive() { ATTEMPTS } else { 1 };
+        let mut last = String::new();
+
+        for attempt in 0..budget {
+            match CodexClient::connect(url).await {
+                Ok(client) => {
+                    if attempt > 0 {
+                        tracing::info!(
+                            attempts = attempt + 1,
+                            elapsed_ms = (attempt as u64) * DELAY_MS,
+                            "codex-app-server accepted the connection after retry"
+                        );
+                    }
+                    return Ok(client);
+                }
+                Err(e) => {
+                    last = e.to_string();
+                    if attempt + 1 < budget {
+                        tokio::time::sleep(std::time::Duration::from_millis(DELAY_MS)).await;
+                    }
+                }
+            }
+        }
+        Err(last)
+    }
+
     /// Send a client→server request, connecting (and handshaking) on demand.
     pub async fn rpc(
         &self,
@@ -318,7 +408,8 @@ impl EngineHandle {
         }
 
         let url = self.listen_url();
-        let client = CodexClient::connect(&url)
+        let client = self
+            .connect_with_retry(&url)
             .await
             .map_err(|e| format!("connect codex-app-server: {e}"))?;
         // Kick off a warm-up so the UI can read initialize metadata later.
@@ -381,6 +472,90 @@ impl EngineHandle {
         }
         self.running.store(false, Ordering::SeqCst);
     }
+}
+
+// ─── CLI shape probing ───────────────────────────────────────────────────────
+
+/// How the resolved binary must be invoked.
+///
+/// Two shapes are supported:
+/// - **Standalone** `codex-app-server.exe`: no subcommand, `--listen` at top level.
+/// - **Multi-call** `codex.exe` (what the official desktop ships): needs the
+///   `app-server` subcommand before any flag.
+#[derive(Debug, Clone)]
+struct SidecarInvocation {
+    /// Args that must precede `--listen` (empty for a standalone binary).
+    prefix: Vec<String>,
+    /// Whether this build accepts `--session-source`.
+    session_source: bool,
+}
+
+/// Determine the CLI shape by asking the binary for help.
+///
+/// This is deliberately a *probe* rather than a filename check: the official
+/// `codex.exe` is routinely dropped in under the standalone filename, so the
+/// name alone cannot be trusted. Costs ~200ms once at startup.
+fn probe_invocation(bin: &Path) -> SidecarInvocation {
+    // Multi-call `codex.exe`: `codex app-server --help`
+    if let Some(help) = run_help(bin, &["app-server", "--help"]) {
+        if help.contains("--listen") {
+            return SidecarInvocation {
+                prefix: vec!["app-server".to_string()],
+                session_source: help.contains("--session-source"),
+            };
+        }
+    }
+
+    // Standalone `codex-app-server.exe`: `--help`
+    if let Some(help) = run_help(bin, &["--help"]) {
+        if help.contains("--listen") {
+            return SidecarInvocation {
+                prefix: Vec::new(),
+                session_source: help.contains("--session-source"),
+            };
+        }
+    }
+
+    // Could not probe (unreadable, wrong arch, crashed). Fall back to the
+    // filename heuristic and pass only the flags we know are universally safe.
+    let name = bin
+        .file_name()
+        .map(|n| n.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
+    let multi_call = !name.starts_with("codex-app-server");
+    tracing::warn!(
+        path=%bin.display(),
+        multi_call,
+        "could not probe sidecar CLI shape; using filename heuristic and omitting --session-source"
+    );
+    SidecarInvocation {
+        prefix: if multi_call {
+            vec!["app-server".to_string()]
+        } else {
+            Vec::new()
+        },
+        session_source: false,
+    }
+}
+
+/// Run `<bin> <args>` and capture stdout+stderr. Returns `None` on spawn failure
+/// or a non-zero exit. Never shows a console window on Windows.
+fn run_help(bin: &Path, args: &[&str]) -> Option<String> {
+    let mut cmd = Command::new(bin);
+    cmd.args(args);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    let out = cmd.output().ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let mut text = String::from_utf8_lossy(&out.stdout).into_owned();
+    text.push_str(&String::from_utf8_lossy(&out.stderr));
+    Some(text)
 }
 
 // ─── binary resolution + content-addressed install ───────────────────────────
