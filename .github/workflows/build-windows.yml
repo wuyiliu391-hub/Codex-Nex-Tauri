@@ -7,13 +7,17 @@ on:
     branches: [main, master]
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
   TAURI_SKIP_SIDECAR_CHECK: "1"
   # Stable as of crates.io 2026-09: max_stable_version=2.11.4
   TAURI_CLI_VERSION: "2.11.4"
-  CARGO_HOME: ${{ github.workspace }}/.cargo-home
-  # Prebuilt CLI lives outside CARGO_HOME so rust-cache does not thrash it.
+  CARGO_TARGET_DIR: ${{ github.workspace }}/target
+  CARGO_INCREMENTAL: "0"
   TOOLS_DIR: ${{ github.workspace }}/.tools
 
 jobs:
@@ -31,12 +35,13 @@ jobs:
         with:
           targets: x86_64-pc-windows-msvc
 
-      # Registry + target incremental. Key on Cargo.lock so deps only rebuild
-      # when dependencies change. Same branch reuses this across workflow runs.
+      # Registry + target cache with workspace crates enabled.
       - name: Cache cargo registry & target
         uses: Swatinem/rust-cache@v2
         with:
+          workspaces: . -> target
           shared-key: tauri-win-release
+          cache-workspace-crates: "true"
           cache-on-failure: true
           cache-bin: true
 
