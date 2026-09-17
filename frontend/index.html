@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Codex</title>
+  <!--
+    Splash fail-safe. MUST stay a plain script, not a module.
+
+    If the bundle fails to parse or load, no module code runs — including any
+    timeout declared inside it — and the app would sit on the splash forever.
+    This is exactly what shipped once and left the built app spinning on the
+    startup animation with no way out.
+  -->
+  <script>
+    (function () {
+      var FAILSAFE_MS = 15000;
+      var revealed = false;
+
+      function reveal(reason) {
+        if (revealed) return;
+        revealed = true;
+        window.__codexSplashRevealed = true;
+        var loader = document.getElementById("startup-loader");
+        if (document.body) document.body.classList.remove("is-booting");
+        if (loader) {
+          loader.classList.add("is-hidden");
+          setTimeout(function () {
+            if (loader.parentNode) loader.remove();
+          }, 400);
+        }
+        if (reason) {
+          var box = document.getElementById("startup-error");
+          if (box) {
+            box.textContent = reason;
+            box.hidden = false;
+          }
+        }
+      }
+
+      window.__codexSplashFailSafe = setTimeout(function () {
+        reveal(null);
+      }, FAILSAFE_MS);
+      window.__codexRevealSplash = reveal;
+
+      window.addEventListener(
+        "error",
+        function (e) {
+          var msg = "";
+          if (e && e.message) {
+            msg = e.message + (e.filename ? " (" + e.filename + ":" + e.lineno + ")" : "");
+          } else if (e && e.target && e.target.src) {
+            msg = "Failed to load " + e.target.src;
+          }
+          if (!msg) return;
+          window.__codexBootError = msg;
+          reveal("The interface failed to start.\n\n" + msg);
+        },
+        true,
+      );
+    })();
+  </script>
+  <style>
+    /* Startup splash (ported 1:1 from the official Codex index.html). */
+    :root {
+      --startup-background: #f2f2f2;
+      --startup-logo-shimmer-base: rgb(0 0 0 / 0.24);
+      --startup-logo-shimmer-peak: rgb(255 255 255 / 0.48);
+      --startup-logo-shimmer-soft: rgb(255 255 255 / 0.04);
+      --startup-logo-shimmer-tail: rgb(255 255 255 / 0.08);
+    }
+    html.theme-dark {
+      --startup-background: #141414;
+      --startup-logo-shimmer-base: rgb(255 255 255 / 0.68);
+    }
+    @media (prefers-color-scheme: dark) {
+      html:not(.theme-light):not(.theme-dark) {
+        --startup-logo-shimmer-base: rgb(255 255 255 / 0.68);
+      }
+    }
+    .startup-loader {
+      position: fixed; inset: 0; z-index: 9999;
+      display: flex; width: 100%; height: 100%;
+      align-items: center; justify-content: center;
+      background: var(--startup-background);
+      -webkit-app-region: drag;
+      transition: opacity 260ms ease;
+    }
+    .startup-loader.is-hidden { opacity: 0; pointer-events: none; }
+    body.is-booting > .app-toolbar,
+    body.is-booting > #app { opacity: 0; visibility: hidden; }
+    body > .app-toolbar,
+    body > #app { transition: opacity 220ms ease-out; }
+    .startup-loader__logo {
+      position: relative; width: 56px; height: 56px;
+      opacity: 0;
+      animation: startup-openai-blossom-fade-in 180ms ease-out 60ms forwards;
+    }
+    .startup-loader__spinner {
+      width: 22px; height: 22px;
+      border: 2px solid rgb(0 0 0 / 0.12);
+      border-top-color: rgb(0 0 0 / 0.45);
+      border-radius: 50%;
+      animation: startup-spin 800ms linear infinite;
+    }
+    html.theme-dark .startup-loader__spinner {
+      border-color: rgb(255 255 255 / 0.15);
+      border-top-color: rgb(255 255 255 / 0.6);
+    }
+    @keyframes startup-spin { to { transform: rotate(360deg); } }
+    @keyframes startup-openai-blossom-fade-in { 0% { opacity: 0; } 100% { opacity: 1; } }
+    /* Shown by the fail-safe when the module graph never starts. */
+    .startup-error {
+      position: fixed; inset: 0; z-index: 10000;
+      display: flex; align-items: center; justify-content: center;
+      padding: 40px;
+      background: var(--startup-background);
+      color: #2b2b2b;
+      font: 12px/1.7 ui-monospace, "Cascadia Mono", Consolas, monospace;
+      text-align: left; white-space: pre-wrap; word-break: break-word;
+      -webkit-app-region: drag;
+    }
+    .startup-error[hidden] { display: none; }
+    html.theme-dark .startup-error { color: #e6e6e6; }
+  </style>
+</head>
+<body class="is-booting">
+  <div class="startup-loader" id="startup-loader" aria-hidden="true" data-tauri-drag-region>
+    <div class="startup-loader__spinner"></div>
+  </div>
+  <div class="startup-error" id="startup-error" hidden></div>
+  <div id="app"></div>
+  <script type="module" src="/app/main.tsx"></script>
+</body>
+</html>

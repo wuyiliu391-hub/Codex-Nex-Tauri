@@ -1,0 +1,1331 @@
+{
+  "notifications": [
+    {
+      "variant": "Error",
+      "method": "error",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadStarted",
+      "method": "thread/started",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadStatusChanged",
+      "method": "thread/status/changed",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadArchived",
+      "method": "thread/archived",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadDeleted",
+      "method": "thread/deleted",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadUnarchived",
+      "method": "thread/unarchived",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadClosed",
+      "method": "thread/closed",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadReverted",
+      "method": "thread/reverted",
+      "experimental": null
+    },
+    {
+      "variant": "SkillsChanged",
+      "method": "skills/changed",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadNameUpdated",
+      "method": "thread/name/updated",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadGoalUpdated",
+      "method": "thread/goal/updated",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadGoalCleared",
+      "method": "thread/goal/cleared",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadQueueChanged",
+      "method": "thread/queue/changed",
+      "experimental": "thread/queue/changed"
+    },
+    {
+      "variant": "ProjectChanged",
+      "method": "project/changed",
+      "experimental": "project/changed"
+    },
+    {
+      "variant": "ThreadProjectUpdated",
+      "method": "thread/project/updated",
+      "experimental": "thread/project/updated"
+    },
+    {
+      "variant": "EnvironmentConnected",
+      "method": "thread/environment/connected",
+      "experimental": "thread/environment/connected"
+    },
+    {
+      "variant": "EnvironmentDisconnected",
+      "method": "thread/environment/disconnected",
+      "experimental": "thread/environment/disconnected"
+    },
+    {
+      "variant": "ThreadSettingsUpdated",
+      "method": "thread/settings/updated",
+      "experimental": "thread/settings/updated"
+    },
+    {
+      "variant": "ThreadTokenUsageUpdated",
+      "method": "thread/tokenUsage/updated",
+      "experimental": null
+    },
+    {
+      "variant": "TurnStarted",
+      "method": "turn/started",
+      "experimental": null
+    },
+    {
+      "variant": "HookStarted",
+      "method": "hook/started",
+      "experimental": null
+    },
+    {
+      "variant": "TurnCompleted",
+      "method": "turn/completed",
+      "experimental": null
+    },
+    {
+      "variant": "HookCompleted",
+      "method": "hook/completed",
+      "experimental": null
+    },
+    {
+      "variant": "TurnDiffUpdated",
+      "method": "turn/diff/updated",
+      "experimental": null
+    },
+    {
+      "variant": "TurnPlanUpdated",
+      "method": "turn/plan/updated",
+      "experimental": null
+    },
+    {
+      "variant": "ItemStarted",
+      "method": "item/started",
+      "experimental": null
+    },
+    {
+      "variant": "ItemGuardianApprovalReviewStarted",
+      "method": "item/autoApprovalReview/started",
+      "experimental": null
+    },
+    {
+      "variant": "ItemGuardianApprovalReviewCompleted",
+      "method": "item/autoApprovalReview/completed",
+      "experimental": null
+    },
+    {
+      "variant": "StrictReviewRequired",
+      "method": "autoApprovalReview/strictReviewRequired",
+      "experimental": "autoApprovalReview/strictReviewRequired"
+    },
+    {
+      "variant": "ItemCompleted",
+      "method": "item/completed",
+      "experimental": null
+    },
+    {
+      "variant": "RawResponseItemCompleted",
+      "method": "rawResponseItem/completed",
+      "experimental": null
+    },
+    {
+      "variant": "RawResponseCompleted",
+      "method": "rawResponse/completed",
+      "experimental": null
+    },
+    {
+      "variant": "AgentMessageDelta",
+      "method": "item/agentMessage/delta",
+      "experimental": null
+    },
+    {
+      "variant": "PlanDelta",
+      "method": "item/plan/delta",
+      "experimental": null
+    },
+    {
+      "variant": "CommandExecOutputDelta",
+      "method": "command/exec/outputDelta",
+      "experimental": null
+    },
+    {
+      "variant": "ProcessOutputDelta",
+      "method": "process/outputDelta",
+      "experimental": "process/outputDelta"
+    },
+    {
+      "variant": "ProcessExited",
+      "method": "process/exited",
+      "experimental": "process/exited"
+    },
+    {
+      "variant": "CommandExecutionOutputDelta",
+      "method": "item/commandExecution/outputDelta",
+      "experimental": null
+    },
+    {
+      "variant": "TerminalInteraction",
+      "method": "item/commandExecution/terminalInteraction",
+      "experimental": null
+    },
+    {
+      "variant": "FileChangeOutputDelta",
+      "method": "item/fileChange/outputDelta",
+      "experimental": null
+    },
+    {
+      "variant": "FileChangePatchUpdated",
+      "method": "item/fileChange/patchUpdated",
+      "experimental": null
+    },
+    {
+      "variant": "ServerRequestResolved",
+      "method": "serverRequest/resolved",
+      "experimental": null
+    },
+    {
+      "variant": "McpToolCallProgress",
+      "method": "item/mcpToolCall/progress",
+      "experimental": null
+    },
+    {
+      "variant": "McpServerOauthLoginCompleted",
+      "method": "mcpServer/oauthLogin/completed",
+      "experimental": null
+    },
+    {
+      "variant": "McpServerStatusUpdated",
+      "method": "mcpServer/startupStatus/updated",
+      "experimental": null
+    },
+    {
+      "variant": "McpServerEventStream",
+      "method": "mcpServer/event/stream/notification",
+      "experimental": "mcpServer/event/stream/notification"
+    },
+    {
+      "variant": "AccountUpdated",
+      "method": "account/updated",
+      "experimental": null
+    },
+    {
+      "variant": "AccountRateLimitsUpdated",
+      "method": "account/rateLimits/updated",
+      "experimental": null
+    },
+    {
+      "variant": "AppListUpdated",
+      "method": "app/list/updated",
+      "experimental": null
+    },
+    {
+      "variant": "RemoteControlStatusChanged",
+      "method": "remoteControl/status/changed",
+      "experimental": null
+    },
+    {
+      "variant": "ExternalAgentConfigImportProgress",
+      "method": "externalAgentConfig/import/progress",
+      "experimental": null
+    },
+    {
+      "variant": "ExternalAgentConfigImportCompleted",
+      "method": "externalAgentConfig/import/completed",
+      "experimental": null
+    },
+    {
+      "variant": "FsChanged",
+      "method": "fs/changed",
+      "experimental": null
+    },
+    {
+      "variant": "ReasoningSummaryTextDelta",
+      "method": "item/reasoning/summaryTextDelta",
+      "experimental": null
+    },
+    {
+      "variant": "ReasoningSummaryPartAdded",
+      "method": "item/reasoning/summaryPartAdded",
+      "experimental": null
+    },
+    {
+      "variant": "ReasoningTextDelta",
+      "method": "item/reasoning/textDelta",
+      "experimental": null
+    },
+    {
+      "variant": "ContextCompacted",
+      "method": "thread/compacted",
+      "experimental": null
+    },
+    {
+      "variant": "ModelRerouted",
+      "method": "model/rerouted",
+      "experimental": null
+    },
+    {
+      "variant": "ModelVerification",
+      "method": "model/verification",
+      "experimental": null
+    },
+    {
+      "variant": "AuthRecoveryStarted",
+      "method": "modelProvider/authRecoveryStarted",
+      "experimental": null
+    },
+    {
+      "variant": "AuthRecoveryCompleted",
+      "method": "modelProvider/authRecoveryCompleted",
+      "experimental": null
+    },
+    {
+      "variant": "TurnModerationMetadata",
+      "method": "turn/moderationMetadata",
+      "experimental": "turn/moderationMetadata"
+    },
+    {
+      "variant": "ModelSafetyBufferingUpdated",
+      "method": "model/safetyBuffering/updated",
+      "experimental": null
+    },
+    {
+      "variant": "Warning",
+      "method": "warning",
+      "experimental": null
+    },
+    {
+      "variant": "GuardianWarning",
+      "method": "guardianWarning",
+      "experimental": null
+    },
+    {
+      "variant": "DeprecationNotice",
+      "method": "deprecationNotice",
+      "experimental": null
+    },
+    {
+      "variant": "ConfigWarning",
+      "method": "configWarning",
+      "experimental": null
+    },
+    {
+      "variant": "FuzzyFileSearchSessionUpdated",
+      "method": "fuzzyFileSearch/sessionUpdated",
+      "experimental": null
+    },
+    {
+      "variant": "FuzzyFileSearchSessionCompleted",
+      "method": "fuzzyFileSearch/sessionCompleted",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadRealtimeStarted",
+      "method": "thread/realtime/started",
+      "experimental": "thread/realtime/started"
+    },
+    {
+      "variant": "ThreadRealtimeItemAdded",
+      "method": "thread/realtime/itemAdded",
+      "experimental": "thread/realtime/itemAdded"
+    },
+    {
+      "variant": "ThreadRealtimeItemStarted",
+      "method": "thread/realtime/item/started",
+      "experimental": "thread/realtime/item/started"
+    },
+    {
+      "variant": "ThreadRealtimeItemTranscriptDelta",
+      "method": "thread/realtime/item/transcript/delta",
+      "experimental": "thread/realtime/item/transcript/delta"
+    },
+    {
+      "variant": "ThreadRealtimeItemCompleted",
+      "method": "thread/realtime/item/completed",
+      "experimental": "thread/realtime/item/completed"
+    },
+    {
+      "variant": "ThreadRealtimeTranscriptDelta",
+      "method": "thread/realtime/transcript/delta",
+      "experimental": "thread/realtime/transcript/delta"
+    },
+    {
+      "variant": "ThreadRealtimeTranscriptDone",
+      "method": "thread/realtime/transcript/done",
+      "experimental": "thread/realtime/transcript/done"
+    },
+    {
+      "variant": "ThreadRealtimeOutputAudioDelta",
+      "method": "thread/realtime/outputAudio/delta",
+      "experimental": "thread/realtime/outputAudio/delta"
+    },
+    {
+      "variant": "ThreadRealtimeSdp",
+      "method": "thread/realtime/sdp",
+      "experimental": "thread/realtime/sdp"
+    },
+    {
+      "variant": "ThreadRealtimeError",
+      "method": "thread/realtime/error",
+      "experimental": "thread/realtime/error"
+    },
+    {
+      "variant": "ThreadRealtimeClosed",
+      "method": "thread/realtime/closed",
+      "experimental": "thread/realtime/closed"
+    },
+    {
+      "variant": "WindowsWorldWritableWarning",
+      "method": "windows/worldWritableWarning",
+      "experimental": null
+    },
+    {
+      "variant": "WindowsSandboxSetupCompleted",
+      "method": "windowsSandbox/setupCompleted",
+      "experimental": null
+    }
+  ],
+  "requests": [
+    {
+      "variant": "CommandExecutionRequestApproval",
+      "method": "item/commandExecution/requestApproval",
+      "experimental": null
+    },
+    {
+      "variant": "FileChangeRequestApproval",
+      "method": "item/fileChange/requestApproval",
+      "experimental": null
+    },
+    {
+      "variant": "ToolRequestUserInput",
+      "method": "item/tool/requestUserInput",
+      "experimental": null
+    },
+    {
+      "variant": "McpServerElicitationRequest",
+      "method": "mcpServer/elicitation/request",
+      "experimental": null
+    },
+    {
+      "variant": "PermissionsRequestApproval",
+      "method": "item/permissions/requestApproval",
+      "experimental": null
+    },
+    {
+      "variant": "DynamicToolCall",
+      "method": "item/tool/call",
+      "experimental": null
+    },
+    {
+      "variant": "ChatgptAuthTokensRefresh",
+      "method": "account/chatgptAuthTokens/refresh",
+      "experimental": null
+    },
+    {
+      "variant": "AttestationGenerate",
+      "method": "attestation/generate",
+      "experimental": null
+    },
+    {
+      "variant": "CurrentTimeRead",
+      "method": "currentTime/read",
+      "experimental": "currentTime/read"
+    }
+  ],
+  "clientRequests": [
+    {
+      "variant": "Initialize",
+      "method": "initialize",
+      "experimental": null
+    },
+    {
+      "variant": "ServerDiagnostics",
+      "method": "server/diagnostics",
+      "experimental": "server/diagnostics"
+    },
+    {
+      "variant": "UserVerificationStatus",
+      "method": "userVerification/status",
+      "experimental": "userVerification/status"
+    },
+    {
+      "variant": "UserVerificationEnroll",
+      "method": "userVerification/enroll",
+      "experimental": "userVerification/enroll"
+    },
+    {
+      "variant": "UserVerificationDelete",
+      "method": "userVerification/delete",
+      "experimental": "userVerification/delete"
+    },
+    {
+      "variant": "UserVerificationVerify",
+      "method": "userVerification/verify",
+      "experimental": "userVerification/verify"
+    },
+    {
+      "variant": "ThreadStart",
+      "method": "thread/start",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadResume",
+      "method": "thread/resume",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadFork",
+      "method": "thread/fork",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadArchive",
+      "method": "thread/archive",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadDelete",
+      "method": "thread/delete",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadUnsubscribe",
+      "method": "thread/unsubscribe",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadIncrementElicitation",
+      "method": "thread/increment_elicitation",
+      "experimental": "thread/increment_elicitation"
+    },
+    {
+      "variant": "ThreadDecrementElicitation",
+      "method": "thread/decrement_elicitation",
+      "experimental": "thread/decrement_elicitation"
+    },
+    {
+      "variant": "ThreadSetName",
+      "method": "thread/name/set",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadGoalSet",
+      "method": "thread/goal/set",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadGoalGet",
+      "method": "thread/goal/get",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadGoalClear",
+      "method": "thread/goal/clear",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadQueueAdd",
+      "method": "thread/queue/add",
+      "experimental": "thread/queue/add"
+    },
+    {
+      "variant": "ThreadQueueList",
+      "method": "thread/queue/list",
+      "experimental": "thread/queue/list"
+    },
+    {
+      "variant": "ThreadQueueUpdate",
+      "method": "thread/queue/update",
+      "experimental": "thread/queue/update"
+    },
+    {
+      "variant": "ThreadQueueDelete",
+      "method": "thread/queue/delete",
+      "experimental": "thread/queue/delete"
+    },
+    {
+      "variant": "ThreadQueueReorder",
+      "method": "thread/queue/reorder",
+      "experimental": "thread/queue/reorder"
+    },
+    {
+      "variant": "ThreadQueueStart",
+      "method": "thread/queue/start",
+      "experimental": "thread/queue/start"
+    },
+    {
+      "variant": "ThreadMetadataUpdate",
+      "method": "thread/metadata/update",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadSectionMove",
+      "method": "thread/section/move",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadSettingsUpdate",
+      "method": "thread/settings/update",
+      "experimental": "thread/settings/update"
+    },
+    {
+      "variant": "ThreadMemoryModeSet",
+      "method": "thread/memoryMode/set",
+      "experimental": "thread/memoryMode/set"
+    },
+    {
+      "variant": "MemoryReset",
+      "method": "memory/reset",
+      "experimental": "memory/reset"
+    },
+    {
+      "variant": "ThreadUnarchive",
+      "method": "thread/unarchive",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadCompactStart",
+      "method": "thread/compact/start",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadShellCommand",
+      "method": "thread/shellCommand",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadApproveGuardianDeniedAction",
+      "method": "thread/approveGuardianDeniedAction",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadBackgroundTerminalsClean",
+      "method": "thread/backgroundTerminals/clean",
+      "experimental": "thread/backgroundTerminals/clean"
+    },
+    {
+      "variant": "ThreadBackgroundTerminalsList",
+      "method": "thread/backgroundTerminals/list",
+      "experimental": "thread/backgroundTerminals/list"
+    },
+    {
+      "variant": "ThreadBackgroundTerminalsTerminate",
+      "method": "thread/backgroundTerminals/terminate",
+      "experimental": "thread/backgroundTerminals/terminate"
+    },
+    {
+      "variant": "ThreadRollback",
+      "method": "thread/rollback",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadRevert",
+      "method": "thread/revert",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadList",
+      "method": "thread/list",
+      "experimental": null
+    },
+    {
+      "variant": "ProjectList",
+      "method": "project/list",
+      "experimental": "project/list"
+    },
+    {
+      "variant": "ProjectRead",
+      "method": "project/read",
+      "experimental": "project/read"
+    },
+    {
+      "variant": "ProjectCreate",
+      "method": "project/create",
+      "experimental": "project/create"
+    },
+    {
+      "variant": "ProjectImport",
+      "method": "project/import",
+      "experimental": "project/import"
+    },
+    {
+      "variant": "ProjectUpdate",
+      "method": "project/update",
+      "experimental": "project/update"
+    },
+    {
+      "variant": "ProjectMove",
+      "method": "project/move",
+      "experimental": "project/move"
+    },
+    {
+      "variant": "ProjectDelete",
+      "method": "project/delete",
+      "experimental": "project/delete"
+    },
+    {
+      "variant": "ThreadSectionList",
+      "method": "threadSection/list",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadSectionCreate",
+      "method": "threadSection/create",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadSectionUpdate",
+      "method": "threadSection/update",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadSectionDelete",
+      "method": "threadSection/delete",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadSearch",
+      "method": "thread/search",
+      "experimental": "thread/search"
+    },
+    {
+      "variant": "ThreadSearchOccurrences",
+      "method": "thread/searchOccurrences",
+      "experimental": "thread/searchOccurrences"
+    },
+    {
+      "variant": "ThreadLoadedList",
+      "method": "thread/loaded/list",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadRead",
+      "method": "thread/read",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadTurnsList",
+      "method": "thread/turns/list",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadItemsList",
+      "method": "thread/items/list",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadInjectItems",
+      "method": "thread/inject_items",
+      "experimental": null
+    },
+    {
+      "variant": "SkillsList",
+      "method": "skills/list",
+      "experimental": null
+    },
+    {
+      "variant": "SkillsExtraRootsSet",
+      "method": "skills/extraRoots/set",
+      "experimental": null
+    },
+    {
+      "variant": "HooksList",
+      "method": "hooks/list",
+      "experimental": null
+    },
+    {
+      "variant": "MarketplaceAdd",
+      "method": "marketplace/add",
+      "experimental": null
+    },
+    {
+      "variant": "MarketplaceRemove",
+      "method": "marketplace/remove",
+      "experimental": null
+    },
+    {
+      "variant": "MarketplaceUpgrade",
+      "method": "marketplace/upgrade",
+      "experimental": null
+    },
+    {
+      "variant": "PluginList",
+      "method": "plugin/list",
+      "experimental": null
+    },
+    {
+      "variant": "PluginSearch",
+      "method": "plugin/search",
+      "experimental": "plugin/search"
+    },
+    {
+      "variant": "PluginInstalled",
+      "method": "plugin/installed",
+      "experimental": null
+    },
+    {
+      "variant": "PluginReconcile",
+      "method": "plugin/reconcile",
+      "experimental": null
+    },
+    {
+      "variant": "PluginRead",
+      "method": "plugin/read",
+      "experimental": null
+    },
+    {
+      "variant": "PluginSkillRead",
+      "method": "plugin/skill/read",
+      "experimental": null
+    },
+    {
+      "variant": "PluginShareSave",
+      "method": "plugin/share/save",
+      "experimental": null
+    },
+    {
+      "variant": "PluginShareUpdateTargets",
+      "method": "plugin/share/updateTargets",
+      "experimental": null
+    },
+    {
+      "variant": "PluginShareList",
+      "method": "plugin/share/list",
+      "experimental": null
+    },
+    {
+      "variant": "PluginShareCheckout",
+      "method": "plugin/share/checkout",
+      "experimental": null
+    },
+    {
+      "variant": "PluginShareDelete",
+      "method": "plugin/share/delete",
+      "experimental": null
+    },
+    {
+      "variant": "AppsRead",
+      "method": "app/read",
+      "experimental": null
+    },
+    {
+      "variant": "AppsList",
+      "method": "app/list",
+      "experimental": null
+    },
+    {
+      "variant": "AppsInstalled",
+      "method": "app/installed",
+      "experimental": null
+    },
+    {
+      "variant": "FsReadFile",
+      "method": "fs/readFile",
+      "experimental": null
+    },
+    {
+      "variant": "FsWriteFile",
+      "method": "fs/writeFile",
+      "experimental": null
+    },
+    {
+      "variant": "FsCreateDirectory",
+      "method": "fs/createDirectory",
+      "experimental": null
+    },
+    {
+      "variant": "FsGetMetadata",
+      "method": "fs/getMetadata",
+      "experimental": null
+    },
+    {
+      "variant": "FsReadDirectory",
+      "method": "fs/readDirectory",
+      "experimental": null
+    },
+    {
+      "variant": "FsRemove",
+      "method": "fs/remove",
+      "experimental": null
+    },
+    {
+      "variant": "FsCopy",
+      "method": "fs/copy",
+      "experimental": null
+    },
+    {
+      "variant": "FsWatch",
+      "method": "fs/watch",
+      "experimental": null
+    },
+    {
+      "variant": "FsUnwatch",
+      "method": "fs/unwatch",
+      "experimental": null
+    },
+    {
+      "variant": "SkillsConfigWrite",
+      "method": "skills/config/write",
+      "experimental": null
+    },
+    {
+      "variant": "PluginInstall",
+      "method": "plugin/install",
+      "experimental": null
+    },
+    {
+      "variant": "PluginUninstall",
+      "method": "plugin/uninstall",
+      "experimental": null
+    },
+    {
+      "variant": "TurnStart",
+      "method": "turn/start",
+      "experimental": null
+    },
+    {
+      "variant": "TurnSettingsUpdate",
+      "method": "turn/settings/update",
+      "experimental": "turn/settings/update"
+    },
+    {
+      "variant": "TurnSteer",
+      "method": "turn/steer",
+      "experimental": null
+    },
+    {
+      "variant": "TurnInterrupt",
+      "method": "turn/interrupt",
+      "experimental": null
+    },
+    {
+      "variant": "ThreadRealtimeStart",
+      "method": "thread/realtime/start",
+      "experimental": "thread/realtime/start"
+    },
+    {
+      "variant": "ThreadRealtimeAppendAudio",
+      "method": "thread/realtime/appendAudio",
+      "experimental": "thread/realtime/appendAudio"
+    },
+    {
+      "variant": "ThreadRealtimeAppendText",
+      "method": "thread/realtime/appendText",
+      "experimental": "thread/realtime/appendText"
+    },
+    {
+      "variant": "ThreadRealtimeAppendSpeech",
+      "method": "thread/realtime/appendSpeech",
+      "experimental": "thread/realtime/appendSpeech"
+    },
+    {
+      "variant": "ThreadRealtimeStop",
+      "method": "thread/realtime/stop",
+      "experimental": "thread/realtime/stop"
+    },
+    {
+      "variant": "ThreadTimelineList",
+      "method": "thread/timeline/list",
+      "experimental": "thread/timeline/list"
+    },
+    {
+      "variant": "ThreadRealtimeListVoices",
+      "method": "thread/realtime/listVoices",
+      "experimental": "thread/realtime/listVoices"
+    },
+    {
+      "variant": "ReviewStart",
+      "method": "review/start",
+      "experimental": null
+    },
+    {
+      "variant": "ModelList",
+      "method": "model/list",
+      "experimental": null
+    },
+    {
+      "variant": "ModelProviderCapabilitiesRead",
+      "method": "modelProvider/capabilities/read",
+      "experimental": null
+    },
+    {
+      "variant": "ExperimentalFeatureList",
+      "method": "experimentalFeature/list",
+      "experimental": null
+    },
+    {
+      "variant": "PermissionProfileList",
+      "method": "permissionProfile/list",
+      "experimental": null
+    },
+    {
+      "variant": "ExperimentalFeatureEnablementSet",
+      "method": "experimentalFeature/enablement/set",
+      "experimental": null
+    },
+    {
+      "variant": "RemoteControlEnable",
+      "method": "remoteControl/enable",
+      "experimental": "remoteControl/enable"
+    },
+    {
+      "variant": "RemoteControlDisable",
+      "method": "remoteControl/disable",
+      "experimental": "remoteControl/disable"
+    },
+    {
+      "variant": "RemoteControlStatusRead",
+      "method": "remoteControl/status/read",
+      "experimental": "remoteControl/status/read"
+    },
+    {
+      "variant": "RemoteControlPairingStart",
+      "method": "remoteControl/pairing/start",
+      "experimental": "remoteControl/pairing/start"
+    },
+    {
+      "variant": "RemoteControlPairingStatus",
+      "method": "remoteControl/pairing/status",
+      "experimental": "remoteControl/pairing/status"
+    },
+    {
+      "variant": "RemoteControlClientsList",
+      "method": "remoteControl/client/list",
+      "experimental": "remoteControl/client/list"
+    },
+    {
+      "variant": "RemoteControlClientsRevoke",
+      "method": "remoteControl/client/revoke",
+      "experimental": "remoteControl/client/revoke"
+    },
+    {
+      "variant": "CollaborationModeList",
+      "method": "collaborationMode/list",
+      "experimental": "collaborationMode/list"
+    },
+    {
+      "variant": "MockExperimentalMethod",
+      "method": "mock/experimentalMethod",
+      "experimental": "mock/experimentalMethod"
+    },
+    {
+      "variant": "EnvironmentAdd",
+      "method": "environment/add",
+      "experimental": "environment/add"
+    },
+    {
+      "variant": "EnvironmentInfo",
+      "method": "environment/info",
+      "experimental": "environment/info"
+    },
+    {
+      "variant": "EnvironmentStatus",
+      "method": "environment/status",
+      "experimental": "environment/status"
+    },
+    {
+      "variant": "McpServerOauthLogin",
+      "method": "mcpServer/oauth/login",
+      "experimental": null
+    },
+    {
+      "variant": "McpServerRefresh",
+      "method": "config/mcpServer/reload",
+      "experimental": null
+    },
+    {
+      "variant": "McpServerStatusList",
+      "method": "mcpServerStatus/list",
+      "experimental": null
+    },
+    {
+      "variant": "McpResourceRead",
+      "method": "mcpServer/resource/read",
+      "experimental": null
+    },
+    {
+      "variant": "McpServerEventStreamStart",
+      "method": "mcpServer/event/stream/start",
+      "experimental": "mcpServer/event/stream/start"
+    },
+    {
+      "variant": "McpServerEventStreamStop",
+      "method": "mcpServer/event/stream/stop",
+      "experimental": "mcpServer/event/stream/stop"
+    },
+    {
+      "variant": "McpServerToolCall",
+      "method": "mcpServer/tool/call",
+      "experimental": null
+    },
+    {
+      "variant": "WindowsSandboxSetupStart",
+      "method": "windowsSandbox/setupStart",
+      "experimental": null
+    },
+    {
+      "variant": "WindowsSandboxReadiness",
+      "method": "windowsSandbox/readiness",
+      "experimental": null
+    },
+    {
+      "variant": "LoginAccount",
+      "method": "account/login/start",
+      "experimental": null
+    },
+    {
+      "variant": "BedrockDiscover",
+      "method": "account/bedrock/discover",
+      "experimental": "account/bedrock/discover"
+    },
+    {
+      "variant": "BedrockSetup",
+      "method": "account/bedrock/setup",
+      "experimental": "account/bedrock/setup"
+    },
+    {
+      "variant": "CancelLoginAccount",
+      "method": "account/login/cancel",
+      "experimental": null
+    },
+    {
+      "variant": "LogoutAccount",
+      "method": "account/logout",
+      "experimental": null
+    },
+    {
+      "variant": "GetAccountRateLimits",
+      "method": "account/rateLimits/read",
+      "experimental": null
+    },
+    {
+      "variant": "ConsumeAccountRateLimitResetCredit",
+      "method": "account/rateLimitResetCredit/consume",
+      "experimental": null
+    },
+    {
+      "variant": "GetAccountTokenUsage",
+      "method": "account/usage/read",
+      "experimental": null
+    },
+    {
+      "variant": "GetWorkspaceMessages",
+      "method": "account/workspaceMessages/read",
+      "experimental": null
+    },
+    {
+      "variant": "SendAddCreditsNudgeEmail",
+      "method": "account/sendAddCreditsNudgeEmail",
+      "experimental": null
+    },
+    {
+      "variant": "FeedbackUpload",
+      "method": "feedback/upload",
+      "experimental": null
+    },
+    {
+      "variant": "OneOffCommandExec",
+      "method": "command/exec",
+      "experimental": null
+    },
+    {
+      "variant": "CommandExecWrite",
+      "method": "command/exec/write",
+      "experimental": null
+    },
+    {
+      "variant": "CommandExecTerminate",
+      "method": "command/exec/terminate",
+      "experimental": null
+    },
+    {
+      "variant": "CommandExecResize",
+      "method": "command/exec/resize",
+      "experimental": null
+    },
+    {
+      "variant": "ProcessSpawn",
+      "method": "process/spawn",
+      "experimental": "process/spawn"
+    },
+    {
+      "variant": "ProcessWriteStdin",
+      "method": "process/writeStdin",
+      "experimental": "process/writeStdin"
+    },
+    {
+      "variant": "ProcessKill",
+      "method": "process/kill",
+      "experimental": "process/kill"
+    },
+    {
+      "variant": "ProcessResizePty",
+      "method": "process/resizePty",
+      "experimental": "process/resizePty"
+    },
+    {
+      "variant": "ConfigRead",
+      "method": "config/read",
+      "experimental": null
+    },
+    {
+      "variant": "ExternalAgentConfigDetect",
+      "method": "externalAgentConfig/detect",
+      "experimental": null
+    },
+    {
+      "variant": "ExternalAgentConfigImport",
+      "method": "externalAgentConfig/import",
+      "experimental": null
+    },
+    {
+      "variant": "ExternalAgentConfigImportHistoryRecord",
+      "method": "externalAgentConfig/import/recordHistory",
+      "experimental": null
+    },
+    {
+      "variant": "ExternalAgentConfigImportHistoriesRead",
+      "method": "externalAgentConfig/import/readHistories",
+      "experimental": null
+    },
+    {
+      "variant": "ConfigValueWrite",
+      "method": "config/value/write",
+      "experimental": null
+    },
+    {
+      "variant": "ConfigBatchWrite",
+      "method": "config/batchWrite",
+      "experimental": null
+    },
+    {
+      "variant": "ConfigRequirementsRead",
+      "method": "configRequirements/read",
+      "experimental": null
+    },
+    {
+      "variant": "GetAccount",
+      "method": "account/read",
+      "experimental": null
+    },
+    {
+      "variant": "GetConversationSummary",
+      "method": "getConversationSummary",
+      "experimental": null
+    },
+    {
+      "variant": "GitDiffToRemote",
+      "method": "gitDiffToRemote",
+      "experimental": null
+    },
+    {
+      "variant": "GetAuthStatus",
+      "method": "getAuthStatus",
+      "experimental": null
+    },
+    {
+      "variant": "FuzzyFileSearch",
+      "method": "fuzzyFileSearch",
+      "experimental": null
+    },
+    {
+      "variant": "FuzzyFileSearchSessionStart",
+      "method": "fuzzyFileSearch/sessionStart",
+      "experimental": "fuzzyFileSearch/sessionStart"
+    },
+    {
+      "variant": "FuzzyFileSearchSessionUpdate",
+      "method": "fuzzyFileSearch/sessionUpdate",
+      "experimental": "fuzzyFileSearch/sessionUpdate"
+    },
+    {
+      "variant": "FuzzyFileSearchSessionStop",
+      "method": "fuzzyFileSearch/sessionStop",
+      "experimental": "fuzzyFileSearch/sessionStop"
+    }
+  ],
+  "clientNotifications": [],
+  "blockTypes": [
+    "add",
+    "agentMessage",
+    "assistant-message",
+    "automatic-approval-review",
+    "code",
+    "codespan",
+    "codexDirective",
+    "commandExecution",
+    "context-compaction",
+    "delete",
+    "dynamic-tool-call",
+    "dynamicToolCall",
+    "error",
+    "exec",
+    "file",
+    "fileChange",
+    "generated-image",
+    "google-drive",
+    "heartbeat",
+    "imageGeneration",
+    "install",
+    "list_files",
+    "mcp-tool-call",
+    "mcpToolCall",
+    "paragraph",
+    "patch",
+    "plan",
+    "plugin",
+    "proposed-plan",
+    "read",
+    "realtime-transcript",
+    "reasoning",
+    "search",
+    "subagent-activity",
+    "success",
+    "system-error",
+    "unknown",
+    "update",
+    "url",
+    "user-message",
+    "worked-for"
+  ],
+  "statuses": [
+    "completed",
+    "denied",
+    "done",
+    "failed",
+    "inProgress",
+    "in_progress",
+    "interrupted",
+    "running",
+    "skipped"
+  ],
+  "phases": [
+    "final_answer"
+  ]
+}
