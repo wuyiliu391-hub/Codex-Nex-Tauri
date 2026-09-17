@@ -226,9 +226,15 @@ function renderMainHome() {
   main.innerHTML = `
     <section class="view view-home${reviewOpen ? " has-review" : ""}" id="view-home">
       <div class="home-main-col" id="home-main-col">
-        <div class="chat-header" id="chat-header" ${sessionTitle ? "" : "hidden"}>
-          ${headerIcon}
-          <span class="chat-header-title">${escapeHtml(sessionTitle)}</span>
+        <div class="home-top-bar" id="home-top-bar">
+          <div class="chat-header" id="chat-header" ${sessionTitle ? "" : "hidden"}>
+            ${headerIcon}
+            <span class="chat-header-title">${escapeHtml(sessionTitle)}</span>
+          </div>
+          <div class="home-top-spacer"></div>
+          <button class="workspace-toggle-btn" id="btn-workspace-toggle" aria-label="${escapeHtml(t("home.togglePanel", "切换面板"))}" title="${escapeHtml(t("home.togglePanel", "切换面板"))}">
+            <svg viewBox="0 0 18 18" fill="none"><rect x="3" y="3.5" width="12" height="11" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M11 3.5v11" stroke="currentColor" stroke-width="1.3"/></svg>
+          </button>
         </div>
         <div class="home-center" id="home-empty">
           ${HERO_ICON}
@@ -250,7 +256,7 @@ function renderMainHome() {
                 <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M9.33496 16.5V10.665H3.5C3.13273 10.665 2.83496 10.3673 2.83496 10C2.83496 9.63273 3.13273 9.33496 3.5 9.33496H9.33496V3.5C9.33496 3.13273 9.63273 2.83496 10 2.83496C10.3673 2.83496 10.665 3.13273 10.665 3.5V9.33496H16.5L16.6338 9.34863C16.9369 9.41057 17.165 9.67857 17.165 10C17.165 10.3214 16.9369 10.5894 16.6338 10.6514L16.5 10.665H10.665V16.5C10.665 16.8673 10.3673 17.165 10 17.165C9.63273 17.165 9.33496 16.8673 9.33496 16.5Z" fill="currentColor"/></svg>
               </button>
               <button class="composer-pill access ${permission.tone}" id="chip-full-access" aria-haspopup="menu">
-                <span class="shield"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 1.5 4 4v5c0 4 2.5 7.5 5 7.5s5-3.5 5-7.5V4l-5-2.5Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M9 6.5l1.2 2.4 2.6.4-1.9 1.8.5 2.6-2.4-1.3-2.4 1.3.5-2.6L6.2 9.3l2.6-.4L9 6.5Z" fill="currentColor" stroke="none"/></svg></span>
+                <span class="permission-hand"><svg viewBox="0 0 18 18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11V3.5a1.5 1.5 0 0 1 3 0V11"/><path d="M10 5.5a1.5 1.5 0 0 1 3 0V11"/><path d="M13 7.5a1.5 1.5 0 0 1 3 0v3.5c0 3.3-2.2 5.5-5 5.5-2.8 0-5-2.2-5-5.5V8a1.5 1.5 0 0 1 3 0v3"/><path d="M4 11a1.5 1.5 0 0 0-1.5 1.5v.5"/></svg></span>
                 <span>${escapeHtml(permission.label)}</span>
               </button>
               </div>
@@ -349,6 +355,13 @@ function bindHomeEvents() {
   $("chip-full-access")?.addEventListener("click", (e) => openPermissionMenu(e.currentTarget));
   $("chip-model")?.addEventListener("click", (e) => openModelMenu(e.currentTarget));
   $("btn-add-project")?.addEventListener("click", addProjectViaDialog);
+  $("btn-workspace-toggle")?.addEventListener("click", () => {
+    if (reviewOpen) {
+      closeReview();
+    } else {
+      openReview([]);
+    }
+  });
 }
 
 function renderThread() {
@@ -770,9 +783,9 @@ function openModelMenu(anchor) {
     const pct = EFFORT_ORDER.length > 1 ? (effortIdx / (EFFORT_ORDER.length - 1)) * 100 : 100;
     const track = menu.querySelector(".model-panel-track");
     if (track) {
-      track.style.setProperty("--thumb", `calc(8px + (100% - 16px) * ${pct / 100})`);
+      track.style.setProperty("--thumb", `calc(11px + (100% - 22px) * ${pct / 100})`);
       const dotsEl = track.querySelector(".model-panel-dots");
-      if (dotsEl) dotsEl.style.setProperty("--fill", `calc(8px + (100% - 16px) * ${pct / 100})`);
+      if (dotsEl) dotsEl.style.setProperty("--fill", `calc(11px + (100% - 22px) * ${pct / 100})`);
     }
   }
 
@@ -812,9 +825,9 @@ function openModelMenu(anchor) {
     const pct = EFFORT_ORDER.length > 1 ? (idx / (EFFORT_ORDER.length - 1)) * 100 : 100;
     const track = slider.closest(".model-panel-track");
     if (track) {
-      track.style.setProperty("--thumb", `calc(8px + (100% - 16px) * ${pct / 100})`);
+      track.style.setProperty("--thumb", `calc(11px + (100% - 22px) * ${pct / 100})`);
       const dots = track.querySelector(".model-panel-dots");
-      if (dots) dots.style.setProperty("--fill", `calc(8px + (100% - 16px) * ${pct / 100})`);
+      if (dots) dots.style.setProperty("--fill", `calc(11px + (100% - 22px) * ${pct / 100})`);
     }
   });
   slider?.addEventListener("change", commitEffort);

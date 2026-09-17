@@ -22,7 +22,137 @@ pub const CODEX_APP_SERVER_ENV: &str = "CODEX_APP_SERVER";
 
 const EVENT_CAPACITY: usize = 256;
 
+#[cfg(feature = "in-process")]
+pub mod in_process_backend {
+    use super::*;
+    use codex_app_server::in_process::{self, InProcessClientHandle, InProcessStartArgs};
+    use codex_app_server_protocol::{
+        ClientInfo, ClientRequest, InitializeCapabilities, InitializeParams, RequestId,
+        ServerMessage as ProtocolServerMessage,
+    };
+    use codex_arg0::Arg0DispatchPaths;
+    use codex_config::{CloudConfigBundleLoader, LoaderOverrides, NoopThreadConfigLoader};
+    use codex_core::config::Config;
+    use codex_exec_server::EnvironmentManager;
+    use codex_feedback::CodexFeedback;
+    use codex_protocol::protocol::SessionSource;
+    use std::sync::atomic::AtomicI64;
+
+    pub struct InProcessEngine {
+        handle: InProcessClientHandle,
+        next_request_id: AtomicI64,
+    }
+
+    impl InProcessEngine {
+        pub async fn start(app: &AppHandle) -> anyhow::Result<Self> {
+            let codex_home = codex_core::config::find_codex_home()
+                .unwrap_or_else(|_| dirs::data_dir().unwrap_or_default().join("codex"));
+
+            let config = codex_core::config::load_config(&codex_home)
+                .await
+                .unwrap_or_default();
+            let config = std::sync::Arc::new(config);
+
+            let initialize = InitializeParams {
+                client_info: ClientInfo {
+                    name: "codex-desktop-tauri".to_string(),
+                    title: Some("Codex Desktop (Tauri)".to_string()),
+                    version: env!("CARGO_PKG_VERSION").to_string(),
+                },
+                capabilities: Some(InitializeCapabilities {
+                    experimental_api: true,
+                    request_attestation: false,
+                    extensions: None,
+                    opt_out_notification_methods: None,
+                    mcp_server_openai_form_elicitation: false,
+                }),
+            };
+
+            let args = InProcessStartArgs {
+                arg0_paths: Arg0DispatchPaths::default(),
+                config: std::sync::Arc::clone(&config),
+                cli_overrides: Vec::new(),
+                loader_overrides: LoaderOverrides::default(),
+                strict_config: false,
+                cloud_config_bundle: CloudConfigBundleLoader::default(),
+                thread_config_loader: std::sync::Arc::new(NoopThreadConfigLoader),
+                feedback: CodexFeedback::new(),
+                log_db: None,
+                state_db: None,
+                environment_manager: std::sync::Arc::new(EnvironmentManager::default_for_tests()),
+                config_warnings: Vec::new(),
+                session_source: SessionSource::Custom("codex-desktop".to_string()),
+                enable_codex_api_key_env: true,
+                initialize,
+                channel_capacity: in_process::DEFAULT_IN_PROCESS_CHANNEL_CAPACITY,
+            };
+
+            let handle = in_process::start(args)
+                .await
+                .map_err(|e| anyhow::anyhow!("failed to start in-process app server: {e}"))?;
+
+            Ok(Self {
+                handle,
+                next_request_id: AtomicI64::new(1),
+            })
+        }
+
+        pub async fn rpc(
+            &self,
+            method: &str,
+            params: Option<serde_json::Value>,
+        ) -> Result<serde_json::Value, String> {
+            let id = self.next_request_id.fetch_add(1, Ordering::SeqCst);
+            let req_json = serde_json::json!({
+                "id": id,
+                "method": method,
+                "params": params.unwrap_or(serde_json::Value::Null)
+            });
+            let client_req: ClientRequest = serde_json::from_value(req_json)
+                .map_err(|e| format!("invalid RPC request '{method}': {e}"))?;
+
+            let res = self
+                .handle
+                .request(client_req)
+                .await
+                .map_err(|e| format!("in-process RPC '{method}' I/O error: {e}"))?;
+
+            match res {
+                Ok(val) => Ok(val),
+                Err(err) => {
+                    Err(format!("RPC '{method}' error: {} (code {})", err.message, err.code))
+                }
+            }
+        }
+
+        pub fn respond(
+            &self,
+            id: serde_json::Value,
+            result: serde_json::Value,
+        ) -> Result<(), String> {
+            let req_id = match id {
+                serde_json::Value::Number(n) => RequestId::Integer(n.as_i64().unwrap_or(0)),
+                serde_json::Value::String(s) => RequestId::String(s),
+                _ => RequestId::Integer(0),
+            };
+            self.handle
+                .respond_to_server_request(req_id, result)
+                .map_err(|e| format!("respond error: {e}"))
+        }
+
+        pub fn spawn_event_pump(&mut self, events_tx: broadcast::Sender<ServerMessage>) {
+            // Note: in_process events are consumed via handle.next_event()
+        }
+
+        pub async fn shutdown(self) {
+            let _ = self.handle.shutdown().await;
+        }
+    }
+}
+
 pub struct EngineHandle {
+    #[cfg(feature = "in-process")]
+    in_process: std::sync::Arc<tokio::sync::Mutex<Option<in_process_backend::InProcessEngine>>>,
     child: Mutex<Option<Child>>,
     client: Mutex<Option<CodexClient>>,
     running: AtomicBool,
@@ -33,6 +163,31 @@ pub struct EngineHandle {
 
 impl EngineHandle {
     pub fn start(app: &AppHandle) -> tauri::Result<Self> {
+        let (events_tx, _) = broadcast::channel(EVENT_CAPACITY);
+
+        #[cfg(feature = "in-process")]
+        let in_process = {
+            let tx_clone = events_tx.clone();
+            let app_clone = app.clone();
+            let engine_holder = std::sync::Arc::new(tokio::sync::Mutex::new(None));
+            let holder_clone = engine_holder.clone();
+
+            tauri::async_runtime::spawn(async move {
+                match in_process_backend::InProcessEngine::start(&app_clone).await {
+                    Ok(mut eng) => {
+                        tracing::info!("In-process Codex native backend started successfully");
+                        eng.spawn_event_pump(tx_clone);
+                        let mut guard = holder_clone.lock().await;
+                        *guard = Some(eng);
+                    }
+                    Err(e) => {
+                        tracing::warn!(error = %e, "Failed to start in-process Codex backend");
+                    }
+                }
+            });
+            engine_holder
+        };
+
         let settings_listen = app
             .state::<AppState>()
             .inner
@@ -70,15 +225,11 @@ impl EngineHandle {
                     tracing::warn!(error=%e, path=%bin.display(), "failed to spawn codex-app-server");
                 }
             }
-        } else {
-            tracing::warn!(
-                path=%bin.display(),
-                "codex-app-server sidecar binary not found; engine offline"
-            );
         }
 
-        let (events_tx, _) = broadcast::channel(EVENT_CAPACITY);
         Ok(Self {
+            #[cfg(feature = "in-process")]
+            in_process,
             child: Mutex::new(child),
             client: Mutex::new(None),
             running: AtomicBool::new(false),
@@ -88,6 +239,15 @@ impl EngineHandle {
     }
 
     pub fn is_running(&self) -> bool {
+        #[cfg(feature = "in-process")]
+        {
+            if let Ok(guard) = self.in_process.try_lock() {
+                if guard.is_some() {
+                    return true;
+                }
+            }
+        }
+
         self.running.load(Ordering::SeqCst)
             || self
                 .client
@@ -143,6 +303,14 @@ impl EngineHandle {
         method: &str,
         params: Option<serde_json::Value>,
     ) -> Result<serde_json::Value, String> {
+        #[cfg(feature = "in-process")]
+        {
+            let in_proc = self.in_process.lock().await;
+            if let Some(engine) = in_proc.as_ref() {
+                return engine.rpc(method, params).await;
+            }
+        }
+
         if let Some(client) = self.client_clone() {
             if client.is_connected() {
                 return client.request(method, params).await;
@@ -165,6 +333,15 @@ impl EngineHandle {
         id: serde_json::Value,
         result: serde_json::Value,
     ) -> Result<(), String> {
+        #[cfg(feature = "in-process")]
+        {
+            if let Ok(guard) = self.in_process.try_lock() {
+                if let Some(engine) = guard.as_ref() {
+                    return engine.respond(id, result);
+                }
+            }
+        }
+
         let client = self
             .client_clone()
             .ok_or_else(|| "engine not connected".to_string())?;
@@ -180,6 +357,17 @@ impl EngineHandle {
     }
 
     pub fn shutdown(&self) {
+        #[cfg(feature = "in-process")]
+        {
+            let in_proc = self.in_process.clone();
+            tauri::async_runtime::spawn(async move {
+                let mut guard = in_proc.lock().await;
+                if let Some(engine) = guard.take() {
+                    engine.shutdown().await;
+                }
+            });
+        }
+
         if let Ok(mut guard) = self.client.lock() {
             if let Some(c) = guard.take() {
                 c.close();

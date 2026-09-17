@@ -5,6 +5,7 @@ description = "Codex desktop shell (Tauri) powered by official codex-app-server 
 authors = ["Codex Contributors"]
 edition = "2021"
 rust-version = "1.77"
+workspace = "../codex-rust-v0.154.0/codex-rs"
 
 [lib]
 name = "codex_tauri_lib"
@@ -37,18 +38,30 @@ cron = "0.12"
 walkdir = "2"
 regex = "1"
 
-# ─── Optional in-process backend (OFF by default) ─────────────────────────────
-# Pulling these path deps requires the official codex-rust tree next to this
-# repo and links the entire 100+ crate workspace. Cloud CI must NOT enable
-# this feature — shell-only builds stay green without the official tree.
-# See docs/RUST_BACKEND.md Mode B.
-#
-# codex-app-server-protocol = { path = "../../codex-rust-v0.154.0/codex-rs/app-server-protocol", optional = true }
-# codex-app-server-client   = { path = "../../codex-rust-v0.154.0/codex-rs/app-server-client",   optional = true }
+# ─── In-process native engine backend ─────────────────────────────────────────
+codex-app-server          = { path = "../codex-rust-v0.154.0/codex-rs/app-server",          optional = true }
+codex-app-server-protocol = { path = "../codex-rust-v0.154.0/codex-rs/app-server-protocol", optional = true }
+codex-app-server-client   = { path = "../codex-rust-v0.154.0/codex-rs/app-server-client",   optional = true }
+codex-protocol            = { path = "../codex-rust-v0.154.0/codex-rs/protocol",            optional = true }
+codex-core                = { path = "../codex-rust-v0.154.0/codex-rs/core",                optional = true }
+codex-config              = { path = "../codex-rust-v0.154.0/codex-rs/config",              optional = true }
+codex-arg0                = { path = "../codex-rust-v0.154.0/codex-rs/arg0",                optional = true }
+codex-exec-server         = { path = "../codex-rust-v0.154.0/codex-rs/exec-server",         optional = true }
+codex-feedback            = { path = "../codex-rust-v0.154.0/codex-rs/feedback",            optional = true }
 
 [features]
-default = []
-# in-process = ["dep:codex-app-server-protocol", "dep:codex-app-server-client"]
+default = ["in-process"]
+in-process = [
+    "dep:codex-app-server",
+    "dep:codex-app-server-protocol",
+    "dep:codex-app-server-client",
+    "dep:codex-protocol",
+    "dep:codex-core",
+    "dep:codex-config",
+    "dep:codex-arg0",
+    "dep:codex-exec-server",
+    "dep:codex-feedback",
+]
 
 [profile.release]
 codegen-units = 1

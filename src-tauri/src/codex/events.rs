@@ -51,7 +51,8 @@ pub fn spawn_event_bridge(app: AppHandle) {
 pub fn map_server_message(msg: &ServerMessage) -> Option<(String, serde_json::Value)> {
     match msg {
         ServerMessage::Notification { method, params } => {
-            let name = format!("codex:{}", method.replace('/', "-"));
+            let sanitized = method.replace(['/', '.'], "-");
+            let name = format!("codex:{}", sanitized);
             Some((name, params.clone().unwrap_or(serde_json::Value::Null)))
         }
         ServerMessage::Request { method, params, id } => {
@@ -63,7 +64,8 @@ pub fn map_server_message(msg: &ServerMessage) -> Option<(String, serde_json::Va
             } else if method.contains("elicitation") {
                 "codex:user-input".to_string()
             } else {
-                format!("codex:server-request-{}", method.replace('/', "-"))
+                let sanitized = method.replace(['/', '.'], "-");
+                format!("codex:server-request-{}", sanitized)
             };
             Some((
                 name,

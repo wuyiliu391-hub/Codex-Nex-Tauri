@@ -242,7 +242,12 @@ async function openSettingsPage(id) {
     el.classList.toggle("is-active", el.dataset.link === id);
   });
   const root = $("settings-main");
-  root.innerHTML = `<div class="settings-content" id="settings-content"></div>`;
+  root.innerHTML = `
+    <button class="settings-close-btn" id="settings-close-btn" aria-label="${escapeHtml(t("action.close", "关闭"))}" title="${escapeHtml(t("action.close", "关闭"))}">
+      <svg viewBox="0 0 18 18"><path d="m4.5 4.5 9 9M13.5 4.5l-9 9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </button>
+    <div class="settings-content" id="settings-content"></div>`;
+  root.querySelector("#settings-close-btn")?.addEventListener("click", () => navigate("home"));
   const content = $("settings-content");
   await loadPageRuntimeState(id);
   const render = RENDERERS[id] || renderGeneral;

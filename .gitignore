@@ -1,5 +1,7 @@
 # Rust
 src-tauri/target/
+**/target/
+target/
 **/*.rs.bk
 Cargo.lock.bak
 

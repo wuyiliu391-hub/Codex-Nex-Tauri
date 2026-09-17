@@ -11,9 +11,9 @@ function escapeHtml(s) {
 function $(id) { return document.getElementById(id); }
 
 function scheduledIcon(type) {
-  if (type === "daily") return `<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10 6.5V10l3 2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+  if (type === "daily") return `<svg viewBox="0 0 20 20"><path d="M10 3.5a4 4 0 0 0-4 4v3.2l-1.3 2.1a.8.8 0 0 0 .7 1.2h9.2a.8.8 0 0 0 .7-1.2L14 10.7V7.5a4 4 0 0 0-4-4Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8.5 15a1.8 1.8 0 0 0 3 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
   if (type === "weekly") return `<svg viewBox="0 0 20 20"><rect x="3.5" y="4.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 8h13M6.5 3.5v2M13.5 3.5v2" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>`;
-  if (type === "followup") return `<svg viewBox="0 0 20 20"><path d="M10 2.5a7.5 7.5 0 0 1 7.5 7.5c0 2.5-1.2 4.7-3 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10 6.5v3.5l2.5 1.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+  if (type === "followup") return `<svg viewBox="0 0 20 20"><path d="M5.5 3.5h9a1.5 1.5 0 0 1 1.5 1.5v10a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 4 15V5a1.5 1.5 0 0 1 1.5-1.5Z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="m7.5 10 2 2 3.5-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   return "";
 }
 

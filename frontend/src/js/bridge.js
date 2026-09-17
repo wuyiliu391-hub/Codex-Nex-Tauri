@@ -83,10 +83,10 @@ export function onCodexEvent(name, handler) {
     console.warn("[bridge] Tauri listen not available for", name);
     return () => {};
   }
-  // Tauri plugin:event names allow only [A-Za-z0-9-/:_]; dots are rejected
+  // Tauri plugin:event names allow only [A-Za-z0-9-/:_]; dots and invalid chars are rejected
   // with "invalid args 'event' for command 'listen'". The Rust emitter
   // (events.rs) uses `-` as separator, so sanitize here to match it.
-  const channel = String(name).replace(/\./g, "-");
+  const channel = String(name).replace(/[^A-Za-z0-9-/:_]/g, "-");
   let unlisten = null;
   listenFn(channel, (e) => handler(e?.payload ?? e)).then((fn) => {
     unlisten = fn;

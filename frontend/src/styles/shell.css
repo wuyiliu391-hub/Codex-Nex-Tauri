@@ -423,18 +423,29 @@ html.theme-dark[data-sidebar-style="lavender"] .sidebar .project-item.is-active 
   box-shadow: none;
 }
 .sidebar-brand {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 32px;
+  display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 2px 8px 8px;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 4px 4px 8px 8px;
   min-height: 40px;
 }
-.brand-title {
+.brand-title-wrap {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: #1a1c1f;
+  border: 0;
+  background: transparent;
+  padding: 4px 6px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  color: var(--fg-primary);
+}
+.brand-title-wrap:hover {
+  background: var(--bg-hover);
+}
+.brand-title {
+  color: var(--fg-primary);
   font-family: var(--font-sans);
   font-size: 16px;
   font-weight: 700;
@@ -444,22 +455,41 @@ html.theme-dark[data-sidebar-style="lavender"] .sidebar .project-item.is-active 
   -webkit-font-smoothing: antialiased;
   text-rendering: geometricPrecision;
 }
-html.theme-dark .brand-title {
-  color: #ffffff;
+.brand-chevron {
+  width: 14px;
+  height: 14px;
+  color: var(--fg-secondary);
+  opacity: 0.8;
 }
-.brand-title .work {
-  /* legacy: unused when brand is single "Codex" */
-  color: inherit;
-  font-weight: inherit;
+.brand-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
-.brand-search {
-  width: 32px; height: 32px;
-  border: 0; background: transparent; color: var(--fg-secondary);
+.brand-icon-btn {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  background: transparent;
+  color: var(--fg-secondary);
   border-radius: var(--radius-md);
-  display: grid; place-items: center;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
 }
-.brand-search:hover { background: var(--bg-hover); color: var(--fg-primary); }
-.brand-search svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.brand-icon-btn:hover {
+  background: var(--bg-hover);
+  color: var(--fg-primary);
+}
+.brand-icon-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 
 .nav-top { display: flex; flex-direction: column; gap: 2px; padding-top: 8px; }
 .nav-item {
@@ -556,19 +586,136 @@ html.theme-dark .brand-title {
   color: var(--fg-muted);
 }
 
-.sidebar-foot { margin-top: 8px; display: flex; align-items: center; justify-content: space-between; padding: 8px 4px 0; gap: 4px; }
-.sidebar-settings { flex: 0 1 auto; }
+.sidebar-foot {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 4px 0;
+  gap: 4px;
+}
+.sidebar-profile {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-md);
+  border: 0;
+  background: transparent;
+  color: var(--fg-primary);
+  font-size: var(--text-base, 14px);
+  cursor: pointer;
+  text-align: left;
+}
+.sidebar-profile:hover {
+  background: var(--bg-hover);
+}
+.sidebar-profile .ico {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  color: var(--fg-secondary);
+  flex: 0 0 18px;
+}
+.sidebar-profile .profile-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--fg-primary);
+}
 .sidebar-help-btn {
-  width: 28px; height: 28px;
-  border: 0; background: transparent;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  background: transparent;
   border-radius: var(--radius-md);
   color: var(--fg-muted);
-  display: grid; place-items: center;
+  display: grid;
+  place-items: center;
   flex: 0 0 auto;
   cursor: pointer;
 }
 .sidebar-help-btn:hover { background: var(--bg-hover); color: var(--fg-primary); }
 .sidebar-help-btn svg { width: 16px; height: 16px; }
+
+/* Workspace toggle button (top-right of main card, matching official-home.png) */
+.workspace-toggle-btn {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  z-index: 25;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--fg-secondary);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+}
+.workspace-toggle-btn:hover {
+  background: var(--bg-hover);
+  color: var(--fg-primary);
+}
+.workspace-toggle-btn svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* User profile popover menu */
+.profile-menu {
+  position: fixed;
+  z-index: 100;
+  width: 240px;
+  padding: 6px;
+  border-radius: 12px;
+  background: var(--bg-canvas);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14), 0 0 0 1px color-mix(in srgb, var(--fg-primary) 6%, transparent);
+}
+.profile-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg-primary);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.profile-menu-item:hover:not(.is-disabled) {
+  background: var(--bg-hover);
+}
+.profile-menu-item.is-disabled {
+  color: var(--fg-muted);
+  cursor: default;
+}
+.profile-menu-item kbd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-muted);
+}
+.profile-menu-divider {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border-subtle);
+}
 
 /* ---------- Main / view container ---------- */
 .main {

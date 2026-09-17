@@ -3,6 +3,7 @@
 import { navigate } from "./router.js";
 import { iconSvg } from "./icons.js";
 import { t } from "./i18n.js";
+import { store } from "./state.js";
 
 // ── In-titlebar File/Edit/View/Help (official frameless chrome) ─────────────
 // OS native menus are invisible with decorations:false; official draws them here.
@@ -301,6 +302,61 @@ function handleAction(action) {
   }
 }
 
+// ── User Profile Popover (official T23) ─────────────────────────────────────
+let openProfilePanel = null;
+
+function closeProfileMenu() {
+  openProfilePanel?.remove();
+  openProfilePanel = null;
+}
+
+function openProfileMenu(trigger) {
+  if (openProfilePanel) {
+    closeProfileMenu();
+    return;
+  }
+  const panel = document.createElement("div");
+  panel.className = "profile-menu";
+  panel.innerHTML = `
+    <button class="profile-menu-item is-disabled" type="button" disabled>
+      <span>${escapeHtmlText(t("user.loggedIn", "已通过 API 密钥登录"))}</span>
+    </button>
+    <div class="profile-menu-divider"></div>
+    <button class="profile-menu-item" type="button" data-action="show-pet">
+      <span>${escapeHtmlText(t("user.showPet", "显示宠物"))}</span>
+      <kbd>Alt+Win+P</kbd>
+    </button>
+    <button class="profile-menu-item" type="button" data-action="settings">
+      <span>${escapeHtmlText(t("user.settings", "设置"))}</span>
+      <kbd>Ctrl+,</kbd>
+    </button>
+    <div class="profile-menu-divider"></div>
+    <button class="profile-menu-item" type="button" data-action="logout">
+      <span>${escapeHtmlText(t("user.logout", "退出登录"))}</span>
+    </button>
+  `;
+  panel.querySelectorAll("[data-action]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const action = btn.dataset.action;
+      closeProfileMenu();
+      handleAction(action);
+    });
+  });
+  document.body.appendChild(panel);
+  const r = trigger.getBoundingClientRect();
+  panel.style.left = `${Math.round(r.left)}px`;
+  panel.style.bottom = `${Math.round(window.innerHeight - r.top + 6)}px`;
+  openProfilePanel = panel;
+}
+
+export function updateSidebarProfile() {
+  const el = document.getElementById("sidebar-profile-name");
+  if (!el) return;
+  const activeId = store.settings?.activeProviderId;
+  const provider = (store.providers || []).find((p) => p.id === activeId);
+  el.textContent = provider?.name || activeId || "Codex";
+}
+
 // ── Init ────────────────────────────────────────────────────────────────────
 
 export function initShell() {
@@ -335,6 +391,38 @@ export function initShell() {
     window.runtime?.Quit?.();
   });
 
+  // Profile menu in sidebar footer.
+  const profileBtn = document.getElementById("sidebar-profile-btn");
+  profileBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    openProfileMenu(profileBtn);
+  });
+  document.addEventListener("pointerdown", (e) => {
+    if (openProfilePanel && !e.target.closest(".profile-menu, #sidebar-profile-btn")) {
+      closeProfileMenu();
+    }
+  }, true);
+
+  // Notifications button in sidebar brand.
+  document.getElementById("btn-notifications")?.addEventListener("click", () => {
+    navigate("settings", "general");
+  });
+
+  // Help button in sidebar footer.
+  document.getElementById("sidebar-help")?.addEventListener("click", () => {
+    window.runtime?.BrowserOpenURL?.("https://developers.openai.com/codex");
+  });
+
+  // Brand dropdown button in sidebar header.
+  document.getElementById("brand-menu-btn")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    profileBtn?.click();
+  });
+
   // Native Tauri menu events (File/Edit/View/Help).
   initNativeMenuListener();
+
+  // Initial sync of profile label.
+  updateSidebarProfile();
+  document.addEventListener("codex:refresh", updateSidebarProfile);
 }
