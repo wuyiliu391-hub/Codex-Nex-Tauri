@@ -20,9 +20,11 @@ import {
   refreshAppState,
   saveSettings,
   setActiveSession,
+  setEngineStatus,
   useAppState,
   type SettingsState,
 } from "@/state/appStore";
+import { loadThreadFromSession } from "@/state/turnStore";
 import { useTurnState } from "@/state/hooks";
 
 /** Prompt cards shown on the blank home guide. Keys resolve under `home.prompt.*`. */
@@ -77,26 +79,31 @@ export function HomeView() {
     void saveSettings(patch);
   }, []);
 
-  // Prompt cards fill the composer rather than sending straight away.
+  // Hydrate history whenever the active session changes (sidebar / stepTask).
+  // Skip while a turn is already live for this thread — the composer creates
+  // the session and begins the user turn in the same tick, and a reload here
+  // would wipe that optimistic bubble.
   useEffect(() => {
-    const onUsePrompt = (e: Event): void => {
-      const detail = (e as CustomEvent<string>).detail ?? "";
-      const el = document.getElementById("composer-input");
-      if (el instanceof HTMLTextAreaElement) {
-        el.value = detail;
-        el.dispatchEvent(new Event("input", { bubbles: true }));
-        el.focus();
-      }
-    };
-    window.addEventListener("codex:use-prompt", onUsePrompt);
-    return () => window.removeEventListener("codex:use-prompt", onUsePrompt);
-  }, []);
+    if (!activeSessionId) return;
+    if (turn.active && turn.sessionId === activeSessionId) return;
+    void loadThreadFromSession(activeSessionId);
+  }, [activeSessionId, turn.active, turn.sessionId]);
 
-  // The engine is asked for its status so the empty state can say why it is empty.
+  // Prompt cards dispatch codex:use-prompt; Composer owns the controlled
+  // textarea and applies the fill via setText (not a DOM value poke).
+
+  // Probe engine status once; result is stored for the empty-state / diagnostics.
   useEffect(() => {
-    void invoke("engine_status").catch(() => {
-      /* status is advisory; the stream simply stays empty */
-    });
+    void invoke<{ connected?: boolean; initialize?: Record<string, unknown> }>("engine_status")
+      .then((raw) => {
+        setEngineStatus({
+          connected: raw?.connected === true,
+          initialize: raw?.initialize ?? null,
+        });
+      })
+      .catch(() => {
+        setEngineStatus({ connected: false, initialize: null });
+      });
   }, []);
 
   const hasHistory = turn.order.length > 0;

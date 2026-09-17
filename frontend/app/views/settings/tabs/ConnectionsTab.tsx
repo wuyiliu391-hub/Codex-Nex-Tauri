@@ -41,6 +41,7 @@ function asConnectors(raw: unknown): Connector[] {
 
 export function ConnectionsTab() {
   const [conns, setConns] = useState<Connector[] | null>(null);
+  const [testResult, setTestResult] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
     void invoke<unknown>("list_connectors")
@@ -73,9 +74,14 @@ export function ConnectionsTab() {
 
   async function test(id: string): Promise<void> {
     try {
-      await invoke("test_connector", { id });
+      const raw = await invoke<{ ok?: boolean; detail?: string; error?: string }>("test_connector", { id });
+      if (raw && raw.ok === false) {
+        setTestResult(raw.detail || raw.error || label("connections.testFailed", "Test failed"));
+      } else {
+        setTestResult(raw?.detail || label("connections.testOk", "Connector probe completed"));
+      }
     } catch (err) {
-      console.warn("[connections] test failed", err);
+      setTestResult(err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -117,6 +123,7 @@ export function ConnectionsTab() {
             onClick={() => void addConnector()}
           />
         </div>
+        {testResult ? <div className="plugin-desc site-empty">{testResult}</div> : null}
       </Block>
     </>
   );

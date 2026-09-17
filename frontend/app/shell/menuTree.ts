@@ -23,7 +23,8 @@ export type MenuEntry = MenuItem | MenuSeparator;
 
 export const MENU_TREE: Record<"file" | "edit" | "view" | "help", MenuEntry[]> = {
   file: [
-    { action: "new-window", key: "menu.newWindow", keys: "Ctrl+Shift+N" },
+    // new-window omitted: multi-window is unsupported and must not appear as a
+    // working menu action.
     { action: "new-task", key: "menu.newTask", keys: "Ctrl+N" },
     { action: "new-projectless-task", key: "menu.newProjectlessTask", keys: "Ctrl+Alt+O" },
     { sep: true },

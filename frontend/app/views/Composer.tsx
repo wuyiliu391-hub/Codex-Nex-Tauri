@@ -7,14 +7,15 @@
  *   the send button becomes a stop button while a turn is running
  *
  * Nothing is sent locally: the text goes straight to `send_message` (or
- * `new_session` first when no thread is open yet).
+ * `new_session` first when no thread is open yet). Attachments come from the
+ * native dialog and ride along on `send_message`.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { t } from "../../src/js/i18n.js";
 import { Dropdown } from "@/shell/Dropdown";
-import { useAppState } from "@/state/appStore";
+import { pickAttachmentFiles, setActiveProject, useAppState } from "@/state/appStore";
 import { beginUserTurn, resetTurn } from "@/state/turnStore";
 
 /** Composer growth cap, matching the vanilla shell. */
@@ -56,6 +57,21 @@ function effortKey(raw: string | undefined): Effort {
   return "xhigh";
 }
 
+function basename(path: string): string {
+  return path.replace(/\\/g, "/").split("/").filter(Boolean).pop() || path;
+}
+
+function isImagePath(path: string): boolean {
+  return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(path);
+}
+
+/** Official UserInput shapes for local files (engine just appends them). */
+function toUserInput(path: string): Record<string, unknown> {
+  return isImagePath(path)
+    ? { type: "localImage", path }
+    : { type: "file", path };
+}
+
 export function Composer({
   running,
   activeSessionId,
@@ -67,12 +83,15 @@ export function Composer({
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [multiline, setMultiline] = useState(false);
+  const [attachments, setAttachments] = useState<string[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  const { projects, providers } = useAppState();
+  const { projects, providers, activeProjectId } = useAppState();
 
-  const activeProjectId = projects[0]?.id ?? "";
-  const projectLabel = projects[0]?.name ?? String(t("home.chooseProject", "Choose project"));
+  const selectedProject =
+    projects.find((p) => p.id === activeProjectId) ?? projects[0] ?? null;
+  const projectCwd = selectedProject?.path ?? "";
+  const projectLabel = selectedProject?.name ?? String(t("home.chooseProject", "Choose project"));
 
   const provider = providers.find((p) => p.id === settings.activeProviderId);
   const models = provider?.models ?? [];
@@ -94,6 +113,18 @@ export function Composer({
     setMultiline(height > 40);
   }, [text]);
 
+  // Prompt cards dispatch codex:use-prompt; Composer is a controlled input so
+  // the fill must go through setText, not a DOM value poke.
+  useEffect(() => {
+    const onUsePrompt = (e: Event): void => {
+      const detail = (e as CustomEvent<string>).detail ?? "";
+      setText(detail);
+      textareaRef.current?.focus();
+    };
+    window.addEventListener("codex:use-prompt", onUsePrompt);
+    return () => window.removeEventListener("codex:use-prompt", onUsePrompt);
+  }, []);
+
   const interrupt = useCallback(async () => {
     if (!activeSessionId) return;
     try {
@@ -102,6 +133,22 @@ export function Composer({
       console.error("[composer] interrupt failed", err);
     }
   }, [activeSessionId]);
+
+  const addAttachments = useCallback(async () => {
+    const paths = await pickAttachmentFiles();
+    if (!paths.length) return;
+    setAttachments((prev) => {
+      const seen = new Set(prev);
+      const next = prev.slice();
+      for (const path of paths) {
+        if (!seen.has(path)) {
+          seen.add(path);
+          next.push(path);
+        }
+      }
+      return next;
+    });
+  }, []);
 
   const send = useCallback(async () => {
     if (running) {
@@ -113,11 +160,14 @@ export function Composer({
 
     setSending(true);
     let sessionId = activeSessionId;
+    const files = attachments.slice();
 
     try {
       // Open a thread first when the composer is used from the blank home guide.
       if (!sessionId) {
-        const created = await invoke<{ id?: string }>("new_session", { projectPath: activeProjectId });
+        const created = await invoke<{ id?: string }>("new_session", {
+          projectPath: projectCwd || null,
+        });
         const newId = created?.id;
         if (!newId) {
           setSending(false);
@@ -129,9 +179,18 @@ export function Composer({
       }
 
       setText("");
+      setAttachments([]);
       beginUserTurn(sessionId, value);
 
-      await invoke("send_message", { sessionId, message: value });
+      const payload =
+        files.length > 0
+          ? {
+              sessionId,
+              message: value,
+              attachments: files.map(toUserInput),
+            }
+          : { sessionId, message: value };
+      await invoke("send_message", payload);
     } catch (err) {
       // Never leave a phantom bubble behind on failure.
       console.error("[composer] send failed", err);
@@ -141,7 +200,17 @@ export function Composer({
       setSending(false);
       textareaRef.current?.focus();
     }
-  }, [running, text, sending, activeSessionId, activeProjectId, interrupt, onSessionCreated, onRefresh]);
+  }, [
+    running,
+    text,
+    sending,
+    attachments,
+    activeSessionId,
+    projectCwd,
+    interrupt,
+    onSessionCreated,
+    onRefresh,
+  ]);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -159,11 +228,11 @@ export function Composer({
         <Dropdown
           className="composer-project"
           ariaLabel={String(t("home.chooseProject", "Choose project"))}
-          value={activeProjectId}
+          value={selectedProject?.id ?? ""}
           items={projects.map((p) => ({ value: p.id, label: p.name }))}
-          onChange={() => {
-            // Switching project starts a new thread on that cwd; the session
-            // list is refreshed by the shell.
+          onChange={(value) => {
+            // Switch the active project; the next new_session uses its cwd.
+            setActiveProject(value);
             onRefresh();
           }}
           disabled={projects.length === 0}
@@ -180,6 +249,23 @@ export function Composer({
           <span className="proj-name">{projectLabel}</span>
         </Dropdown>
       </div>
+
+      {attachments.length > 0 ? (
+        <div className="composer-attachments" id="composer-attachments">
+          {attachments.map((path) => (
+            <span className="attach-chip" key={path} title={path}>
+              <span>{basename(path)}</span>
+              <button
+                type="button"
+                aria-label={`Remove ${basename(path)}`}
+                onClick={() => setAttachments((prev) => prev.filter((p) => p !== path))}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      ) : null}
 
       <div className={`composer-shell${multiline ? " is-multiline" : ""}`}>
         <textarea
@@ -200,11 +286,11 @@ export function Composer({
               id="composer-add"
               type="button"
               aria-label={String(t("home.addFiles", "Add files"))}
-              onClick={() => window.dispatchEvent(new CustomEvent("codex:add-attachment"))}
+              onClick={() => void addAttachments()}
             >
               <svg viewBox="0 0 20 20" aria-hidden="true">
                 <path
-                  d="M9.33 16.5v-5.83H3.5a.83.83 0 0 1 0-1.67h5.83V3.5a.83.83 0 1 1 1.67 0v5.83h5.83a.83.83 0 0 1 0 1.67H11v5.83a.83.83 0 0 1-1.67 0Z"
+                  d="M9.33 16.5v-5.83H3.5a.83.83 0 0 1 0-1.67h5.83V3.5a.83.83 0 1 1 1.67 0v5.83h5.83a.83.83 0 0 1 0-1.67H11v5.83a.83.83 0 0 1-1.67 0Z"
                   fill="currentColor"
                 />
               </svg>

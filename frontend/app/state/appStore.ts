@@ -4,6 +4,8 @@
  * Everything here is fetched from the backend; nothing is seeded locally. The
  * project list is derived from session `cwd` values, because the official
  * app-server has no separate project concept (every thread just carries a cwd).
+ * Folders picked via the native dialog are kept as extra projects until a
+ * session exists under them.
  *
  * Kept outside React and read through useSyncExternalStore so a refresh does
  * not require a provider.
@@ -37,6 +39,11 @@ export interface ProviderEntry {
   hasApiKey: boolean;
 }
 
+export interface EngineStatus {
+  connected: boolean;
+  initialize: Record<string, unknown> | null;
+}
+
 /** Shell settings that the React layer reads. Mirrors the backend shell-state. */
 export interface SettingsState {
   activeModel: string;
@@ -51,6 +58,8 @@ export interface SettingsState {
   webSearch: string;
   outputVerbosity: string;
   reasoningSummary: string;
+  /** Last folder the user opened as a project (dialog picker). */
+  activeProjectPath: string;
 }
 
 export function defaultSettings(): SettingsState {
@@ -66,6 +75,7 @@ export function defaultSettings(): SettingsState {
     webSearch: "cached",
     outputVerbosity: "medium",
     reasoningSummary: "auto",
+    activeProjectPath: "",
   };
 }
 
@@ -75,6 +85,12 @@ export interface AppState {
   providers: ProviderEntry[];
   settings: SettingsState;
   activeSessionId: string | null;
+  /** Selected project cwd (ProjectEntry.id). */
+  activeProjectId: string | null;
+  /** Projects opened via dialog that may not own any session yet. */
+  extraProjects: ProjectEntry[];
+  /** Last engine_status payload; null until first probe. */
+  engineStatus: EngineStatus | null;
   /** False until the first successful load; drives the empty state. */
   loaded: boolean;
   error: string | null;
@@ -87,6 +103,9 @@ function emptyState(): AppState {
     providers: [],
     settings: defaultSettings(),
     activeSessionId: null,
+    activeProjectId: null,
+    extraProjects: [],
+    engineStatus: null,
     loaded: false,
     error: null,
   };
@@ -125,6 +144,10 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function projectNameFromPath(path: string): string {
+  return path.replace(/\\/g, "/").split("/").filter(Boolean).pop() || path;
 }
 
 function normaliseSessions(raw: unknown): SessionSummary[] {
@@ -178,16 +201,160 @@ export function deriveProjects(sessions: SessionSummary[]): ProjectEntry[] {
   for (const session of sessions) {
     if (!session.cwd || seen.has(session.cwd)) continue;
     seen.add(session.cwd);
-    const name = session.cwd.replace(/\\/g, "/").split("/").filter(Boolean).pop() || session.cwd;
-    out.push({ id: session.cwd, name, path: session.cwd });
+    out.push({ id: session.cwd, name: projectNameFromPath(session.cwd), path: session.cwd });
   }
   return out;
+}
+
+function mergeProjects(derived: ProjectEntry[], extra: ProjectEntry[]): ProjectEntry[] {
+  const seen = new Set(derived.map((p) => p.id));
+  const merged = derived.slice();
+  for (const project of extra) {
+    if (!project.id || seen.has(project.id)) continue;
+    seen.add(project.id);
+    merged.push(project);
+  }
+  return merged;
+}
+
+function resolveActiveProjectId(projects: ProjectEntry[], preferred: string | null): string | null {
+  if (preferred && projects.some((p) => p.id === preferred)) return preferred;
+  if (state.settings.activeProjectPath) {
+    const match = projects.find((p) => p.id === state.settings.activeProjectPath);
+    if (match) return match.id;
+  }
+  return projects[0]?.id ?? null;
 }
 
 // ── actions ───────────────────────────────────────────────────────────
 
 export function setActiveSession(id: string | null): void {
   commit({ ...state, activeSessionId: id });
+}
+
+export function setActiveProject(id: string | null): void {
+  const project = state.projects.find((p) => p.id === id);
+  commit({
+    ...state,
+    activeProjectId: id,
+    settings: {
+      ...state.settings,
+      activeProjectPath: project?.path ?? (id ?? ""),
+    },
+  });
+  // Best-effort persist; engine config is not involved for project cwd.
+  void invoke("save_settings", {
+    settings: {
+      ...state.settings,
+      activeProjectPath: project?.path ?? (id ?? ""),
+      active_provider_id: state.settings.activeProviderId,
+      active_model: state.settings.activeModel,
+      approval_policy: state.settings.approvalPolicy,
+      sandbox: state.settings.sandbox,
+      language: state.settings.language,
+    },
+  }).catch(() => {
+    /* shell store is optional; UI state is already updated */
+  });
+}
+
+/**
+ * Native folder picker (tauri-plugin-dialog). Returns the chosen absolute path
+ * or null when cancelled. Capabilities already allow dialog:allow-open.
+ */
+export async function pickProjectDirectory(): Promise<string | null> {
+  try {
+    const result = await invoke<string | string[] | null>("plugin:dialog|open", {
+      options: { directory: true, multiple: false },
+    });
+    if (Array.isArray(result)) return result[0] ?? null;
+    return typeof result === "string" && result ? result : null;
+  } catch (err) {
+    console.error("[appStore] project folder picker failed", err);
+    return null;
+  }
+}
+
+/** Native multi-file picker used by the composer attachment button. */
+export async function pickAttachmentFiles(): Promise<string[]> {
+  try {
+    const result = await invoke<string | string[] | null>("plugin:dialog|open", {
+      options: { multiple: true },
+    });
+    if (!result) return [];
+    return Array.isArray(result) ? result.filter(Boolean) : [result];
+  } catch (err) {
+    console.error("[appStore] attachment picker failed", err);
+    return [];
+  }
+}
+
+/**
+ * Open a folder as a project: dialog → store → select.
+ * Persisted via save_settings.activeProjectPath; list is also kept in memory
+ * so a project without sessions still appears in the sidebar.
+ */
+export async function openProjectPicker(): Promise<ProjectEntry | null> {
+  const path = await pickProjectDirectory();
+  if (!path) return null;
+  return addProject(path);
+}
+
+/** Register a cwd as a project and select it. Does not start a session. */
+export function addProject(path: string): ProjectEntry | null {
+  const cwd = path.trim();
+  if (!cwd) return null;
+  const entry: ProjectEntry = {
+    id: cwd,
+    name: projectNameFromPath(cwd),
+    path: cwd,
+  };
+  const extraProjects = state.extraProjects.some((p) => p.id === entry.id)
+    ? state.extraProjects
+    : [...state.extraProjects, entry];
+  const projects = mergeProjects(deriveProjects(state.sessions), extraProjects);
+  commit({
+    ...state,
+    extraProjects,
+    projects,
+    activeProjectId: entry.id,
+    settings: { ...state.settings, activeProjectPath: cwd },
+  });
+  void invoke("save_settings", {
+    settings: {
+      ...state.settings,
+      activeProjectPath: cwd,
+      active_provider_id: state.settings.activeProviderId,
+      active_model: state.settings.activeModel,
+      approval_policy: state.settings.approvalPolicy,
+      sandbox: state.settings.sandbox,
+      language: state.settings.language,
+    },
+  }).catch(() => {});
+  // Also keep a preferences copy so environments tab / restart can recover.
+  void invoke("get_preferences")
+    .then((raw) => {
+      const prefs = asRecord(raw);
+      const env = asRecord(prefs["environments"]);
+      const existing = Array.isArray(env["projects"]) ? (env["projects"] as unknown[]) : [];
+      const already = existing.some((p) => asRecord(p)["path"] === cwd || asRecord(p)["id"] === cwd);
+      if (already) return;
+      return invoke("save_preferences", {
+        preferences: {
+          ...prefs,
+          environments: {
+            ...env,
+            projects: [...existing, { id: cwd, name: entry.name, path: cwd }],
+          },
+        },
+      });
+    })
+    .catch(() => {});
+  return entry;
+}
+
+export function setEngineStatus(status: EngineStatus | null): void {
+  commit({ ...state, engineStatus: status });
 }
 
 /** Reload sessions / providers / settings from the engine. Failures are surfaced, not hidden. */
@@ -199,12 +366,16 @@ export async function refreshAppState(): Promise<void> {
       invoke("get_settings").catch(() => null),
     ]);
     const sessions = normaliseSessions(sessionsRaw);
+    const derived = deriveProjects(sessions);
+    const projects = mergeProjects(derived, state.extraProjects);
+    const settings = { ...state.settings, ...normaliseSettings(settingsRaw) };
     commit({
       ...state,
       sessions,
-      projects: deriveProjects(sessions),
+      projects,
       providers: normaliseProviders(providersRaw),
-      settings: { ...state.settings, ...normaliseSettings(settingsRaw) },
+      settings,
+      activeProjectId: resolveActiveProjectId(projects, state.activeProjectId),
       loaded: true,
       error: null,
     });
@@ -220,12 +391,16 @@ export async function refreshAppState(): Promise<void> {
 function normaliseSettings(raw: unknown): Partial<SettingsState> {
   const rec = asRecord(raw);
   const out: Partial<SettingsState> = {};
-  if (typeof rec["activeModel"] === "string") out.activeModel = rec["activeModel"];
-  if (typeof rec["activeProviderId"] === "string") out.activeProviderId = rec["activeProviderId"];
-  if (typeof rec["modelReasoningEffort"] === "string") {
-    out.modelReasoningEffort = rec["modelReasoningEffort"];
-  }
-  if (typeof rec["approvalPolicy"] === "string") out.approvalPolicy = rec["approvalPolicy"];
+  // Accept both camelCase (frontend) and snake_case (Rust Settings struct).
+  const pick = (camel: string, snake: string): unknown => rec[camel] ?? rec[snake];
+  const activeModel = pick("activeModel", "active_model");
+  if (typeof activeModel === "string") out.activeModel = activeModel;
+  const activeProviderId = pick("activeProviderId", "active_provider_id");
+  if (typeof activeProviderId === "string") out.activeProviderId = activeProviderId;
+  const effort = pick("modelReasoningEffort", "model_reasoning_effort");
+  if (typeof effort === "string") out.modelReasoningEffort = effort;
+  const approval = pick("approvalPolicy", "approval_policy");
+  if (typeof approval === "string") out.approvalPolicy = approval;
   if (typeof rec["fullAccess"] === "boolean") out.fullAccess = rec["fullAccess"];
   if (typeof rec["sidebarCollapsed"] === "boolean") out.sidebarCollapsed = rec["sidebarCollapsed"];
   if (typeof rec["language"] === "string") out.language = rec["language"];
@@ -233,6 +408,8 @@ function normaliseSettings(raw: unknown): Partial<SettingsState> {
   if (typeof rec["webSearch"] === "string") out.webSearch = rec["webSearch"];
   if (typeof rec["outputVerbosity"] === "string") out.outputVerbosity = rec["outputVerbosity"];
   if (typeof rec["reasoningSummary"] === "string") out.reasoningSummary = rec["reasoningSummary"];
+  const projectPath = pick("activeProjectPath", "active_project_path");
+  if (typeof projectPath === "string") out.activeProjectPath = projectPath;
   return out;
 }
 
@@ -242,40 +419,71 @@ function normaliseSettings(raw: unknown): Partial<SettingsState> {
  * Two writes are needed:
  *   1. `save_settings` — the shell's own shell-state.json
  *   2. `config/batchWrite` — the engine's config.toml, for the keys the engine
- *      actually owns (model / provider / reasoning effort / approval policy)
+ *      actually owns
  *
- * Skipping (2) is why the model slider and approval policy used to look like
- * they saved but never reached the engine.
+ * Official batchWrite shape is `{ edits: [{ keyPath, value, mergeStrategy }],
+ * reloadUserConfig: true }` — NOT `{ writes }`.
  */
 export async function saveSettings(patch: Partial<SettingsState>): Promise<void> {
   const next = { ...state.settings, ...patch };
   commit({ ...state, settings: next });
 
   try {
-    await invoke("save_settings", { settings: next });
+    // Dual-shape payload: camelCase for any frontend readers, snake_case for
+    // the Rust Settings struct (serde field names). Unknown keys are ignored.
+    await invoke("save_settings", {
+      settings: {
+        ...next,
+        active_model: next.activeModel,
+        active_provider_id: next.activeProviderId,
+        approval_policy: next.approvalPolicy,
+        active_project_path: next.activeProjectPath,
+      },
+    });
   } catch (err) {
     console.error("[appStore] saveSettings (shell) failed", err);
   }
 
-  const writes: Array<{ key: string; value: unknown }> = [];
+  const edits: Array<{ keyPath: string; value: unknown; mergeStrategy: string }> = [];
+  const push = (keyPath: string, value: unknown): void => {
+    edits.push({ keyPath, value, mergeStrategy: "replace" });
+  };
+
   if (patch.activeModel !== undefined && patch.activeModel) {
-    writes.push({ key: "model", value: patch.activeModel });
+    push("model", patch.activeModel);
   }
   if (patch.activeProviderId !== undefined && patch.activeProviderId) {
-    writes.push({ key: "model_provider", value: patch.activeProviderId });
+    push("model_provider", patch.activeProviderId);
   }
   if (patch.modelReasoningEffort !== undefined) {
-    writes.push({ key: "model_reasoning_effort", value: patch.modelReasoningEffort });
+    push("model_reasoning_effort", patch.modelReasoningEffort);
   }
   if (patch.approvalPolicy !== undefined) {
-    // The engine only knows on-request / never.
+    // Engine only knows on-request / never.
     const mapped = patch.approvalPolicy === "never" ? "never" : "on-request";
-    writes.push({ key: "approval_policy", value: mapped });
+    push("approval_policy", mapped);
   }
-  if (!writes.length) return;
+  if (patch.sandbox !== undefined && patch.sandbox) {
+    // ConfigurationTab writes sandbox values; engine key is sandbox_mode.
+    push("sandbox_mode", patch.sandbox);
+    push("sandbox", patch.sandbox);
+  }
+  if (patch.webSearch !== undefined && patch.webSearch) {
+    push("web_search", patch.webSearch);
+  }
+  if (patch.outputVerbosity !== undefined && patch.outputVerbosity) {
+    push("model_output_verbosity", patch.outputVerbosity);
+  }
+  if (patch.reasoningSummary !== undefined && patch.reasoningSummary) {
+    push("model_reasoning_summary", patch.reasoningSummary);
+  }
+  if (!edits.length) return;
 
   try {
-    await invoke("rpc_raw", { method: "config/batchWrite", params: { writes } });
+    await invoke("rpc_raw", {
+      method: "config/batchWrite",
+      params: { edits, reloadUserConfig: true },
+    });
   } catch (err) {
     // The shell copy is already saved; the engine may simply be offline.
     console.warn("[appStore] engine config write failed (engine offline?)", err);
@@ -287,4 +495,11 @@ export function sessionsForProject(projectId: string): SessionSummary[] {
   return state.sessions
     .filter((s) => !s.archived && s.projectId === projectId)
     .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+}
+
+/** Path used as `new_session` cwd — the selected project, not a hardcoded first. */
+export function activeProjectPath(): string {
+  const id = state.activeProjectId;
+  const project = state.projects.find((p) => p.id === id);
+  return project?.path ?? id ?? "";
 }

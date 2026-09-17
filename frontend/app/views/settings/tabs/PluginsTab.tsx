@@ -1,14 +1,15 @@
 /**
- * Plugins tab — the engine-reported MCP server list.
+ * Plugins tab — the engine-reported MCP server list plus plugin list.
  *
  * Ports renderPlugins() from settings.js. Servers come from list_mcp_servers
  * (mcpServerStatus/list); adding a server writes through save_mcp_server.
+ * Enable/disable and test-connection use the dedicated engine commands.
  */
 
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { t } from "../../../../src/js/i18n.js";
-import { Block, PageHead, SettingsButton } from "../primitives";
+import { Block, PageHead, SettingsButton, Switch } from "../primitives";
 
 function label(key: string, fallback = ""): string {
   return String(t(key, fallback));
@@ -17,33 +18,69 @@ function label(key: string, fallback = ""): string {
 interface McpServer {
   name: string;
   transport: string;
+  enabled: boolean;
+  status: string;
+  command: string;
+}
+
+interface PluginEntry {
+  id: string;
+  name: string;
+  enabled: boolean;
+}
+
+function asRecord(raw: unknown): Record<string, unknown> {
+  return raw && typeof raw === "object" && !Array.isArray(raw)
+    ? (raw as Record<string, unknown>)
+    : {};
+}
+
+function pickList(raw: unknown, ...keys: string[]): unknown[] {
+  if (Array.isArray(raw)) return raw;
+  const rec = asRecord(raw);
+  for (const key of keys) {
+    const v = rec[key];
+    if (Array.isArray(v)) return v;
+  }
+  return [];
 }
 
 function asServers(raw: unknown): McpServer[] {
-  const rec = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
-  const list = Array.isArray(rec["servers"])
-    ? (rec["servers"] as unknown[])
-    : Array.isArray(rec["data"])
-      ? (rec["data"] as unknown[])
-      : Array.isArray(raw)
-        ? raw
-        : [];
-  return list.map((entry) => {
-    const s = (entry && typeof entry === "object" ? entry : {}) as Record<string, unknown>;
+  return pickList(raw, "servers", "data").map((entry) => {
+    const s = asRecord(entry);
     return {
       name: typeof s["name"] === "string" ? s["name"] : String(s["id"] ?? ""),
       transport: typeof s["transport"] === "string" ? s["transport"] : "",
+      enabled: s["enabled"] !== false,
+      status: typeof s["status"] === "string" ? s["status"] : "",
+      command: typeof s["command"] === "string" ? s["command"] : "",
     };
-  });
+  }).filter((s) => s.name !== "");
+}
+
+function asPlugins(raw: unknown): PluginEntry[] {
+  return pickList(raw, "plugins", "data").map((entry) => {
+    const p = asRecord(entry);
+    return {
+      id: typeof p["id"] === "string" ? p["id"] : String(p["name"] ?? ""),
+      name: typeof p["name"] === "string" ? p["name"] : String(p["id"] ?? ""),
+      enabled: p["enabled"] !== false && p["uninstalled"] !== true,
+    };
+  }).filter((p) => p.id !== "");
 }
 
 export function PluginsTab() {
   const [servers, setServers] = useState<McpServer[] | null>(null);
+  const [plugins, setPlugins] = useState<PluginEntry[]>([]);
+  const [probeResult, setProbeResult] = useState<string>("");
 
   const refresh = useCallback(() => {
     void invoke<unknown>("list_mcp_servers")
       .then((raw) => setServers(asServers(raw)))
       .catch(() => setServers([]));
+    void invoke<unknown>("list_plugins")
+      .then((raw) => setPlugins(asPlugins(raw)))
+      .catch(() => setPlugins([]));
   }, []);
 
   useEffect(() => {
@@ -53,12 +90,65 @@ export function PluginsTab() {
   async function addServer(): Promise<void> {
     const name = window.prompt(label("plugins.mcpName"));
     if (!name) return;
+    const transport = window.prompt(label("plugins.mcpTransport", "Transport"), "stdio") || "stdio";
+    const command = window.prompt(label("plugins.mcpCommand", "Command"), "") || "";
     try {
       await invoke("save_mcp_server", {
-        server: { name, transport: "stdio", command: "", enabled: true },
+        server: { name, transport, command, enabled: true },
       });
     } catch (err) {
       console.warn("[plugins] save mcp server failed", err);
+    }
+    refresh();
+  }
+
+  async function toggleServer(name: string, enabled: boolean): Promise<void> {
+    try {
+      await invoke("set_mcp_server_enabled", { name, enabled });
+    } catch (err) {
+      console.warn("[plugins] set_mcp_server_enabled failed", err);
+    }
+    refresh();
+  }
+
+  async function testConnection(server: McpServer): Promise<void> {
+    setProbeResult(label("account.probing", "Probing…"));
+    try {
+      const result = await invoke<unknown>("test_mcp_connection", {
+        server: {
+          name: server.name,
+          transport: server.transport,
+          command: server.command,
+          enabled: server.enabled,
+        },
+      });
+      const rec = asRecord(result);
+      const list = pickList(result, "servers", "data");
+      const match = list
+        .map((e) => asRecord(e))
+        .find(
+          (s) =>
+            (typeof s["name"] === "string" && s["name"] === server.name) ||
+            String(s["id"] ?? "") === server.name,
+        );
+      const status =
+        (match && typeof match["status"] === "string" ? match["status"] : "") ||
+        (typeof rec["status"] === "string" ? rec["status"] : "");
+      setProbeResult(
+        status
+          ? `${server.name}: ${status}`
+          : `${server.name}: ${label("account.probeOk", "ok")}`,
+      );
+    } catch (err) {
+      setProbeResult(`${server.name}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  async function togglePlugin(id: string, enabled: boolean): Promise<void> {
+    try {
+      await invoke("set_plugin_enabled", { id, enabled });
+    } catch (err) {
+      console.warn("[plugins] set_plugin_enabled failed", err);
     }
     refresh();
   }
@@ -74,21 +164,56 @@ export function PluginsTab() {
         ) : (
           <div className="plugin-list">
             {servers.map((s, i) => (
-              <div className="plugin-row" key={i}>
+              <div className="plugin-row" key={s.name || i}>
                 <div className="plugin-icon">M</div>
                 <div>
                   <div className="plugin-name">{s.name}</div>
-                  <div className="plugin-desc">{s.transport}</div>
+                  <div className="plugin-desc">
+                    {[s.transport, s.status, s.command].filter(Boolean).join(" · ")}
+                  </div>
+                </div>
+                <div className="provider-row-actions">
+                  <SettingsButton
+                    label={label("connections.test", "Test")}
+                    onClick={() => void testConnection(s)}
+                  />
+                  <Switch
+                    checked={s.enabled}
+                    onChange={(v) => void toggleServer(s.name, v)}
+                  />
                 </div>
               </div>
             ))}
           </div>
         )}
+        {probeResult ? <div className="settings-card site-empty">{probeResult}</div> : null}
         <SettingsButton
           label={label("plugins.addMcp")}
           kind="primary"
           onClick={() => void addServer()}
         />
+      </Block>
+
+      <Block title={label("plugins.title", "Plugins")}>
+        {plugins.length === 0 ? (
+          <div className="settings-card site-empty">{label("plugins.noMcp", "None")}</div>
+        ) : (
+          <div className="plugin-list">
+            {plugins.map((p) => (
+              <div className="plugin-row" key={p.id}>
+                <div className="plugin-icon">P</div>
+                <div>
+                  <div className="plugin-name">{p.name}</div>
+                  <div className="plugin-desc">{p.id}</div>
+                </div>
+                <Switch
+                  checked={p.enabled}
+                  onChange={(v) => void togglePlugin(p.id, v)}
+                />
+              </div>
+            ))}
+          </div>
+        )}
       </Block>
     </>
   );

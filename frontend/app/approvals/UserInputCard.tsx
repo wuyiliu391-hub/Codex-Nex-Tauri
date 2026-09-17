@@ -15,6 +15,7 @@
 
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { t } from "../../src/js/i18n.js";
 import { removePendingRequest } from "@/state/turnStore";
 import type { PendingRequest } from "@/state/types";
 
@@ -106,7 +107,45 @@ export function UserInputCard({ request }: { request: PendingRequest }) {
     }
   }
 
-  if (!questions.length) return null;
+  async function decline(): Promise<void> {
+    setBusy(true);
+    setFailed(null);
+    try {
+      await invoke("respond_server_request", {
+        requestId: request.id,
+        result: { decision: "decline" },
+      });
+      removePendingRequest(request.id);
+    } catch (err) {
+      setFailed(err instanceof Error ? err.message : String(err));
+      setBusy(false);
+    }
+  }
+
+  // No structured questions: still must answer so the turn cannot hang.
+  if (!questions.length) {
+    return (
+      <section className="user-input-card" data-request-id={String(request.id)}>
+        <div className="user-input-header">
+          {String(t("approvalRequestCard.userInput", "User input"))}
+        </div>
+        <pre className="approval-card-command">
+          {JSON.stringify(params, null, 2)}
+        </pre>
+        <div className="user-input-actions">
+          <button
+            type="button"
+            className="btn btn-secondary"
+            disabled={busy}
+            onClick={() => void decline()}
+          >
+            {String(t("approvalRequestCard.deny", "Decline"))}
+          </button>
+        </div>
+        {failed ? <div className="approval-card-error">Respond failed: {failed}</div> : null}
+      </section>
+    );
+  }
 
   return (
     <section className="user-input-card" data-request-id={String(request.id)}>

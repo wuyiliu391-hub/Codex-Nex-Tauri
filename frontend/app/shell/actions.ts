@@ -12,6 +12,8 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
+import { openProjectPicker, setActiveProject, setActiveSession } from "@/state/appStore";
+import { resetTurn } from "@/state/turnStore";
 
 /** Capabilities the dispatcher needs from the React shell. */
 export interface ShellContext {
@@ -55,7 +57,17 @@ function setZoom(delta: number | "reset"): void {
 export function dispatchAction(action: string, ctx: ShellContext): void {
   switch (action) {
     case "new-task":
+      // Fresh conversation in the current project: clear the live thread so
+      // the next send goes through new_session, not the previous sessionId.
+      resetTurn();
+      setActiveSession(null);
+      ctx.navigate("home");
+      break;
+
     case "new-projectless-task":
+      resetTurn();
+      setActiveSession(null);
+      setActiveProject("");
       ctx.navigate("home");
       break;
 
@@ -69,6 +81,8 @@ export function dispatchAction(action: string, ctx: ShellContext): void {
       break;
 
     case "logout":
+      // No dedicated logout IPC; land on the account surface where the user
+      // can switch providers / re-auth. Never log a fake "logged out" stub.
       ctx.navigate("settings", "account");
       break;
 
@@ -77,7 +91,7 @@ export function dispatchAction(action: string, ctx: ShellContext): void {
       break;
 
     case "open-folder":
-      ctx.addProject();
+      void openProjectPicker();
       break;
 
     case "toggle-sidebar":
@@ -121,9 +135,8 @@ export function dispatchAction(action: string, ctx: ShellContext): void {
       break;
 
     case "new-window":
-      // Officially opens a second window; the shell has no multi-window support
-      // yet, so this deliberately does nothing rather than minimising.
-      console.info("[shell] new-window is not supported yet");
+      // Multi-window is unsupported. The menu entry is omitted from menuTree;
+      // if a shortcut still fires this id, do nothing without claiming success.
       break;
 
     case "find":

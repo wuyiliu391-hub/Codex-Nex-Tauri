@@ -8,7 +8,8 @@
  */
 
 import { t } from "../../src/js/i18n.js";
-import { useAppState } from "@/state/appStore";
+import { setActiveProject, setActiveSession, useAppState } from "@/state/appStore";
+import { getSnapshot as getTurnSnapshot, loadThreadFromSession } from "@/state/turnStore";
 import { useRoute, navigate } from "./useRoute";
 import { dispatchAction, type ShellContext } from "./actions";
 
@@ -65,13 +66,13 @@ interface SidebarProps {
 }
 
 export function Sidebar({ ctx, collapsed }: SidebarProps) {
-  const { projects, sessions, activeSessionId } = useAppState();
+  const { projects, sessions, activeSessionId, activeProjectId } = useAppState();
   const route = useRoute();
 
   // Recent sessions for the active project (or all when none is selected).
-  const activeProjectId = projects[0]?.id ?? "";
+  const selectedProjectId = activeProjectId ?? projects[0]?.id ?? "";
   const recent = sessions
-    .filter((s) => !s.archived && (s.projectId === activeProjectId || !activeProjectId))
+    .filter((s) => !s.archived && (s.projectId === selectedProjectId || !selectedProjectId))
     .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))
     .slice(0, 20);
 
@@ -160,10 +161,10 @@ export function Sidebar({ ctx, collapsed }: SidebarProps) {
         ) : (
           projects.map((project) => (
             <button
-              className={`project-row${project.id === activeProjectId ? " is-active" : ""}`}
+              className={`project-row${project.id === selectedProjectId ? " is-active" : ""}`}
               key={project.id}
               type="button"
-              onClick={() => ctx.addProject()}
+              onClick={() => setActiveProject(project.id)}
             >
               <span className="ico">
                 <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
@@ -192,8 +193,13 @@ export function Sidebar({ ctx, collapsed }: SidebarProps) {
               key={session.id}
               type="button"
               onClick={() => {
+                const turn = getTurnSnapshot();
+                // Re-open the same running thread without wiping its live turn.
+                if (!(turn.active && turn.sessionId === session.id)) {
+                  void loadThreadFromSession(session.id);
+                }
+                setActiveSession(session.id);
                 navigate("home");
-                ctx.navigate("home");
               }}
             >
               <span className="ico">

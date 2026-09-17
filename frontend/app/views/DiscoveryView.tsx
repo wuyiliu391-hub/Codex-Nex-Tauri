@@ -3,6 +3,7 @@
  *
  * Replaces discovery.js. Each page fetches its own data from a backend command
  * when entered; empty states are genuine empty responses, never seeded cards.
+ * Run / enable actions go through real Tauri IPC — no local-only toggles.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -41,6 +42,10 @@ function label(key: string, fallback: string): string {
   return String(t(key, fallback));
 }
 
+function errText(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 function Loading() {
   return <div className="discovery-loading">{label("discovery.loading", "Loading…")}</div>;
 }
@@ -63,7 +68,7 @@ function useBackendList(command: string, args: Record<string, unknown> = {}) {
         if (active) setData(asList(raw));
       })
       .catch((err) => {
-        if (active) setError(err instanceof Error ? err.message : String(err));
+        if (active) setError(errText(err));
       });
     return () => {
       active = false;
@@ -71,6 +76,18 @@ function useBackendList(command: string, args: Record<string, unknown> = {}) {
   }, [command, revision]);
 
   return { data, error, refresh: () => setRevision((v) => v + 1) };
+}
+
+/** Prefer explicit `enabled`; fall back to status text used by the local store. */
+function pluginIsEnabled(item: JsonRecord): boolean {
+  if (typeof item["enabled"] === "boolean") return item["enabled"] as boolean;
+  const status = text(item, "status").toLowerCase();
+  return status !== "disabled" && status !== "uninstalled";
+}
+
+function scheduledIsEnabled(item: JsonRecord): boolean {
+  const status = text(item, "status").toLowerCase();
+  return status !== "disabled" && status !== "paused";
 }
 
 export function DiscoveryView({ view }: { view: "scheduled" | "plugins" | "pullrequests" }) {
@@ -82,6 +99,9 @@ export function DiscoveryView({ view }: { view: "scheduled" | "plugins" | "pullr
 function ScheduledView() {
   const { data, error, refresh } = useBackendList("list_scheduled_tasks");
   const [query, setQuery] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
     return (data ?? []).filter((item) => {
@@ -89,6 +109,39 @@ function ScheduledView() {
       return ["title", "name", "description", "desc"].some((key) => text(item, key).toLowerCase().includes(q));
     });
   }, [data, query]);
+
+  async function runTask(id: string): Promise<void> {
+    if (!id || busyId) return;
+    setBusyId(id);
+    setActionError(null);
+    try {
+      await invoke("run_scheduled_task", { id });
+      refresh();
+    } catch (err) {
+      setActionError(errText(err));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function saveToggle(item: JsonRecord): Promise<void> {
+    const id = text(item, "id");
+    if (!id || !data || busyId) return;
+    const nextStatus = scheduledIsEnabled(item) ? "disabled" : "enabled";
+    const nextTasks = data.map((task) =>
+      text(task, "id") === id ? { ...task, status: nextStatus } : task,
+    );
+    setBusyId(id);
+    setActionError(null);
+    try {
+      await invoke("save_scheduled_tasks", { tasks: nextTasks });
+      refresh();
+    } catch (err) {
+      setActionError(errText(err));
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   return (
     <section className="view view-discovery" id="view-scheduled">
@@ -98,17 +151,43 @@ function ScheduledView() {
           <input className="discovery-search-input" placeholder={label("discovery.searchScheduled", "Search scheduled tasks")} value={query} onChange={(e) => setQuery(e.target.value)} />
           <SettingsButton label={label("pets.refresh", "Refresh")} onClick={refresh} />
         </div>
+        {actionError ? <div className="approval-card-error">{actionError}</div> : null}
       </BlockCustom>
       {error ? <Empty>{error}</Empty> : data === null ? <Loading /> : list.length === 0 ? <Empty>{label("discovery.noScheduled", "No scheduled tasks")}</Empty> : (
         <BlockCustom title={label("discovery.suggestions", "Scheduled tasks")}>
           <div className="suggestion-list">
-            {list.map((item, i) => (
-              <div className="suggestion-card" key={String(item.id ?? item.title ?? i)}>
-                <div className="suggestion-card-title">{text(item, "title", "name")}</div>
-                <div className="suggestion-card-desc">{text(item, "desc", "description")}</div>
-                <div className="suggestion-card-meta">{text(item, "status", "cron", "schedule")}</div>
-              </div>
-            ))}
+            {list.map((item, i) => {
+              const id = text(item, "id", "title");
+              const enabled = scheduledIsEnabled(item);
+              return (
+                <div className="suggestion-card" key={String(item.id ?? item.title ?? i)}>
+                  <div className="suggestion-card-title">{text(item, "title", "name")}</div>
+                  <div className="suggestion-card-desc">{text(item, "desc", "description")}</div>
+                  <div className="suggestion-card-meta">{text(item, "status", "cron", "schedule")}</div>
+                  <div className="pc-foot">
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      disabled={!id || busyId !== null}
+                      data-run-scheduled={id}
+                      onClick={() => void runTask(id)}
+                    >
+                      {label("action.run", "Run")}
+                    </button>
+                    <button
+                      type="button"
+                      className="ui-toggle"
+                      role="switch"
+                      aria-checked={enabled}
+                      aria-label={text(item, "title", "name") || id}
+                      disabled={!id || busyId !== null}
+                      data-scheduled-toggle={id}
+                      onClick={() => void saveToggle(item)}
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </BlockCustom>
       )}
@@ -119,10 +198,29 @@ function ScheduledView() {
 function PluginsView() {
   const { data, error, refresh } = useBackendList("list_plugins");
   const [query, setQuery] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
     return (data ?? []).filter((item) => !q || ["name", "id", "description", "desc"].some((key) => text(item, key).toLowerCase().includes(q)));
   }, [data, query]);
+
+  async function togglePlugin(item: JsonRecord): Promise<void> {
+    const id = text(item, "id", "name");
+    if (!id || busyId) return;
+    const next = !pluginIsEnabled(item);
+    setBusyId(id);
+    setActionError(null);
+    try {
+      await invoke("set_plugin_enabled", { id, enabled: next });
+      refresh();
+    } catch (err) {
+      setActionError(errText(err));
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   return (
     <section className="view view-discovery" id="view-plugins">
@@ -132,17 +230,35 @@ function PluginsView() {
           <input className="discovery-search-input" placeholder={label("discovery.searchPlugins", "Search plugins")} value={query} onChange={(e) => setQuery(e.target.value)} />
           <SettingsButton label={label("pets.refresh", "Refresh")} onClick={refresh} />
         </div>
+        {actionError ? <div className="approval-card-error">{actionError}</div> : null}
       </BlockCustom>
       {error ? <Empty>{error}</Empty> : data === null ? <Loading /> : list.length === 0 ? <Empty>{label("discovery.noPlugins", "No plugins reported")}</Empty> : (
         <BlockCustom title={label("discovery.installed", "Installed")}>
           <div className="plugins-grid">
-            {list.map((item, i) => (
-              <div className="plugin-card" key={String(item.id ?? item.name ?? i)}>
-                <div className="plugin-card-title">{text(item, "name", "id")}</div>
-                <div className="plugin-card-desc">{text(item, "desc", "description")}</div>
-                <div className="plugin-card-meta">{text(item, "status", "version")}</div>
-              </div>
-            ))}
+            {list.map((item, i) => {
+              const id = text(item, "id", "name");
+              const name = text(item, "name", "id");
+              const enabled = pluginIsEnabled(item);
+              return (
+                <div className="plugin-card" key={String(item.id ?? item.name ?? i)} data-plugin-id={id}>
+                  <div className="plugin-card-title">{name}</div>
+                  <div className="plugin-card-desc">{text(item, "desc", "description")}</div>
+                  <div className="plugin-card-meta">{text(item, "status", "version")}</div>
+                  <div className="pc-foot">
+                    <button
+                      type="button"
+                      className="ui-toggle"
+                      role="switch"
+                      aria-checked={enabled}
+                      aria-label={name || id}
+                      disabled={!id || busyId !== null}
+                      data-plugin-toggle={id}
+                      onClick={() => void togglePlugin(item)}
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </BlockCustom>
       )}

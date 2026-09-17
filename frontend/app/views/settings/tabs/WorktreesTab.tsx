@@ -43,12 +43,21 @@ export function WorktreesTab() {
 
   async function pickRoot(): Promise<void> {
     try {
-      const picked = await invoke<unknown>("rpc_raw", {
-        method: "worktree/pickRoot",
-        params: {},
+      const picked = await invoke<string | string[] | null>("plugin:dialog|open", {
+        options: { directory: true, multiple: false, title: label("worktrees.pickRoot", "Pick worktree root") },
       });
-      if (typeof picked === "string" && picked) {
-        await saveSection("worktrees", { root: picked });
+      const path = Array.isArray(picked) ? picked[0] : picked;
+      if (typeof path === "string" && path) {
+        await saveSection("worktrees", { root: path });
+        try {
+          const raw = await invoke<unknown>("rpc_raw", {
+            method: "worktree/list",
+            params: { root: path },
+          });
+          setWorktrees(asWorktrees(raw));
+        } catch {
+          setWorktrees([]);
+        }
       }
     } catch (err) {
       console.warn("[worktrees] pick root failed", err);

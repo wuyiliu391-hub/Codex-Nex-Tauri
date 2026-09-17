@@ -10,6 +10,7 @@
  * context provider.
  */
 
+import { invoke } from "@tauri-apps/api/core";
 import { emptyTurn, newItem } from "./types";
 import type {
   PendingRequest,
@@ -229,4 +230,185 @@ export function removePendingRequest(id: string | number): void {
 
 export function setError(message: string): void {
   commit({ ...state, error: message });
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function strOf(rec: Record<string, unknown>, ...keys: string[]): string {
+  for (const key of keys) {
+    const value = rec[key];
+    if (typeof value === "string" && value) return value;
+  }
+  return "";
+}
+
+function numOf(rec: Record<string, unknown>, ...keys: string[]): number | null {
+  for (const key of keys) {
+    const value = rec[key];
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+  }
+  return null;
+}
+
+/** Map a server itemType / type onto our block tag (mirrors notificationReducer). */
+function historyBlockType(raw: string): string {
+  if (!raw) return "unknown";
+  if (/^command[_-]?execution$/i.test(raw)) return "commandExecution";
+  if (/^file[_-]?change$/i.test(raw)) return "fileChange";
+  if (/^agent[_-]?message$/i.test(raw)) return "agentMessage";
+  if (/^user[_-]?message$/i.test(raw)) return "user-message";
+  if (/^mcp[_-]?tool[_-]?call$/i.test(raw)) return "mcp-tool-call";
+  if (/^reasoning$/i.test(raw)) return "reasoning";
+  return raw;
+}
+
+/**
+ * Hydrate the turn store from `get_session` + `get_runtime_events`.
+ *
+ * Official `thread/read` often returns an empty messages array; the real
+ * conversation lives in `thread/timeline/list`. Only server-provided text is
+ * shown — nothing is invented locally.
+ */
+export async function loadThreadFromSession(sessionId: string): Promise<void> {
+  if (!sessionId) {
+    commit(emptyTurn());
+    return;
+  }
+
+  // Start from a clean turn bound to this thread so stale items never leak.
+  commit({ ...emptyTurn(), sessionId });
+
+  let preview = "";
+  let threadMessages: unknown[] = [];
+
+  try {
+    const thread = asRecord(await invoke("get_session", { sessionId }));
+    preview = strOf(thread, "preview", "title", "name");
+    const messages = thread["messages"];
+    if (Array.isArray(messages)) threadMessages = messages;
+  } catch (err) {
+    setError(err instanceof Error ? err.message : String(err));
+    return;
+  }
+
+  // Timeline holds completed turns when thread.messages is empty.
+  let timelineItems: unknown[] = [];
+  try {
+    const tl = asRecord(await invoke("get_runtime_events", { sessionId }));
+    const data = tl["data"] ?? tl["items"] ?? tl;
+    if (Array.isArray(data)) timelineItems = data;
+    else if (Array.isArray(asRecord(data)["data"])) timelineItems = asRecord(data)["data"] as unknown[];
+  } catch {
+    /* offline / empty history is fine */
+  }
+
+  const items: Record<string, TurnItem> = {};
+  const order: string[] = [];
+  const push = (id: string, item: TurnItem): void => {
+    if (items[id]) return;
+    items[id] = item;
+    order.push(id);
+  };
+
+  // 1. Prefer explicit thread.messages when the server provided them.
+  if (threadMessages.length) {
+    for (let i = 0; i < threadMessages.length; i++) {
+      const msg = asRecord(threadMessages[i]);
+      const role = strOf(msg, "role");
+      const text = strOf(msg, "text", "content");
+      const id = strOf(msg, "id") || `hist-msg-${i}`;
+      if (role === "user") {
+        push(id, newItem(id, "user-message", { text, status: "completed" }));
+      } else if (text) {
+        push(id, newItem(id, "agentMessage", { text, status: "completed" }));
+      }
+      const parts = msg["parts"];
+      if (Array.isArray(parts)) {
+        for (let p = 0; p < parts.length; p++) {
+          const part = asRecord(parts[p]);
+          const partType = historyBlockType(strOf(part, "type", "kind"));
+          const partText = strOf(part, "text", "content");
+          const partId = strOf(part, "id") || `${id}-part-${p}`;
+          if (partType === "agentMessage" || partType === "user-message" || partType === "reasoning") {
+            push(partId, newItem(partId, partType, { text: partText, status: "completed" }));
+          } else if (partType === "commandExecution") {
+            push(
+              partId,
+              newItem(partId, "commandExecution", {
+                command: strOf(part, "command", "text"),
+                output: strOf(part, "output", "stdout"),
+                status: "completed",
+              }),
+            );
+          }
+        }
+      }
+    }
+  } else {
+    // 2. Fall back to timeline entries (completed turns / stored items).
+    for (let i = 0; i < timelineItems.length; i++) {
+      const entry = asRecord(timelineItems[i]);
+      const rawType = strOf(entry, "itemType", "type", "kind");
+      const blockType = historyBlockType(rawType);
+      const id = strOf(entry, "id", "itemId", "turnId") || `hist-${i}`;
+      const text = strOf(entry, "text", "content", "summary");
+      if (blockType === "user-message" || rawType === "userMessage") {
+        const body = text || (i === 0 ? preview : "");
+        push(id, newItem(id, "user-message", { text: body, status: "completed" }));
+        continue;
+      }
+      if (blockType === "agentMessage" && text) {
+        push(id, newItem(id, "agentMessage", { text, status: "completed" }));
+        continue;
+      }
+      if (blockType === "commandExecution") {
+        push(
+          id,
+          newItem(id, "commandExecution", {
+            command: strOf(entry, "command", "text"),
+            output: strOf(entry, "output", "stdout"),
+            status: "completed",
+          }),
+        );
+        continue;
+      }
+      // Nested item payloads (timeline rows wrapping the real item).
+      const nested = asRecord(entry["item"]);
+      if (Object.keys(nested).length) {
+        const nestedType = historyBlockType(strOf(nested, "itemType", "type", "kind"));
+        const nestedText = strOf(nested, "text", "content");
+        const nestedId = strOf(nested, "id") || `${id}-item`;
+        if (nestedText && (nestedType === "agentMessage" || nestedType === "reasoning")) {
+          push(nestedId, newItem(nestedId, nestedType, { text: nestedText, status: "completed" }));
+        } else if (nestedType === "commandExecution") {
+          push(
+            nestedId,
+            newItem(nestedId, "commandExecution", {
+              command: strOf(nested, "command", "text"),
+              output: strOf(nested, "output", "stdout"),
+              status: "completed",
+            }),
+          );
+        }
+      }
+    }
+  }
+
+  // 3. Seed a user bubble from the thread preview when history is otherwise empty.
+  if (!order.length && preview) {
+    push("hist-preview", newItem("hist-preview", "user-message", { text: preview, status: "completed" }));
+  }
+
+  commit({
+    ...emptyTurn(),
+    sessionId,
+    items,
+    order,
+    active: false,
+    phase: "idle",
+  });
 }
