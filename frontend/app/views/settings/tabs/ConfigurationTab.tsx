@@ -1,24 +1,50 @@
 /**
  * Configuration tab — approval policy, sandbox, web search, verbosity,
- * reasoning summary, plus the "open config.toml" action.
+ * reasoning summary, plus dependency checks and the "open config.toml" action.
  *
  * Every control writes through saveSettings(), which does the shell-state write
- * and the engine `config/batchWrite` together. That double write is the whole
- * point: previously these looked saved but never reached config.toml.
+ * and the engine `config/batchWrite` together. Dependency rows come from the
+ * engine's own check_dependencies command.
  */
 
+import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { t } from "../../../../src/js/i18n.js";
 import { saveSettings, useAppState, type SettingsState } from "@/state/appStore";
 import { Dropdown } from "@/shell/Dropdown";
 import { Block, BlockCustom, PageHead, Row, SettingsButton } from "../primitives";
 
-function label(key: string, fallback: string): string {
+function label(key: string, fallback = ""): string {
   return String(t(key, fallback));
+}
+
+interface Dependency {
+  name: string;
+  ok: boolean;
+  message: string;
+}
+
+function asDeps(raw: unknown): Dependency[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((entry) => {
+    const rec = (entry && typeof entry === "object" ? entry : {}) as Record<string, unknown>;
+    return {
+      name: typeof rec["name"] === "string" ? rec["name"] : String(rec["id"] ?? ""),
+      ok: rec["ok"] === true,
+      message: typeof rec["message"] === "string" ? rec["message"] : "",
+    };
+  });
 }
 
 export function ConfigurationTab() {
   const { settings } = useAppState();
+  const [deps, setDeps] = useState<Dependency[] | null>(null);
+
+  useEffect(() => {
+    void invoke<unknown>("check_dependencies")
+      .then((raw) => setDeps(asDeps(raw)))
+      .catch(() => setDeps([]));
+  }, []);
 
   function update(patch: Partial<SettingsState>): void {
     void saveSettings(patch);
@@ -26,7 +52,6 @@ export function ConfigurationTab() {
 
   async function openConfigToml(): Promise<void> {
     try {
-      // The engine reports its config path through config/read.
       const cfg = await invoke<Record<string, unknown>>("rpc_raw", {
         method: "config/read",
         params: {},
@@ -47,6 +72,26 @@ export function ConfigurationTab() {
         title={label("settings.configuration", "Configuration")}
         desc={label("settings.configurationDesc", "")}
       />
+
+      <Block title={label("configuration.checks")}>
+        {deps === null ? (
+          <div className="site-empty">{label("discovery.loading", "Loading…")}</div>
+        ) : deps.length === 0 ? (
+          <div className="settings-card site-empty">{label("configuration.empty")}</div>
+        ) : (
+          <div className="dependency-list">
+            {deps.map((dep, i) => (
+              <div className="plugin-row" key={i}>
+                <div className="plugin-icon">{dep.ok ? "\u2713" : "\u2715"}</div>
+                <div>
+                  <div className="plugin-name">{dep.name}</div>
+                  <div className="plugin-desc">{dep.message}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Block>
 
       <Block title={label("settings.configuration", "Configuration")}>
         <Row

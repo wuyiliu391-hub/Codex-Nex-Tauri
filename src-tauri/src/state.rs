@@ -54,7 +54,12 @@ pub struct Preferences {
     pub reduced_motion: bool,
     #[serde(default)]
     pub compact_mode: bool,
-    #[serde(default)]
+    /// Every other preference section (appearance, voice, browser, git, …).
+    ///
+    /// `flatten` is load-bearing: the frontend stores preferences as top-level
+    /// section objects and without this the whole map would be dropped on
+    /// deserialize, so nothing a settings page wrote would survive a restart.
+    #[serde(flatten)]
     pub extra: serde_json::Map<String, serde_json::Value>,
 }
 

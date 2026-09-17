@@ -23,6 +23,7 @@ import "./styles/modal.css";
 import { App } from "./App";
 import { startEventBridge } from "./bridge/events";
 import { installRouter } from "./shell/useRoute";
+import { loadPreferences } from "./state/preferencesStore";
 
 const container = document.getElementById("root");
 if (!container) {
@@ -34,6 +35,9 @@ installRouter();
 
 // Wire the protocol event bridge before first paint so no notification is lost.
 void startEventBridge();
+
+// Load shell preferences once; settings pages read them synchronously after.
+void loadPreferences();
 
 createRoot(container).render(
   <StrictMode>

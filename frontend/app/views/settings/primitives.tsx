@@ -119,6 +119,79 @@ export function SettingsButton({
   );
 }
 
+/** Toggle switch — mirrors settings.js's switchEl(). */
+export function Switch({
+  checked,
+  onChange,
+  disabled = false,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <label className="settings-switch">
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      <span />
+    </label>
+  );
+}
+
+/** Segmented control — mirrors settings.js's segmented(). */
+export function Segmented({
+  value,
+  options,
+  onChange,
+}: {
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="segmented">
+      {options.map((option) => (
+        <button
+          type="button"
+          key={option.value}
+          className={option.value === value ? "is-active" : ""}
+          data-value={option.value}
+          onClick={() => onChange(option.value)}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Multiline text — mirrors settings.js's textarea usage. */
+export function TextArea({
+  value,
+  onChange,
+  ariaLabel,
+  rows = 8,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  ariaLabel?: string;
+  rows?: number;
+}) {
+  return (
+    <textarea
+      className="settings-textarea"
+      value={value}
+      rows={rows}
+      aria-label={ariaLabel}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  );
+}
+
 export function TextInput({
   name,
   value,

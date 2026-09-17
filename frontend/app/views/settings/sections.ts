@@ -85,11 +85,6 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
   },
 ];
 
-/** All tab ids in sidebar order. */
-export const SETTINGS_TAB_IDS: string[] = SETTINGS_GROUPS.flatMap((g) =>
-  g.children.map((c) => c.id),
-);
-
 export function findTab(id: string): SettingsTab | null {
   for (const group of SETTINGS_GROUPS) {
     const tab = group.children.find((c) => c.id === id);
@@ -97,9 +92,3 @@ export function findTab(id: string): SettingsTab | null {
   }
   return null;
 }
-
-/**
- * Tabs already ported to React. Anything else renders an explicit
- * "not migrated" notice rather than an empty page.
- */
-export const PORTED_TABS: ReadonlySet<string> = new Set(SETTINGS_TAB_IDS);

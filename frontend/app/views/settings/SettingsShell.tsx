@@ -1,22 +1,34 @@
 /**
  * Settings shell: tab navigation plus the content host.
  *
- * Replaces the shell half of settings.js. Tabs that have not been ported yet
- * render an explicit notice instead of an empty page, so the remaining work is
- * always visible.
+ * Replaces settings.js entirely: every one of the nineteen official tabs now
+ * renders a dedicated React component. There is no "not migrated" placeholder
+ * and no JSON-dump fallback — a tab either has a real page or does not exist.
  */
 
 import { t } from "../../../src/js/i18n.js";
 import { navigate, useRoute } from "@/shell/useRoute";
-import { PORTED_TABS, SETTINGS_GROUPS, findTab } from "./sections";
+import { SETTINGS_GROUPS, findTab } from "./sections";
 import { SettingsIcon } from "./SettingsIcon";
-import { PageHead } from "./primitives";
 import { GeneralTab } from "./tabs/GeneralTab";
+import { ImportTab } from "./tabs/ImportTab";
+import { AppearanceTab } from "./tabs/AppearanceTab";
+import { VoiceTab } from "./tabs/VoiceTab";
 import { ConfigurationTab } from "./tabs/ConfigurationTab";
-import { AccountTab } from "./tabs/AccountTab";
+import { PersonalizationTab } from "./tabs/PersonalizationTab";
 import { PetsTab } from "./tabs/PetsTab";
 import { ShortcutsTab } from "./tabs/ShortcutsTab";
-import { BackendSettingsTab } from "./tabs/BackendSettingsTab";
+import { AccountTab } from "./tabs/AccountTab";
+import { ComputerUseTab } from "./tabs/ComputerUseTab";
+import { AppshotTab } from "./tabs/AppshotTab";
+import { PluginsTab } from "./tabs/PluginsTab";
+import { BrowserTab } from "./tabs/BrowserTab";
+import { HooksTab } from "./tabs/HooksTab";
+import { ConnectionsTab } from "./tabs/ConnectionsTab";
+import { GitTab } from "./tabs/GitTab";
+import { EnvironmentsTab } from "./tabs/EnvironmentsTab";
+import { WorktreesTab } from "./tabs/WorktreesTab";
+import { ArchivedTab } from "./tabs/ArchivedTab";
 
 function label(key: string, fallback: string): string {
   return String(t(key, fallback));
@@ -26,33 +38,53 @@ function TabContent({ id }: { id: string }) {
   switch (id) {
     case "general":
       return <GeneralTab />;
+    case "import":
+      return <ImportTab />;
+    case "appearance":
+      return <AppearanceTab />;
+    case "voice":
+      return <VoiceTab />;
     case "configuration":
       return <ConfigurationTab />;
-    case "account":
-      return <AccountTab />;
+    case "personalization":
+      return <PersonalizationTab />;
     case "pets":
       return <PetsTab />;
     case "shortcuts":
       return <ShortcutsTab />;
+    case "account":
+      return <AccountTab />;
+    case "computer-use":
+      return <ComputerUseTab />;
+    case "appshot":
+      return <AppshotTab />;
+    case "plugins":
+      return <PluginsTab />;
+    case "browser":
+      return <BrowserTab />;
+    case "hooks":
+      return <HooksTab />;
+    case "connections":
+      return <ConnectionsTab />;
+    case "git":
+      return <GitTab />;
+    case "environments":
+      return <EnvironmentsTab />;
+    case "worktrees":
+      return <WorktreesTab />;
+    case "archived-tasks":
+      return <ArchivedTab />;
     default:
       break;
   }
 
   const tab = findTab(id);
   const title = tab ? label(tab.labelKey, id) : id;
-  const backendTab: Record<string, { command?: string; args?: Record<string, unknown> }> = {
-    plugins: { command: "list_mcp_servers" },
-    git: { command: "git_status", args: { cwd: "" } },
-    "archived-tasks": { command: "list_sessions", args: { archived: true } },
-  };
-  const backend = backendTab[id];
   return (
-    <BackendSettingsTab
-      id={id}
-      title={title}
-      command={backend?.command}
-      args={backend?.args}
-    />
+    <div className="settings-page-head">
+      <h1>{title}</h1>
+      <p>{label("settings.capability", "This page has no controls yet.")}</p>
+    </div>
   );
 }
 
@@ -66,32 +98,22 @@ export function SettingsShell() {
         <nav className="settings-nav">
           {SETTINGS_GROUPS.map((group) => (
             <div className="settings-group" key={group.id}>
-              <div className="settings-group-head">
-                {label(group.labelKey, group.id)}
-              </div>
-              {group.children.map((tab) => {
-                const ported = PORTED_TABS.has(tab.id);
-                return (
-                  <button
-                    className={`settings-link${tab.id === activeId ? " is-active" : ""}${
-                      ported ? "" : " is-pending"
-                    }`}
-                    key={tab.id}
-                    type="button"
-                    data-link={tab.id}
-                    aria-current={tab.id === activeId ? "page" : undefined}
-                    title={ported ? undefined : "Not migrated yet"}
-                    onClick={() => navigate("settings", tab.id)}
-                  >
-                    <span className="settings-link-icon">
-                      <SettingsIcon name={tab.icon} />
-                    </span>
-                    <span className="settings-link-label">
-                      {label(tab.labelKey, tab.id)}
-                    </span>
-                  </button>
-                );
-              })}
+              <div className="settings-group-head">{label(group.labelKey, group.id)}</div>
+              {group.children.map((tab) => (
+                <button
+                  className={"settings-link" + (tab.id === activeId ? " is-active" : "")}
+                  key={tab.id}
+                  type="button"
+                  data-link={tab.id}
+                  aria-current={tab.id === activeId ? "page" : undefined}
+                  onClick={() => navigate("settings", tab.id)}
+                >
+                  <span className="settings-link-icon">
+                    <SettingsIcon name={tab.icon} />
+                  </span>
+                  <span className="settings-link-label">{label(tab.labelKey, tab.id)}</span>
+                </button>
+              ))}
             </div>
           ))}
         </nav>
