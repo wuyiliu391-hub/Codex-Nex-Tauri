@@ -1,0 +1,121 @@
+name: build-release
+
+# Formal release packaging: the fully optimised [profile.release] build with the
+# standard installer bundle, kept long enough to publish. Shares the rust-cache
+# key with build-fast so the two workflows reuse each other's compiled crates.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: build-release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  TAURI_SKIP_SIDECAR_CHECK: "1"
+  TAURI_CLI_VERSION: "2.11.4"
+  CARGO_TARGET_DIR: ${{ github.workspace }}/target
+  CARGO_INCREMENTAL: "0"
+  TOOLS_DIR: ${{ github.workspace }}/.tools
+
+jobs:
+  build-release:
+    name: Windows release (full optimise + bundle)
+    runs-on: windows-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Frontend — install + build
+        working-directory: frontend
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          npm ci --no-audit --no-fund
+          npm run build
+
+      - name: Setup Rust (stable, MSVC)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache cargo registry & target
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+          shared-key: tauri-win
+          cache-workspace-crates: "true"
+          cache-on-failure: true
+          cache-bin: true
+
+      - name: Cache prebuilt cargo-tauri
+        id: cache-cli
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TOOLS_DIR }}
+          key: cargo-tauri-${{ runner.os }}-${{ env.TAURI_CLI_VERSION }}
+
+      - name: Download cargo-tauri ${{ env.TAURI_CLI_VERSION }}
+        if: steps.cache-cli.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $ver = $env:TAURI_CLI_VERSION
+          New-Item -ItemType Directory -Force -Path $env:TOOLS_DIR | Out-Null
+          $url = "https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v$ver/cargo-tauri-x86_64-pc-windows-msvc.zip"
+          $zip = Join-Path $env:TOOLS_DIR "cargo-tauri.zip"
+          Invoke-WebRequest -Uri $url -OutFile $zip
+          Expand-Archive -Path $zip -DestinationPath $env:TOOLS_DIR -Force
+          Remove-Item $zip -Force
+          $exe = Join-Path $env:TOOLS_DIR "cargo-tauri.exe"
+          if (-not (Test-Path $exe)) { throw "cargo-tauri.exe not found after extract" }
+
+      - name: Put cargo-tauri on PATH
+        shell: pwsh
+        run: |
+          Add-Content -Path $env:GITHUB_PATH -Value $env:TOOLS_DIR
+          Copy-Item (Join-Path $env:TOOLS_DIR "cargo-tauri.exe") (Join-Path $env:TOOLS_DIR "tauri.exe") -Force
+
+      - name: cargo tauri build (release)
+        working-directory: src-tauri
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          cargo-tauri --version
+          cargo tauri build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload release exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: Codex-release-exe
+          path: |
+            **/target/release/Codex.exe
+            **/target/release/codex-tauri.exe
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Upload release installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: Codex-release-installers
+          path: |
+            **/target/release/bundle/nsis/*.exe
+            **/target/release/bundle/msi/*.msi
+          if-no-files-found: warn
+          retention-days: 90

@@ -1,4 +1,9 @@
-name: build-windows
+name: build-fast
+
+# Daily iteration: a usable Tauri installer in the shortest possible wall-clock
+# time. Shallow + recursive submodules, the ci-fast cargo profile (opt-level 2,
+# no LTO, codegen-units 256), no tests, no lint. For a fully optimised,
+# reproducible installer use build-release.yml.
 
 on:
   push:
@@ -8,31 +13,32 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: build-fast-${{ github.ref }}
   cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
   TAURI_SKIP_SIDECAR_CHECK: "1"
-  # Stable as of crates.io 2026-09: max_stable_version=2.11.4
   TAURI_CLI_VERSION: "2.11.4"
   CARGO_TARGET_DIR: ${{ github.workspace }}/target
   CARGO_INCREMENTAL: "0"
   TOOLS_DIR: ${{ github.workspace }}/.tools
 
 jobs:
-  build:
-    name: Windows exe (Tauri)
+  build-fast:
+    name: Windows exe (fast, ci-fast profile)
     runs-on: windows-latest
     timeout-minutes: 45
 
     steps:
+      # Shallow + recursive: the backend sources live in-tree now, but keep
+      # recursive so any future nested submodule is fetched without changing CI.
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
 
-      # ── Frontend (React) ───────────────────────────────────────────────
-      # Dependencies and builds live in CI only. Local work is limited to
-      # editing plus dependency-free checks (see scripts/verify-*.mjs).
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -40,9 +46,6 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      # Dependency-free checks first: they need no install, so a syntax or
-      # coverage regression fails the job before npm ci burns CI time. The same
-      # two commands are what runs locally.
       - name: Frontend — dependency-free checks
         shell: pwsh
         run: |
@@ -57,7 +60,6 @@ jobs:
           $ErrorActionPreference = "Stop"
           npm ci --no-audit --no-fund
 
-      # `npm run build` runs `tsc --noEmit` first, so type errors fail the job.
       - name: Frontend — typecheck + build
         working-directory: frontend
         shell: pwsh
@@ -70,17 +72,17 @@ jobs:
         with:
           targets: x86_64-pc-windows-msvc
 
-      # Registry + target cache with workspace crates enabled.
+      # Shared cache key across build-fast and build-release so a release build
+      # reuses everything the fast build already compiled.
       - name: Cache cargo registry & target
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: . -> target
-          shared-key: tauri-win-release
+          shared-key: tauri-win
           cache-workspace-crates: "true"
           cache-on-failure: true
           cache-bin: true
 
-      # Prebuilt cargo-tauri from GitHub Releases (seconds) instead of cargo install (minutes).
       - name: Cache prebuilt cargo-tauri
         id: cache-cli
         uses: actions/cache@v4
@@ -97,61 +99,45 @@ jobs:
           New-Item -ItemType Directory -Force -Path $env:TOOLS_DIR | Out-Null
           $url = "https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v$ver/cargo-tauri-x86_64-pc-windows-msvc.zip"
           $zip = Join-Path $env:TOOLS_DIR "cargo-tauri.zip"
-          Write-Host "GET $url"
           Invoke-WebRequest -Uri $url -OutFile $zip
           Expand-Archive -Path $zip -DestinationPath $env:TOOLS_DIR -Force
           Remove-Item $zip -Force
           $exe = Join-Path $env:TOOLS_DIR "cargo-tauri.exe"
-          if (-not (Test-Path $exe)) {
-            Get-ChildItem $env:TOOLS_DIR -Recurse | Select-Object FullName
-            throw "cargo-tauri.exe not found after extract"
-          }
-          & $exe --version
+          if (-not (Test-Path $exe)) { throw "cargo-tauri.exe not found after extract" }
 
       - name: Put cargo-tauri on PATH
         shell: pwsh
         run: |
           Add-Content -Path $env:GITHUB_PATH -Value $env:TOOLS_DIR
-          # Also expose as `tauri` alias if anything still calls it bare.
           Copy-Item (Join-Path $env:TOOLS_DIR "cargo-tauri.exe") (Join-Path $env:TOOLS_DIR "tauri.exe") -Force
 
-      # Icons are committed under src-tauri/icons/ (valid multi-size ICO).
-      # Do NOT regenerate with System.Drawing — RC.EXE rejects that fake ICO.
-
-      # Binary is cargo-tauri; invoke as `cargo tauri` (cargo subcommand) or cargo-tauri.
-      # Print the resolved wry stack first so a future version-skew failure is diagnosable.
-      - name: Show resolved tauri versions
-        working-directory: src-tauri
-        shell: pwsh
-        run: |
-          cargo tree --depth 0 -p tauri -p tauri-runtime -p tauri-runtime-wry -p wry -p tao 2>&1 | Select-String " v"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-      - name: cargo tauri build
+      # ci-fast: opt-level 2, no LTO, high codegen parallelism. Output lands in
+      # target/ci-fast/ (not target/release/), which the artifact paths reflect.
+      - name: cargo tauri build (ci-fast)
         working-directory: src-tauri
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           cargo-tauri --version
-          cargo tauri build
+          cargo tauri build --profile ci-fast
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Upload Codex.exe
+      - name: Upload fast exe
         uses: actions/upload-artifact@v4
         with:
-          name: Codex-windows-exe
+          name: Codex-fast-exe
           path: |
-            **/target/release/Codex.exe
-            **/target/release/codex-tauri.exe
+            **/target/ci-fast/Codex.exe
+            **/target/ci-fast/codex-tauri.exe
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 7
 
-      - name: Upload installers
+      - name: Upload fast installer
         uses: actions/upload-artifact@v4
         with:
-          name: Codex-windows-installers
+          name: Codex-fast-installers
           path: |
-            **/target/release/bundle/nsis/*.exe
-            **/target/release/bundle/msi/*.msi
+            **/target/ci-fast/bundle/nsis/*.exe
+            **/target/ci-fast/bundle/msi/*.msi
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 7

@@ -572,6 +572,22 @@ debug = "limited"
 inherits = "test"
 opt-level = 0
 
+# Fast iteration profile for the build-fast.yml workflow.
+#
+# Inherits release so the binary is actually usable, but trades optimisation for
+# wall-clock time: no LTO, high codegen parallelism, opt-level 2. This is what
+# daily push/PR builds use — the point is a Tauri installer in a few minutes,
+# not the smallest/safest binary. Release packaging (build-release.yml) keeps
+# the fully-optimised [profile.release].
+[profile.ci-fast]
+inherits = "release"
+opt-level = 2
+lto = false
+codegen-units = 256
+incremental = false
+strip = "symbols"
+debug = false
+
 [patch.crates-io]
 # Uncomment to debug local changes.
 # ratatui = { path = "../../ratatui" }
