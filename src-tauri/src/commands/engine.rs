@@ -377,6 +377,14 @@ pub async fn save_provider(
             "mergeStrategy": "replace",
         }));
     }
+    // The desktop shell never ships codex-code-mode-host; disable the feature so
+    // the engine stops trying to spawn it (screenshot warning: "Code Mode is
+    // unavailable because failed to spawn code-mode host").
+    edits.push(json!({
+        "keyPath": "features.code_mode_host",
+        "value": false,
+        "mergeStrategy": "replace",
+    }));
 
     let result = rpc(
         &engine,
@@ -502,7 +510,14 @@ pub async fn probe_provider(
         }));
     }
 
-    Ok(json!({ "ok": false, "providerId": provider_id, "error": last_err }))
+    let hint = if last_err.contains("401") || last_err.contains("403") {
+        "密钥无效或被拒绝：核对 API Key 是否完整（无空格/换行），且协议选择与网关匹配（OpenAI兼容 → Bearer；Anthropic → x-api-key）"
+    } else if last_err.contains("404") {
+        "地址或路径不对：OpenAI 兼容 Base URL 通常以 /v1 结尾；Anthropic 官方地址不带 /v1"
+    } else {
+        ""
+    };
+    Ok(json!({ "ok": false, "providerId": provider_id, "error": last_err, "hint": hint }))
 }
 
 /// Pull model ids out of an OpenAI (`data[].id`), Ollama (`models[].name`) or

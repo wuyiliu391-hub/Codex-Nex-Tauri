@@ -117,6 +117,7 @@ export function AccountTab() {
       const result = await invoke<{
         ok?: boolean;
         error?: string;
+        hint?: string;
         modelCount?: number;
         models?: string[];
         modelFound?: boolean;
@@ -135,7 +136,8 @@ export function AccountTab() {
         }
         setProbeMsg(parts.join(" · "));
       } else {
-        setProbeMsg(result?.error || label("account.checksFailed", "Probe failed"));
+        const hint = typeof result?.hint === "string" ? result.hint : "";
+        setProbeMsg([result?.error, hint].filter(Boolean).join(" — ") || label("account.checksFailed", "Probe failed"));
       }
     } catch (err) {
       setProbeMsg(err instanceof Error ? err.message : String(err));

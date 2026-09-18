@@ -27,6 +27,23 @@ const MODIFIER_ORDER = ["Ctrl", "Shift", "Alt", "Meta"] as const;
 /** Keys that keep working while a text field has focus. */
 const ALWAYS_ALLOWED = new Set(["Escape", "Enter", "Tab"]);
 
+/**
+ * Clipboard / editing bindings must NOT be dispatched from JS: WebView2 already
+ * handles Ctrl+C/V/X/Z natively on the focused input, and document.execCommand
+ * is a no-op here. Intercepting them used to swallow every paste (the menu
+ * tree registers Ctrl+V), so these ids are passed straight through.
+ */
+const EDIT_PASSTHROUGH = new Set([
+  "undo",
+  "redo",
+  "cut",
+  "copy",
+  "paste",
+  "delete",
+  "select-all",
+  "selectAll",
+]);
+
 /** Normalise `event.key` to the label used in bindings. */
 function normalizeMainKey(key: string): string {
   if (key === " ") return "Space";
@@ -102,6 +119,9 @@ export function useShortcutDispatcher(
       const pressed = normalizeKey(e);
       const match = bindingsRef.current.find((b) => sameKeys(b.keys, pressed));
       if (!match) return;
+
+      // Let the webview's native editing win over JS dispatch (see note above).
+      if (EDIT_PASSTHROUGH.has(match.id)) return;
 
       e.preventDefault();
       dispatchRef.current(match.id);

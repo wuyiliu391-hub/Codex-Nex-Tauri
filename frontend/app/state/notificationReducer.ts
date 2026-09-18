@@ -80,6 +80,7 @@ function blockTypeOf(item: Params): string {
   if (!raw) return "unknown";
   // `commandExecution` / `command_execution` / `exec` all mean the same block.
   if (/^command[_-]?execution$/i.test(raw)) return "commandExecution";
+  if (/^user[_-]?message$/i.test(raw)) return "user-message";
   if (/^file[_-]?change$/i.test(raw)) return "fileChange";
   if (/^agent[_-]?message$/i.test(raw)) return "agentMessage";
   if (/^mcp[_-]?tool[_-]?call$/i.test(raw)) return "mcp-tool-call";
