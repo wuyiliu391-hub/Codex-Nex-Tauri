@@ -595,8 +595,16 @@ fn entry_json(
     // Same id scheme as do_install (safe names), so the UI can match
     // directory entries against installed records.
     let id = format!("{}__{}", safe_name(marketplace), safe_name(&name));
-    let name_final = if name.is_empty() { display.clone() } else { name };
-    let display_final = if display.is_empty() { name_final.clone() } else { display };
+    let name_final = if name.is_empty() {
+        display.clone()
+    } else {
+        name
+    };
+    let display_final = if display.is_empty() {
+        name_final.clone()
+    } else {
+        display
+    };
     json!({
         "id": id,
         "name": name_final,

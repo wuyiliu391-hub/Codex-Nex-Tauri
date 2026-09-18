@@ -215,17 +215,17 @@ jobs:
             Write-Host "engine MISSING"
           }
 
-      # Flat product installers only — no target/ tree in the artifact.
-      - name: Stage product installers
+      # Portable shell exe + WebView2 loader + official engine — no installers.
+      - name: Stage portable build
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           ./scripts/stage-dist.ps1
 
-      - name: Upload fast installers
+      - name: Upload portable build
         uses: actions/upload-artifact@v4
         with:
-          name: Codex-Windows-Setup
+          name: Codex-Windows-Portable
           path: dist/
           if-no-files-found: error
           retention-days: 7

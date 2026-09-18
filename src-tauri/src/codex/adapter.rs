@@ -439,8 +439,14 @@ impl ProtocolAdapter {
                         let cb = &v["content_block"];
                         if cb.get("type").and_then(|t| t.as_str()) == Some("tool_use") {
                             cur_tool = Some((
-                                cb.get("id").and_then(|i| i.as_str()).unwrap_or("").to_string(),
-                                cb.get("name").and_then(|n| n.as_str()).unwrap_or("").to_string(),
+                                cb.get("id")
+                                    .and_then(|i| i.as_str())
+                                    .unwrap_or("")
+                                    .to_string(),
+                                cb.get("name")
+                                    .and_then(|n| n.as_str())
+                                    .unwrap_or("")
+                                    .to_string(),
                                 String::new(),
                             ));
                         }
@@ -899,10 +905,7 @@ fn extract_chat_messages(req: &Value) -> Vec<Value> {
                         out.push(json!({ "role": "assistant", "tool_calls": pending_calls }));
                         pending_calls = Vec::new();
                     }
-                    let role = item
-                        .get("role")
-                        .and_then(|r| r.as_str())
-                        .unwrap_or("user");
+                    let role = item.get("role").and_then(|r| r.as_str()).unwrap_or("user");
                     let text = content_text_of(item.get("content").unwrap_or(&Value::Null));
                     if text.is_empty() && itype != "message" {
                         continue;
@@ -956,7 +959,9 @@ fn extract_anthropic_messages(req: &Value) -> (Option<String>, Vec<Value>, Optio
             match itype {
                 "function_call" => {
                     let input_val = serde_json::from_str::<Value>(
-                        item.get("arguments").and_then(|v| v.as_str()).unwrap_or("{}"),
+                        item.get("arguments")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("{}"),
                     )
                     .unwrap_or(json!({}));
                     let call_id = item
@@ -994,10 +999,7 @@ fn extract_anthropic_messages(req: &Value) -> (Option<String>, Vec<Value>, Optio
                 }
                 "reasoning" => {}
                 _ => {
-                    let role = item
-                        .get("role")
-                        .and_then(|r| r.as_str())
-                        .unwrap_or("user");
+                    let role = item.get("role").and_then(|r| r.as_str()).unwrap_or("user");
                     let text = content_text_of(item.get("content").unwrap_or(&Value::Null));
                     if role == "system" {
                         if !text.is_empty() {
@@ -1034,5 +1036,9 @@ fn extract_anthropic_messages(req: &Value) -> (Option<String>, Vec<Value>, Optio
         Some(system_lines.join("\n\n"))
     };
 
-    (sys, messages_json, convert_tools_anthropic(req.get("tools")))
+    (
+        sys,
+        messages_json,
+        convert_tools_anthropic(req.get("tools")),
+    )
 }
