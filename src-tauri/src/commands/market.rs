@@ -17,7 +17,6 @@
 //! on the existing `set_plugin_enabled` path.
 
 use crate::state::AppState;
-use base64::Engine as _;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
@@ -64,7 +63,7 @@ fn read_json<T: Default + for<'de> Deserialize<'de>>(path: &Path) -> T {
         .unwrap_or_default()
 }
 
-fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), String> {
+fn write_json<T: Serialize + ?Sized>(path: &Path, value: &T) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
@@ -596,10 +595,12 @@ fn entry_json(
     // Same id scheme as do_install (safe names), so the UI can match
     // directory entries against installed records.
     let id = format!("{}__{}", safe_name(marketplace), safe_name(&name));
+    let name_final = if name.is_empty() { display.clone() } else { name };
+    let display_final = if display.is_empty() { name_final.clone() } else { display };
     json!({
         "id": id,
-        "name": if name.is_empty() { display.clone() } else { name },
-        "displayName": if display.is_empty() { name } else { display },
+        "name": name_final,
+        "displayName": display_final,
         "description": desc,
         "version": version,
         "category": category,

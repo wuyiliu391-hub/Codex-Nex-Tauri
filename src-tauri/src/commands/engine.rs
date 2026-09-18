@@ -7,6 +7,7 @@
 use crate::codex::protocol::*;
 use crate::codex::EngineHandle;
 use serde_json::{json, Value};
+use std::collections::HashMap;
 use tauri::State;
 
 async fn rpc(

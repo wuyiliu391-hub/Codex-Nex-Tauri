@@ -10,7 +10,6 @@
 //! 3. Forwards the request to the upstream target `base_url`.
 //! 4. Adapts streaming response chunks back into the SSE format expected by Codex.
 
-use futures_util::StreamExt;
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -252,7 +251,7 @@ impl ProtocolAdapter {
             req_builder = req_builder.header(AUTHORIZATION, format!("Bearer {}", route.api_key));
         }
 
-        let upstream_resp = match req_builder.send().await {
+        let mut upstream_resp = match req_builder.send().await {
             Ok(r) => r,
             Err(e) => {
                 let err_msg = json!({
@@ -282,42 +281,39 @@ impl ProtocolAdapter {
         // Send HTTP 200 OK + SSE headers to Codex engine
         client_stream.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-cache\r\nConnection: keep-alive\r\n\r\n").await?;
 
-        let mut stream_bytes = upstream_resp.bytes_stream();
         let mut sse_buffer = String::new();
 
-        while let Some(chunk_res) = stream_bytes.next().await {
-            if let Ok(chunk) = chunk_res {
-                let text = String::from_utf8_lossy(&chunk);
-                sse_buffer.push_str(&text);
+        while let Ok(Some(chunk)) = upstream_resp.chunk().await {
+            let text = String::from_utf8_lossy(&chunk);
+            sse_buffer.push_str(&text);
 
-                while let Some(pos) = sse_buffer.find('\n') {
-                    let line = sse_buffer[..pos].trim_end_matches('\r').to_string();
-                    sse_buffer = sse_buffer[pos + 1..].to_string();
+            while let Some(pos) = sse_buffer.find('\n') {
+                let line = sse_buffer[..pos].trim_end_matches('\r').to_string();
+                sse_buffer = sse_buffer[pos + 1..].to_string();
 
-                    if line.starts_with("data: ") {
-                        let payload = line.trim_start_matches("data: ").trim();
-                        if payload == "[DONE]" {
-                            let completed_event = "event: response.completed\r\ndata: {\"status\":\"completed\"}\r\n\r\n";
-                            client_stream.write_all(completed_event.as_bytes()).await?;
-                            break;
-                        }
+                if line.starts_with("data: ") {
+                    let payload = line.trim_start_matches("data: ").trim();
+                    if payload == "[DONE]" {
+                        let completed_event = "event: response.completed\r\ndata: {\"status\":\"completed\"}\r\n\r\n";
+                        client_stream.write_all(completed_event.as_bytes()).await?;
+                        break;
+                    }
 
-                        if let Ok(v) = serde_json::from_str::<Value>(payload) {
-                            if let Some(content) = v
-                                .pointer("/choices/0/delta/content")
-                                .and_then(|c| c.as_str())
-                            {
-                                if !content.is_empty() {
-                                    let delta_event = json!({
-                                        "type": "response.text.delta",
-                                        "delta": content
-                                    });
-                                    let sse_out = format!(
-                                        "event: response.text.delta\r\ndata: {}\r\n\r\n",
-                                        delta_event
-                                    );
-                                    client_stream.write_all(sse_out.as_bytes()).await?;
-                                }
+                    if let Ok(v) = serde_json::from_str::<Value>(payload) {
+                        if let Some(content) = v
+                            .pointer("/choices/0/delta/content")
+                            .and_then(|c| c.as_str())
+                        {
+                            if !content.is_empty() {
+                                let delta_event = json!({
+                                    "type": "response.text.delta",
+                                    "delta": content
+                                });
+                                let sse_out = format!(
+                                    "event: response.text.delta\r\ndata: {}\r\n\r\n",
+                                    delta_event
+                                );
+                                client_stream.write_all(sse_out.as_bytes()).await?;
                             }
                         }
                     }
@@ -368,7 +364,7 @@ impl ProtocolAdapter {
         headers.insert("anthropic-version", HeaderValue::from_static("2023-06-01"));
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
 
-        let upstream_resp = match http_client
+        let mut upstream_resp = match http_client
             .post(&target_url)
             .headers(headers)
             .json(&anthropic_body)
@@ -396,38 +392,35 @@ impl ProtocolAdapter {
 
         client_stream.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-cache\r\nConnection: keep-alive\r\n\r\n").await?;
 
-        let mut stream_bytes = upstream_resp.bytes_stream();
         let mut sse_buffer = String::new();
 
-        while let Some(chunk_res) = stream_bytes.next().await {
-            if let Ok(chunk) = chunk_res {
-                let text = String::from_utf8_lossy(&chunk);
-                sse_buffer.push_str(&text);
+        while let Ok(Some(chunk)) = upstream_resp.chunk().await {
+            let text = String::from_utf8_lossy(&chunk);
+            sse_buffer.push_str(&text);
 
-                while let Some(pos) = sse_buffer.find('\n') {
-                    let line = sse_buffer[..pos].trim_end_matches('\r').to_string();
-                    sse_buffer = sse_buffer[pos + 1..].to_string();
+            while let Some(pos) = sse_buffer.find('\n') {
+                let line = sse_buffer[..pos].trim_end_matches('\r').to_string();
+                sse_buffer = sse_buffer[pos + 1..].to_string();
 
-                    if line.starts_with("data: ") {
-                        let payload = line.trim_start_matches("data: ").trim();
-                        if let Ok(v) = serde_json::from_str::<Value>(payload) {
-                            if let Some(delta) = v.pointer("/delta/text").and_then(|d| d.as_str()) {
-                                if !delta.is_empty() {
-                                    let delta_event = json!({
-                                        "type": "response.text.delta",
-                                        "delta": delta
-                                    });
-                                    let sse_out = format!(
-                                        "event: response.text.delta\r\ndata: {}\r\n\r\n",
-                                        delta_event
-                                    );
-                                    client_stream.write_all(sse_out.as_bytes()).await?;
-                                }
+                if line.starts_with("data: ") {
+                    let payload = line.trim_start_matches("data: ").trim();
+                    if let Ok(v) = serde_json::from_str::<Value>(payload) {
+                        if let Some(delta) = v.pointer("/delta/text").and_then(|d| d.as_str()) {
+                            if !delta.is_empty() {
+                                let delta_event = json!({
+                                    "type": "response.text.delta",
+                                    "delta": delta
+                                });
+                                let sse_out = format!(
+                                    "event: response.text.delta\r\ndata: {}\r\n\r\n",
+                                    delta_event
+                                );
+                                client_stream.write_all(sse_out.as_bytes()).await?;
                             }
-                            if v.get("type").and_then(|t| t.as_str()) == Some("message_stop") {
-                                let completed_event = "event: response.completed\r\ndata: {\"status\":\"completed\"}\r\n\r\n";
-                                client_stream.write_all(completed_event.as_bytes()).await?;
-                            }
+                        }
+                        if v.get("type").and_then(|t| t.as_str()) == Some("message_stop") {
+                            let completed_event = "event: response.completed\r\ndata: {\"status\":\"completed\"}\r\n\r\n";
+                            client_stream.write_all(completed_event.as_bytes()).await?;
                         }
                     }
                 }
@@ -465,7 +458,7 @@ impl ProtocolAdapter {
             req_builder = req_builder.header(AUTHORIZATION, format!("Bearer {}", route.api_key));
         }
 
-        let upstream_resp = match req_builder.send().await {
+        let mut upstream_resp = match req_builder.send().await {
             Ok(r) => r,
             Err(e) => {
                 let err_msg =
@@ -479,42 +472,37 @@ impl ProtocolAdapter {
 
         client_stream.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-cache\r\nConnection: keep-alive\r\n\r\n").await?;
 
-        let mut stream_bytes = upstream_resp.bytes_stream();
         let mut line_buffer = String::new();
 
-        while let Some(chunk_res) = stream_bytes.next().await {
-            if let Ok(chunk) = chunk_res {
-                let text = String::from_utf8_lossy(&chunk);
-                line_buffer.push_str(&text);
+        while let Ok(Some(chunk)) = upstream_resp.chunk().await {
+            let text = String::from_utf8_lossy(&chunk);
+            line_buffer.push_str(&text);
 
-                while let Some(pos) = line_buffer.find('\n') {
-                    let line = line_buffer[..pos].trim_end_matches('\r').to_string();
-                    line_buffer = line_buffer[pos + 1..].to_string();
+            while let Some(pos) = line_buffer.find('\n') {
+                let line = line_buffer[..pos].trim_end_matches('\r').to_string();
+                line_buffer = line_buffer[pos + 1..].to_string();
 
-                    if line.is_empty() {
-                        continue;
+                if line.is_empty() {
+                    continue;
+                }
+
+                if let Ok(v) = serde_json::from_str::<Value>(&line) {
+                    if let Some(content) = v.pointer("/message/content").and_then(|c| c.as_str()) {
+                        if !content.is_empty() {
+                            let delta_event = json!({
+                                "type": "response.text.delta",
+                                "delta": content
+                            });
+                            let sse_out = format!(
+                                "event: response.text.delta\r\ndata: {}\r\n\r\n",
+                                delta_event
+                            );
+                            client_stream.write_all(sse_out.as_bytes()).await?;
+                        }
                     }
-
-                    if let Ok(v) = serde_json::from_str::<Value>(&line) {
-                        if let Some(content) =
-                            v.pointer("/message/content").and_then(|c| c.as_str())
-                        {
-                            if !content.is_empty() {
-                                let delta_event = json!({
-                                    "type": "response.text.delta",
-                                    "delta": content
-                                });
-                                let sse_out = format!(
-                                    "event: response.text.delta\r\ndata: {}\r\n\r\n",
-                                    delta_event
-                                );
-                                client_stream.write_all(sse_out.as_bytes()).await?;
-                            }
-                        }
-                        if v.get("done").and_then(|d| d.as_bool()).unwrap_or(false) {
-                            let completed_event = "event: response.completed\r\ndata: {\"status\":\"completed\"}\r\n\r\n";
-                            client_stream.write_all(completed_event.as_bytes()).await?;
-                        }
+                    if v.get("done").and_then(|d| d.as_bool()).unwrap_or(false) {
+                        let completed_event = "event: response.completed\r\ndata: {\"status\":\"completed\"}\r\n\r\n";
+                        client_stream.write_all(completed_event.as_bytes()).await?;
                     }
                 }
             }
