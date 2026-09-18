@@ -1,15 +1,11 @@
 // Track the vanilla -> React migration.
 //
-// "Migrated" is not a feeling: this script pairs each vanilla module with the
-// React file(s) that replace it and fails if a module is marked done while its
-// replacement is missing. It also reports how many lines / innerHTML rebuilds /
-// manual listeners are still outstanding, so the remaining work is a number
-// rather than an impression.
+// The migration is COMPLETE (2026-09-18): every vanilla UI module was ported
+// to React and then deleted from frontend/src/js. This script now only tracks
+// the handful of data/dictionary files React still imports as-is; it fails if
+// one of them disappears or drifts from the expectations below.
 //
 // Run: node scripts/migration-status.mjs [--strict]
-//
-//   --strict  exit non-zero if anything is still pending (used by CI once the
-//             switch to the React frontendDist is made).
 
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -21,47 +17,20 @@ const vanillaDir = join(root, "frontend/src/js");
 
 /**
  * status:
- *   "ported"  — React replacement exists and is wired
- *   "reused"  — pure data/constants, imported as-is by React (no port needed)
- *   "pending" — still vanilla-only
+ *   "reused" — pure data/constants, imported as-is by React (no port needed)
+ *
+ * Historical note: the 14 vanilla UI modules (state-store, live-turn,
+ * agent-events, bridge, bootstrap, render, home, settings, discovery, shell,
+ * pet, modal, ui-controls, shortcuts, router) were fully ported to
+ * frontend/app/** and deleted on 2026-09-18; they are intentionally absent
+ * from this list.
  */
 const MODULES = [
-  // ── data layer: imported directly, never ported ──
   { file: "i18n.js", status: "reused", note: "translation tables, imported by React" },
   { file: "i18n-pages.js", status: "reused", note: "page-level translation tables" },
   { file: "pets-data.js", status: "reused", note: "official pet catalog + animation data" },
   { file: "icons.js", status: "reused", note: "SVG path constants" },
-
-  // ── replaced by the React core ──
-  { file: "state.js", status: "ported", replaces: ["frontend/app/state/turnStore.ts"] },
-  { file: "live-turn.js", status: "ported", replaces: ["frontend/app/state/turnStore.ts"] },
-  {
-    file: "agent-events.js",
-    status: "ported",
-    replaces: ["frontend/app/bridge/events.ts", "frontend/app/state/notificationReducer.ts"],
-  },
-  { file: "bridge.js", status: "ported", replaces: ["frontend/app/bridge/events.ts"] },
-  { file: "bootstrap.js", status: "ported", replaces: ["frontend/app/main.tsx"] },
-  { file: "render.js", status: "ported", replaces: ["frontend/app/blocks/registry.tsx"] },
-
-  // ── UI layer still to port ──
-  {
-    file: "home.js",
-    status: "ported",
-    replaces: ["frontend/app/views/HomeView.tsx", "frontend/app/views/Composer.tsx"],
-  },
-  {
-    file: "settings.js",
-    status: "ported",
-    replaces: ["frontend/app/views/settings/SettingsShell.tsx"],
-  },
-  { file: "discovery.js", status: "ported", replaces: ["frontend/app/views/DiscoveryView.tsx"] },
-  { file: "shell.js", status: "ported", replaces: ["frontend/app/shell/AppShell.tsx"] },
-  { file: "pet.js", status: "ported", replaces: ["frontend/app/pet/PetOverlay.tsx"] },
-  { file: "modal.js", status: "ported", replaces: ["frontend/app/shell/Modal.tsx"] },
-  { file: "ui-controls.js", status: "ported", replaces: ["frontend/app/shell/Dropdown.tsx"] },
-  { file: "shortcuts.js", status: "ported", replaces: ["frontend/app/shell/useShortcuts.ts"] },
-  { file: "router.js", status: "ported", replaces: ["frontend/app/shell/useRoute.ts"] },
+  { file: "state.js", status: "reused", note: "default settings/preferences factories, imported by React stores" },
 ];
 
 function countLines(file) {
