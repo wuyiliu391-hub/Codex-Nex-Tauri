@@ -156,10 +156,12 @@ impl ProtocolAdapter {
         }
 
         // Routing: handle POST /v1/responses
-        if method == "POST" && (path.starts_with("/v1/responses") || path.starts_with("/responses")) {
+        if method == "POST" && (path.starts_with("/v1/responses") || path.starts_with("/responses"))
+        {
             let route = self.state.get_active_route();
             if let Some(route) = route {
-                self.forward_responses_request(&mut stream, &route, &body_bytes).await?;
+                self.forward_responses_request(&mut stream, &route, &body_bytes)
+                    .await?;
                 return Ok(());
             } else {
                 let err_body = json!({
@@ -167,7 +169,8 @@ impl ProtocolAdapter {
                         "message": "No active provider route configured in Codex adapter",
                         "type": "invalid_request_error"
                     }
-                }).to_string();
+                })
+                .to_string();
                 let resp = format!(
                     "HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
                     err_body.len(),
@@ -197,14 +200,17 @@ impl ProtocolAdapter {
 
         match route.protocol.as_str() {
             "anthropic" => {
-                self.forward_anthropic(client_stream, &http_client, route, &codex_req).await
+                self.forward_anthropic(client_stream, &http_client, route, &codex_req)
+                    .await
             }
             "ollama" => {
-                self.forward_ollama(client_stream, &http_client, route, &codex_req).await
+                self.forward_ollama(client_stream, &http_client, route, &codex_req)
+                    .await
             }
             // Default: openai_chat
             _ => {
-                self.forward_openai_chat(client_stream, &http_client, route, &codex_req).await
+                self.forward_openai_chat(client_stream, &http_client, route, &codex_req)
+                    .await
             }
         }
     }
@@ -217,7 +223,8 @@ impl ProtocolAdapter {
         route: &ProviderRoute,
         req: &Value,
     ) -> anyhow::Result<()> {
-        let model = req.get("model")
+        let model = req
+            .get("model")
             .and_then(|m| m.as_str())
             .or(route.default_model.as_deref())
             .unwrap_or("gpt-4o");
@@ -235,7 +242,10 @@ impl ProtocolAdapter {
             chat_body["temperature"] = temp.clone();
         }
 
-        let target_url = format!("{}/chat/completions", route.target_base_url.trim_end_matches('/'));
+        let target_url = format!(
+            "{}/chat/completions",
+            route.target_base_url.trim_end_matches('/')
+        );
         let mut req_builder = http_client.post(&target_url).json(&chat_body);
 
         if !route.api_key.is_empty() {
@@ -247,7 +257,8 @@ impl ProtocolAdapter {
             Err(e) => {
                 let err_msg = json!({
                     "error": { "message": format!("Upstream error: {e}"), "type": "gateway_error" }
-                }).to_string();
+                })
+                .to_string();
                 let resp = format!(
                     "HTTP/1.1 502 Bad Gateway\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
                     err_msg.len(), err_msg
@@ -292,13 +303,19 @@ impl ProtocolAdapter {
                         }
 
                         if let Ok(v) = serde_json::from_str::<Value>(payload) {
-                            if let Some(content) = v.pointer("/choices/0/delta/content").and_then(|c| c.as_str()) {
+                            if let Some(content) = v
+                                .pointer("/choices/0/delta/content")
+                                .and_then(|c| c.as_str())
+                            {
                                 if !content.is_empty() {
                                     let delta_event = json!({
                                         "type": "response.text.delta",
                                         "delta": content
                                     });
-                                    let sse_out = format!("event: response.text.delta\r\ndata: {}\r\n\r\n", delta_event);
+                                    let sse_out = format!(
+                                        "event: response.text.delta\r\ndata: {}\r\n\r\n",
+                                        delta_event
+                                    );
                                     client_stream.write_all(sse_out.as_bytes()).await?;
                                 }
                             }
@@ -319,7 +336,8 @@ impl ProtocolAdapter {
         route: &ProviderRoute,
         req: &Value,
     ) -> anyhow::Result<()> {
-        let model = req.get("model")
+        let model = req
+            .get("model")
             .and_then(|m| m.as_str())
             .or(route.default_model.as_deref())
             .unwrap_or("claude-3-5-sonnet-20241022");
@@ -338,16 +356,30 @@ impl ProtocolAdapter {
             anthropic_body["system"] = json!(sys);
         }
 
-        let target_url = format!("{}/v1/messages", route.target_base_url.trim_end_matches('/'));
+        let target_url = format!(
+            "{}/v1/messages",
+            route.target_base_url.trim_end_matches('/')
+        );
         let mut headers = HeaderMap::new();
-        headers.insert("x-api-key", HeaderValue::from_str(&route.api_key).unwrap_or(HeaderValue::from_static("")));
+        headers.insert(
+            "x-api-key",
+            HeaderValue::from_str(&route.api_key).unwrap_or(HeaderValue::from_static("")),
+        );
         headers.insert("anthropic-version", HeaderValue::from_static("2023-06-01"));
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
 
-        let upstream_resp = match http_client.post(&target_url).headers(headers).json(&anthropic_body).send().await {
+        let upstream_resp = match http_client
+            .post(&target_url)
+            .headers(headers)
+            .json(&anthropic_body)
+            .send()
+            .await
+        {
             Ok(r) => r,
             Err(e) => {
-                let err_msg = json!({ "error": { "message": format!("Anthropic upstream error: {e}") } }).to_string();
+                let err_msg =
+                    json!({ "error": { "message": format!("Anthropic upstream error: {e}") } })
+                        .to_string();
                 let resp = format!("HTTP/1.1 502 Bad Gateway\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}", err_msg.len(), err_msg);
                 client_stream.write_all(resp.as_bytes()).await?;
                 return Ok(());
@@ -385,7 +417,10 @@ impl ProtocolAdapter {
                                         "type": "response.text.delta",
                                         "delta": delta
                                     });
-                                    let sse_out = format!("event: response.text.delta\r\ndata: {}\r\n\r\n", delta_event);
+                                    let sse_out = format!(
+                                        "event: response.text.delta\r\ndata: {}\r\n\r\n",
+                                        delta_event
+                                    );
                                     client_stream.write_all(sse_out.as_bytes()).await?;
                                 }
                             }
@@ -410,7 +445,8 @@ impl ProtocolAdapter {
         route: &ProviderRoute,
         req: &Value,
     ) -> anyhow::Result<()> {
-        let model = req.get("model")
+        let model = req
+            .get("model")
             .and_then(|m| m.as_str())
             .or(route.default_model.as_deref())
             .unwrap_or("llama3");
@@ -432,7 +468,9 @@ impl ProtocolAdapter {
         let upstream_resp = match req_builder.send().await {
             Ok(r) => r,
             Err(e) => {
-                let err_msg = json!({ "error": { "message": format!("Ollama upstream error: {e}") } }).to_string();
+                let err_msg =
+                    json!({ "error": { "message": format!("Ollama upstream error: {e}") } })
+                        .to_string();
                 let resp = format!("HTTP/1.1 502 Bad Gateway\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}", err_msg.len(), err_msg);
                 client_stream.write_all(resp.as_bytes()).await?;
                 return Ok(());
@@ -458,13 +496,18 @@ impl ProtocolAdapter {
                     }
 
                     if let Ok(v) = serde_json::from_str::<Value>(&line) {
-                        if let Some(content) = v.pointer("/message/content").and_then(|c| c.as_str()) {
+                        if let Some(content) =
+                            v.pointer("/message/content").and_then(|c| c.as_str())
+                        {
                             if !content.is_empty() {
                                 let delta_event = json!({
                                     "type": "response.text.delta",
                                     "delta": content
                                 });
-                                let sse_out = format!("event: response.text.delta\r\ndata: {}\r\n\r\n", delta_event);
+                                let sse_out = format!(
+                                    "event: response.text.delta\r\ndata: {}\r\n\r\n",
+                                    delta_event
+                                );
                                 client_stream.write_all(sse_out.as_bytes()).await?;
                             }
                         }
@@ -482,7 +525,9 @@ impl ProtocolAdapter {
 }
 
 fn find_subsequence(haystack: &[u8], needle: &[u8]) -> Option<usize> {
-    haystack.windows(needle.len()).position(|window| window == needle)
+    haystack
+        .windows(needle.len())
+        .position(|window| window == needle)
 }
 
 /// Extract standard OpenAI-format messages from Codex `responses` body input.

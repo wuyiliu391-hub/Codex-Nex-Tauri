@@ -69,8 +69,11 @@ fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), String> {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     let tmp = path.with_extension("json.tmp");
-    std::fs::write(&tmp, serde_json::to_vec_pretty(value).map_err(|e| e.to_string())?)
-        .map_err(|e| e.to_string())?;
+    std::fs::write(
+        &tmp,
+        serde_json::to_vec_pretty(value).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| e.to_string())?;
     std::fs::rename(&tmp, path).map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -170,7 +173,10 @@ fn logo_data_url(plugin_dir: &Path, manifest: &Value) -> String {
     if rel.starts_with("http://") || rel.starts_with("https://") {
         return rel;
     }
-    let path = plugin_dir.join(rel.trim_start_matches("./").replace('/', &std::path::MAIN_SEPARATOR.to_string()));
+    let path = plugin_dir.join(
+        rel.trim_start_matches("./")
+            .replace('/', &std::path::MAIN_SEPARATOR.to_string()),
+    );
     let Ok(meta) = std::fs::metadata(&path) else {
         return String::new();
     };
@@ -180,7 +186,13 @@ fn logo_data_url(plugin_dir: &Path, manifest: &Value) -> String {
     let Ok(bytes) = std::fs::read(&path) else {
         return String::new();
     };
-    let mime = match path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase().as_str() {
+    let mime = match path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase()
+        .as_str()
+    {
         "svg" => "image/svg+xml",
         "png" => "image/png",
         "jpg" | "jpeg" => "image/jpeg",
@@ -188,7 +200,10 @@ fn logo_data_url(plugin_dir: &Path, manifest: &Value) -> String {
         "gif" => "image/gif",
         _ => "application/octet-stream",
     };
-    format!("data:{mime};base64,{}", base64::Engine::encode(&base64::engine::general_purpose::STANDARD, bytes))
+    format!(
+        "data:{mime};base64,{}",
+        base64::Engine::encode(&base64::engine::general_purpose::STANDARD, bytes)
+    )
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -232,7 +247,10 @@ fn scan_skills(plugin_dir: &Path) -> Vec<SkillInfo> {
                 desc = v.trim().trim_matches('"').to_string();
             }
         }
-        out.push(SkillInfo { name, description: desc });
+        out.push(SkillInfo {
+            name,
+            description: desc,
+        });
     }
     out.sort_by(|a, b| a.name.cmp(&b.name));
     out
@@ -266,9 +284,18 @@ fn remove_dir_all(path: &Path) {
 // ─── source parsing ─────────────────────────────────────────────────────────
 
 enum Source {
-    Github { owner: String, repo: String, git_ref: Option<String> },
-    GitUrl { url: String, git_ref: Option<String> },
-    LocalDir { path: PathBuf },
+    Github {
+        owner: String,
+        repo: String,
+        git_ref: Option<String>,
+    },
+    GitUrl {
+        url: String,
+        git_ref: Option<String>,
+    },
+    LocalDir {
+        path: PathBuf,
+    },
 }
 
 fn parse_source(input: &str) -> Result<Source, String> {
@@ -311,7 +338,11 @@ fn parse_source(input: &str) -> Result<Source, String> {
         let owner = it.next().unwrap_or("").to_string();
         let repo = it.next().unwrap_or("").trim_end_matches(".git").to_string();
         if !owner.is_empty() && !repo.is_empty() {
-            return Ok(Source::Github { owner, repo, git_ref });
+            return Ok(Source::Github {
+                owner,
+                repo,
+                git_ref,
+            });
         }
     }
     let p = PathBuf::from(base);
@@ -394,7 +425,11 @@ pub async fn plugin_marketplace_add(
         Option<String>,
         PathBuf,
     ) = match parsed {
-        Source::Github { owner, repo, git_ref } => {
+        Source::Github {
+            owner,
+            repo,
+            git_ref,
+        } => {
             let dir = root
                 .join("sources")
                 .join(safe_name(&format!("{owner}_{repo}")));
@@ -531,10 +566,7 @@ fn entry_json(
             Some((dir, manifest)) => {
                 let iface = interface_of(&manifest);
                 (
-                    first_non_empty(
-                        text(&iface, &["displayName"]),
-                        text(&manifest, &["name"]),
-                    ),
+                    first_non_empty(text(&iface, &["displayName"]), text(&manifest, &["name"])),
                     first_non_empty(
                         text(&iface, &["shortDescription", "longDescription"]),
                         text(&manifest, &["description"]),
@@ -542,7 +574,10 @@ fn entry_json(
                     text(&manifest, &["version"]),
                     logo_data_url(&dir, &manifest),
                     text(&iface, &["brandColor"]),
-                    scan_skills(&dir).into_iter().map(|s| json!({"name": s.name, "description": s.description})).collect::<Vec<_>>(),
+                    scan_skills(&dir)
+                        .into_iter()
+                        .map(|s| json!({"name": s.name, "description": s.description}))
+                        .collect::<Vec<_>>(),
                     true,
                     String::new(),
                 )
@@ -658,7 +693,10 @@ fn sync_personal_catalog(state: &State<'_, AppState>) -> Result<(), String> {
         })
         .collect();
     let catalog = json!({ "name": "personal", "interface": { "displayName": "Personal" }, "plugins": entries });
-    write_json(&plugins_root(state).join("marketplace-personal.json"), &catalog)
+    write_json(
+        &plugins_root(state).join("marketplace-personal.json"),
+        &catalog,
+    )
 }
 
 #[tauri::command]

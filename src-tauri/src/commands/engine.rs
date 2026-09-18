@@ -191,7 +191,10 @@ pub async fn list_providers(
     use tauri::Manager as _;
     let (protocols, endpoints) = match app.try_state::<crate::state::AppState>() {
         Some(st) => match st.inner.lock() {
-            Ok(inner) => (inner.provider_protocols.clone(), inner.provider_endpoints.clone()),
+            Ok(inner) => (
+                inner.provider_protocols.clone(),
+                inner.provider_endpoints.clone(),
+            ),
             Err(_) => (HashMap::new(), HashMap::new()),
         },
         None => (HashMap::new(), HashMap::new()),
@@ -219,7 +222,10 @@ pub async fn list_providers(
                                         obj.insert("protocol".into(), Value::String(proto.clone()));
                                     }
                                     if let Some(real_url) = endpoints.get(k) {
-                                        obj.insert("realBaseUrl".into(), Value::String(real_url.clone()));
+                                        obj.insert(
+                                            "realBaseUrl".into(),
+                                            Value::String(real_url.clone()),
+                                        );
                                     }
                                 }
                                 val
@@ -327,8 +333,12 @@ pub async fn save_provider(
             if !api_key.is_empty() {
                 inner.provider_secrets.insert(id.clone(), api_key.clone());
             }
-            inner.provider_protocols.insert(id.clone(), protocol.clone());
-            inner.provider_endpoints.insert(id.clone(), base_url.clone());
+            inner
+                .provider_protocols
+                .insert(id.clone(), protocol.clone());
+            inner
+                .provider_endpoints
+                .insert(id.clone(), base_url.clone());
         }
         state.save().map_err(|e| e.to_string())?;
     }

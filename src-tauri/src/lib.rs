@@ -25,12 +25,17 @@ pub fn run() {
             let state = state::AppState::load_or_default(&handle)?;
 
             // Start protocol adapter for custom providers (Chat / Anthropic / Ollama -> Responses).
-            let adapter = std::sync::Arc::new(codex::ProtocolAdapter::new(codex::DEFAULT_ADAPTER_PORT));
+            let adapter =
+                std::sync::Arc::new(codex::ProtocolAdapter::new(codex::DEFAULT_ADAPTER_PORT));
             let adapter_state = adapter.state();
             {
                 if let Ok(inner) = state.inner.lock() {
                     for (id, target_url) in &inner.provider_endpoints {
-                        let proto = inner.provider_protocols.get(id).cloned().unwrap_or_else(|| "openai_chat".into());
+                        let proto = inner
+                            .provider_protocols
+                            .get(id)
+                            .cloned()
+                            .unwrap_or_else(|| "openai_chat".into());
                         let key = inner.provider_secrets.get(id).cloned().unwrap_or_default();
                         adapter_state.set_route(codex::ProviderRoute {
                             id: id.clone(),
