@@ -250,7 +250,6 @@ UI 目标：**旧基线可辨识 + 真实 IPC**，不是营销级像素对齐。
 |------|------|
 | [README.md](../README.md) | 项目入口 |
 | [docs/LAYOUT.md](./LAYOUT.md) | 目录布局 |
-| [docs/MIGRATION.md](./MIGRATION.md) | 历史迁移方案（sidecar 构想期） |
 | [docs/RUST_BACKEND.md](./docs/RUST_BACKEND.md) | 引擎集成细节 |
 | [docs/official-ui/APPSERVER-METHOD-INVENTORY-0.154.0.md](./docs/official-ui/APPSERVER-METHOD-INVENTORY-0.154.0.md) | 官方方法面清单 |
 | [docs/compose/change-notes/](./docs/compose/change-notes/) | 变更记录 |

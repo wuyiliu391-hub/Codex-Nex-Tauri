@@ -126,8 +126,8 @@ codex.exe app-server --listen ws://127.0.0.1:17457
 ### Building the sidecar
 
 ```powershell
-# scripts/build-sidecar.ps1  (requires the official tree + Rust toolchain)
-.\scripts\build-sidecar.ps1
+# Build via workspace cargo / CI (shell + official sidecar by default)
+cargo tauri build -- --no-default-features
 # or manually:
 cd ..\codex-rust-v0.154.0\codex-rs
 cargo build -p codex-app-server --release
@@ -299,7 +299,6 @@ rejected by plugin:event validation), e.g.
 `resp.data`. Same for `mcpServerStatus/list` → `{ data: [...] }`.
 
 `GetState` composites local shell state + fail-soft engine calls. See
-`FRONTEND_ENGINE_MAP.md`.
 
 ---
 
