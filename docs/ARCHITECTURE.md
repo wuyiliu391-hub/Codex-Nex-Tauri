@@ -73,7 +73,6 @@
 | `.github/workflows/*` | 交付 | shell-only CI + 官方引擎下载 |
 | `scripts/diff-official-appserver-schema.mjs` | 工具 | 官方 generate-ts 与项目协议差分 |
 
-历史文档 `docs/MIGRATION.md` 记录早期 sidecar 构想，**日常产品路径以本文为准**。
 
 ---
 

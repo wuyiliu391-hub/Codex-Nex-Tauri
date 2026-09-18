@@ -136,7 +136,6 @@ copy target\release\codex-app-server.exe `
 ```
 
 CI: the main `build-windows` job is **shell-only** and must keep compiling
-without the official tree. An optional `build-sidecar` job (workflow_dispatch
 or when `CODEX_RUST_PATH` is available) produces the sidecar artifact.
 
 ### In-process feature is OFF by default
