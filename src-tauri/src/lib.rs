@@ -23,6 +23,35 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle().clone();
             let state = state::AppState::load_or_default(&handle)?;
+
+            // Start protocol adapter for custom providers (Chat / Anthropic / Ollama -> Responses).
+            let adapter = std::sync::Arc::new(codex::ProtocolAdapter::new(codex::DEFAULT_ADAPTER_PORT));
+            let adapter_state = adapter.state();
+            {
+                if let Ok(inner) = state.inner.lock() {
+                    for (id, target_url) in &inner.provider_endpoints {
+                        let proto = inner.provider_protocols.get(id).cloned().unwrap_or_else(|| "openai_chat".into());
+                        let key = inner.provider_secrets.get(id).cloned().unwrap_or_default();
+                        adapter_state.set_route(codex::ProviderRoute {
+                            id: id.clone(),
+                            protocol: proto,
+                            target_base_url: target_url.clone(),
+                            api_key: key,
+                            default_model: None,
+                        });
+                    }
+                    if !inner.settings.active_provider_id.is_empty() {
+                        adapter_state.set_active(&inner.settings.active_provider_id);
+                    }
+                }
+            }
+            app.manage(adapter_state);
+            tauri::async_runtime::spawn(async move {
+                if let Err(e) = adapter.spawn_server().await {
+                    tracing::error!("Failed to start protocol adapter server: {}", e);
+                }
+            });
+
             app.manage(state);
 
             // Start official codex-app-server sidecar (WebSocket).
@@ -93,6 +122,16 @@ pub fn run() {
             commands::engine::reload_skills,
             commands::engine::list_plugins,
             commands::engine::set_plugin_enabled,
+            commands::market::plugin_marketplaces,
+            commands::market::plugin_marketplace_add,
+            commands::market::plugin_marketplace_remove,
+            commands::market::plugin_marketplace_plugins,
+            commands::market::plugin_install,
+            commands::market::plugin_add_local,
+            commands::market::plugin_installed,
+            commands::market::plugin_uninstall,
+            commands::market::plugin_set_enabled,
+            commands::market::plugin_skills,
             commands::engine::open_shell,
             commands::engine::write_shell,
             commands::engine::read_shell,

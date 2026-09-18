@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { t } from "../../../../src/js/i18n.js";
+import { openExternal } from "@/shell/actions";
 import { saveSection, usePrefSection } from "@/state/preferencesStore";
 import { BlockCustom, PageHead, Row, SettingsButton, Switch, TextArea } from "../primitives";
 
@@ -18,6 +19,19 @@ function label(key: string, fallback = ""): string {
 interface PersonalizationPrefs {
   agents?: string;
   localMemory?: boolean;
+}
+
+/** Inline 了解更多 link appended to a section description (official layout). */
+function LearnMore({ url }: { url: string }): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      className="settings-inline-link"
+      onClick={() => void openExternal(url)}
+    >
+      {label("general.learnMore", "Learn more")}
+    </button>
+  );
 }
 
 export function PersonalizationTab() {
@@ -52,12 +66,16 @@ export function PersonalizationTab() {
           />
         }
       >
-        <p className="settings-page-sub">{label("personal.instructionsDesc")}</p>
+        <p className="settings-page-sub">
+          {label("personal.instructionsDesc")} <LearnMore url="https://developers.openai.com/codex/guides/agents-md/#create-global-guidance" />
+        </p>
         <TextArea value={draft} onChange={setDraft} ariaLabel={label("personal.instructions")} />
       </BlockCustom>
 
       <BlockCustom title={label("personal.memory")}>
-        <p className="settings-page-sub">{label("personal.memoryDesc")}</p>
+        <p className="settings-page-sub">
+          {label("personal.memoryDesc")} <LearnMore url="https://developers.openai.com/codex/memories" />
+        </p>
         <div className="settings-card">
           <Row
             label={label("personal.localMemory")}
@@ -67,6 +85,14 @@ export function PersonalizationTab() {
                 checked={prefs.localMemory === true}
                 onChange={(v) => void saveSection("personalization", { localMemory: v })}
               />
+            }
+          />
+          <Row
+            label={label("personal.toolMemory")}
+            desc={label("personal.toolMemoryDesc")}
+            control={
+              // Official: On and disabled — gated on local memory support upstream.
+              <Switch checked disabled onChange={() => {}} />
             }
           />
           <Row

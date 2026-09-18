@@ -8,6 +8,7 @@
 
 import { useState } from "react";
 import { t } from "../../../../src/js/i18n.js";
+import { openExternal } from "@/shell/actions";
 import { saveSection, usePrefSection } from "@/state/preferencesStore";
 import { Block, PageHead, SettingsButton } from "../primitives";
 
@@ -54,7 +55,22 @@ export function EnvironmentsTab() {
 
   return (
     <>
-      <PageHead title={label("environments.title")} />
+      <PageHead
+        title={label("environments.title")}
+        descNode={
+          <p>
+            {label("environments.desc")}
+            {" "}
+            <button
+              type="button"
+              className="settings-inline-link"
+              onClick={() => void openExternal("https://developers.openai.com/codex/app/local-environments")}
+            >
+              {label("environments.learnMore", "Learn more.")}
+            </button>
+          </p>
+        }
+      />
       <Block
         title={label("environments.projects")}
         extra={
@@ -78,6 +94,9 @@ export function EnvironmentsTab() {
                   <div className="plugin-name">{p.name}</div>
                   <div className="plugin-desc">{p.path ?? ""}</div>
                 </div>
+                {/* Official rows expose "Add environment to Desktop"; that needs
+                    a project-discovery backend (pending L3), so kept the real
+                    remove wiring for the persisted list. */}
                 <SettingsButton
                   label={label("action.delete", "Delete")}
                   kind="danger"

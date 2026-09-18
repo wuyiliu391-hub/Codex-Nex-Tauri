@@ -19,13 +19,15 @@ import "../src/styles/dark.css";
 // rules that modal.js used to inject at runtime.
 import "./styles/approvals.css";
 import "./styles/modal.css";
+import "./styles/turn.css";
+import "./styles/settings-general.css";
 
 import { App } from "./App";
 import { startEventBridge } from "./bridge/events";
 import { installRouter } from "./shell/useRoute";
 import { getPrefSection, loadPreferences } from "./state/preferencesStore";
 import { startAppearance } from "./state/appearance";
-import { applyLanguage } from "../src/js/i18n.js";
+import { applyLanguage, detectSystemLanguage } from "../src/js/i18n.js";
 import { updateSettings as updateLegacySettings } from "../src/js/state.js";
 
 const container = document.getElementById("root");
@@ -44,8 +46,10 @@ void startEventBridge();
 // datasets) and keep it in sync as preferences change.
 void loadPreferences().then(() => {
   startAppearance();
+  // Prefer explicit preference; else system locale (backend empty → zh-CN).
   const general = getPrefSection<{ language?: string }>("general");
-  if (general?.language) updateLegacySettings({ language: general.language });
+  const bootLang = general?.language || detectSystemLanguage();
+  updateLegacySettings({ language: bootLang });
   applyLanguage();
 });
 
@@ -55,15 +59,28 @@ createRoot(container).render(
   </StrictMode>,
 );
 
-// The React tree owns the shell now; drop the splash.
-document.body.classList.remove("is-booting");
-const splash = document.getElementById("startup-loader");
-if (splash) {
-  splash.classList.add("is-hidden");
-  setTimeout(() => splash.remove(), 400);
-}
-const failSafe = (window as unknown as { __codexSplashFailSafe?: number }).__codexSplashFailSafe;
-if (failSafe !== undefined) {
-  clearTimeout(failSafe);
-  (window as unknown as { __codexSplashFailSafe?: number }).__codexSplashFailSafe = undefined;
-}
+// The React tree owns the shell now; drop the splash after a minimum
+// display window so the blossom + shimmer stays perceptible. Without this the
+// removal below runs in the same task as render() — on a fast dev boot the
+// loader is hidden before the browser ever paints it ("瞬间而过").
+// 2200ms covers one full shimmer sweep (see index.html keyframes).
+// Elapsed is measured from navigation start so slow loads don't pay extra.
+const MIN_SPLASH_MS = 2200;
+const bootElapsed =
+  typeof performance !== "undefined" && performance.timeOrigin ? Date.now() - performance.timeOrigin : 0;
+window.setTimeout(
+  () => {
+    document.body.classList.remove("is-booting");
+    const splash = document.getElementById("startup-loader");
+    if (splash) {
+      splash.classList.add("is-hidden");
+      setTimeout(() => splash.remove(), 400);
+    }
+    const failSafe = (window as unknown as { __codexSplashFailSafe?: number }).__codexSplashFailSafe;
+    if (failSafe !== undefined) {
+      clearTimeout(failSafe);
+      (window as unknown as { __codexSplashFailSafe?: number }).__codexSplashFailSafe = undefined;
+    }
+  },
+  Math.max(0, MIN_SPLASH_MS - bootElapsed),
+);

@@ -42,7 +42,9 @@
       "icons/128x128.png",
       "icons/icon.ico"
     ],
-    "resources": [],
+    "resources": {
+      "binaries/codex-app-server-x86_64-pc-windows-msvc.exe": "binaries/codex-app-server-x86_64-pc-windows-msvc.exe"
+    },
     "windows": {
       "webviewInstallMode": { "type": "downloadBootstrapper" }
     }

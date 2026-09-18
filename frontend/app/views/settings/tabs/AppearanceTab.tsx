@@ -80,6 +80,16 @@ export function AppearanceTab() {
             </button>
           ))}
         </div>
+        <ThemeCodePreview
+          light={{
+            accent: prefs.lightTheme?.accent ?? "#2563eb",
+            contrast: prefs.lightTheme?.contrast ?? 45,
+          }}
+          dark={{
+            accent: prefs.darkTheme?.accent ?? "#0ea5e9",
+            contrast: prefs.darkTheme?.contrast ?? 68,
+          }}
+        />
       </Block>
 
       <BlockCustom>
@@ -176,6 +186,41 @@ export function AppearanceTab() {
   );
 }
 
+/** Dual-column ThemeConfig code preview under the theme radios (official 26.911). */
+function ThemeCodePreview({
+  light,
+  dark,
+}: {
+  light: { accent: string; contrast: number };
+  dark: { accent: string; contrast: number };
+}) {
+  const columns = [
+    { surface: "sidebar", ...light },
+    { surface: "sidebar-elevated", ...dark },
+  ];
+  return (
+    <div className="theme-code-preview">
+      {columns.map((col) => {
+        const source =
+          `const themePreview: ThemeConfig = { surface: "${col.surface}", ` +
+          `accent: "${col.accent}", contrast: ${col.contrast}, };`;
+        return (
+          <div className="theme-code-col" key={col.surface}>
+            <div className="theme-code-gutter" aria-hidden="true">
+              <span>1</span>
+              <span>2</span>
+              <span>3</span>
+              <span>4</span>
+              <span>5</span>
+            </div>
+            <pre className="theme-code-source">{source}</pre>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function ThemeCardEditor({
   themeKey,
   title,
@@ -262,27 +307,55 @@ function ThemeCardEditor({
 
       <div className="theme-card-row">
         <span className="theme-card-field-label">{label("appearance.uiFont")}</span>
-        <Dropdown
-          value={uiFont}
-          items={UI_FONTS.map((f) => ({ value: f, label: f }))}
-          onChange={(v) => patch({ uiFont: v })}
-        />
+        <div className="theme-font-pair">
+          <Dropdown
+            value={uiFont}
+            items={UI_FONTS.map((f) => ({ value: f, label: f }))}
+            onChange={(v) => patch({ uiFont: v })}
+          />
+          {/* Official: style select sits beside each font, disabled (DIS). */}
+          <Dropdown
+            value="regular"
+            disabled
+            ariaLabel={label("appearance.uiFont") + label("appearance.style", " style")}
+            items={[{ value: "regular", label: label("appearance.regular", "Regular") }]}
+            onChange={() => {}}
+          />
+        </div>
       </div>
       <div className="theme-card-row">
         <span className="theme-card-field-label">{label("appearance.contentFont")}</span>
-        <Dropdown
-          value={contentFont}
-          items={UI_FONTS.map((f) => ({ value: f, label: f }))}
-          onChange={(v) => patch({ contentFont: v })}
-        />
+        <div className="theme-font-pair">
+          <Dropdown
+            value={contentFont}
+            items={UI_FONTS.map((f) => ({ value: f, label: f }))}
+            onChange={(v) => patch({ contentFont: v })}
+          />
+          <Dropdown
+            value="regular"
+            disabled
+            ariaLabel={label("appearance.contentFont") + label("appearance.style", " style")}
+            items={[{ value: "regular", label: label("appearance.regular", "Regular") }]}
+            onChange={() => {}}
+          />
+        </div>
       </div>
       <div className="theme-card-row">
         <span className="theme-card-field-label">{label("appearance.codeFont")}</span>
-        <Dropdown
-          value={codeFont}
-          items={CODE_FONTS.map((f) => ({ value: f, label: f }))}
-          onChange={(v) => patch({ codeFont: v })}
-        />
+        <div className="theme-font-pair">
+          <Dropdown
+            value={codeFont}
+            items={CODE_FONTS.map((f) => ({ value: f, label: f }))}
+            onChange={(v) => patch({ codeFont: v })}
+          />
+          <Dropdown
+            value="regular"
+            disabled
+            ariaLabel={label("appearance.codeFont") + label("appearance.style", " style")}
+            items={[{ value: "regular", label: label("appearance.regular", "Regular") }]}
+            onChange={() => {}}
+          />
+        </div>
       </div>
 
       <div className="theme-card-row">

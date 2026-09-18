@@ -14,7 +14,7 @@
 import { useSyncExternalStore } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { updateSettings as updateLegacySettings } from "../../src/js/state.js";
-import { applyLanguage } from "../../src/js/i18n.js";
+import { applyLanguage, detectSystemLanguage } from "../../src/js/i18n.js";
 
 /**
  * Vanilla `t()` / `currentLang()` read `store.settings.language` from
@@ -51,6 +51,8 @@ export interface ProviderEntry {
   name: string;
   models: string[];
   hasApiKey: boolean;
+  protocol?: string;
+  baseUrl?: string;
 }
 
 export interface EngineStatus {
@@ -84,7 +86,7 @@ export function defaultSettings(): SettingsState {
     approvalPolicy: "ask",
     fullAccess: false,
     sidebarCollapsed: false,
-    language: "en",
+    language: detectSystemLanguage(),
     sandbox: "workspace-write",
     webSearch: "cached",
     outputVerbosity: "medium",
@@ -203,6 +205,8 @@ function normaliseProviders(raw: unknown): ProviderEntry[] {
       name: typeof p["name"] === "string" ? p["name"] : id,
       models: Array.isArray(p["models"]) ? (p["models"] as string[]).filter(Boolean) : [],
       hasApiKey: p["hasApiKey"] === true,
+      protocol: typeof p["protocol"] === "string" ? p["protocol"] : undefined,
+      baseUrl: typeof p["realBaseUrl"] === "string" ? p["realBaseUrl"] : typeof p["base_url"] === "string" ? p["base_url"] : undefined,
     });
   }
   return out;

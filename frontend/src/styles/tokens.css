@@ -1,35 +1,6 @@
-@font-face {
-  font-family: "OpenAI Sans";
-  src: url("../assets/fonts/openai-sans-regular.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "OpenAI Sans";
-  src: url("../assets/fonts/openai-sans-medium.woff2") format("woff2");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
-/* Map heavier CSS weights to Medium face — official only ships 400/500 */
-@font-face {
-  font-family: "OpenAI Sans";
-  src: url("../assets/fonts/openai-sans-medium.woff2") format("woff2");
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "OpenAI Sans";
-  src: url("../assets/fonts/openai-sans-medium.woff2") format("woff2");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
+/* OpenAI Sans @font-face is owned by official-tokens.css (Regular 400 +
+   Medium mapped to 500/600/700 via OpenAISans-*.woff2). Do not redeclare
+   the family here — duplicate faces fight on weight resolution. */
 
 @font-face {
   font-family: "Carlito";
@@ -120,8 +91,8 @@
   /* Size scale — matched to official UI density */
   --text-2xs: 11px;
   --text-xs: 12px;              /* chrome labels / section heads */
-  --text-sm: 12px;              /* titlebar menu = official small chrome */
-  --text-sm-ui: 13px;           /* process lines / denser UI */
+  --text-sm: 12px;              /* dense chrome labels */
+  --text-sm-ui: 13px;           /* titlebar menus / process lines */
   --text-md: 14px;              /* sidebar rows */
   --text-base: 14px;            /* body / composer */
   --text-code: 13px;

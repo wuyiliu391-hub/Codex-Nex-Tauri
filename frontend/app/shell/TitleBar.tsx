@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { t } from "../../src/js/i18n.js";
 import { MENU_NAMES, MENU_TREE, isSeparator, type MenuName } from "./menuTree";
 import { dispatchAction, type ShellContext } from "./actions";
+import { useI18n } from "./useI18n";
 
 interface TitleBarProps {
   ctx: ShellContext;
@@ -23,6 +24,7 @@ function label(key: string): string {
 }
 
 export function TitleBar({ ctx, sidebarCollapsed, onToggleSidebar }: TitleBarProps) {
+  useI18n();
   const [openMenu, setOpenMenu] = useState<MenuName | null>(null);
   const barRef = useRef<HTMLElement | null>(null);
 

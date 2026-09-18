@@ -1,0 +1,204 @@
+/**
+ * React-owned turn styles — the new classes from the official turn-lifecycle
+ * work (live header states, terminal glyph, streaming shell panel), plus the
+ * command-row visual parity with the official screenshot: thin light terminal
+ * glyph, collapsed arrow = open single-stroke chevron (›), revealed on hover.
+ * Message/context logic is untouched.
+ */
+
+/* Live turn header: no pointer affordance until the turn is finished. */
+.turn-elapsed-head.is-live { cursor: default; }
+
+/* 「正在思考」 spinner — sits inline before the label. */
+.turn-spinner {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  animation: turn-spin 800ms linear infinite;
+}
+@keyframes turn-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .turn-spinner { animation-duration: 2s; }
+}
+
+/* reset.css carries `svg:not([fill]) { fill: currentColor }` at specificity
+   (0,1,1) — a plain class loses to it, which is what painted the terminal
+   box and the triangle with a dark fill. These icons must stay pure line
+   art, so scope through .cmd-head (0,2,0) to win the cascade. */
+.cmd-head .cmd-term {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  fill: none;
+  stroke: var(--fg-description);
+  stroke-width: 1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* Running command: the glyph breathes until the process exits. */
+.cmd-card.is-running .cmd-term {
+  animation: cmd-term-pulse 1.2s ease-in-out infinite;
+}
+@keyframes cmd-term-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/* Official command-row arrow: an open chevron — a sideways "A" without its
+   crossbar (›) — one thin light stroke. Collapsed points right, expanded
+   rotates down. Hidden until the pointer enters the command row area.
+   NOTE: transition must list BOTH opacity and transform — home.css animates
+   transform on .cmd-chev and a shorthand here would silently drop it. */
+.cmd-head .cmd-chev {
+  fill: none;
+  stroke: var(--fg-description);
+  stroke-width: 1.2;
+  opacity: 0;
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+.cmd-card:hover .cmd-head .cmd-chev,
+.cmd-head:focus-visible .cmd-chev { opacity: 1; }
+.cmd-head .cmd-chev.closed { transform: rotate(-90deg); }
+
+/* Streaming shell output panel — one DOM row per log line, tail-pinned.
+   Metrics mirror .cmd-pre (home.css) so expanded output looks unchanged. */
+.cmd-lines {
+  font-family: var(--font-mono);
+  font-size: var(--text-code);
+  line-height: 1.55;
+  color: var(--fg-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.cmd-line { min-height: 1em; }
+
+/* ── file operation marker rows (official compact style) ────────────────
+   已新增/已修改/已删除/已阅读/已查看/已搜索 + path + ± stats. The action
+   label is the blue marker; the chevron follows the command-row contract:
+   invisible until hover, collapsed = right, expanded = down. */
+.file-op {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 0;
+  background: transparent;
+  border: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm-ui, 13px);
+  color: var(--fg-secondary);
+  text-align: left;
+}
+.file-op.is-clickable { cursor: pointer; }
+.file-op svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  fill: none;
+  stroke: var(--fg-description);
+  stroke-width: 1.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.file-op-action { color: var(--fg-description); flex: none; }
+.file-op-path {
+  color: var(--fg-description);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.file-op-stats {
+  display: inline-flex;
+  gap: 6px;
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.file-op-stat.is-add { color: var(--success); }
+.file-op-stat.is-del { color: var(--danger); }
+.file-op .cmd-chev {
+  fill: none;
+  stroke: var(--fg-description);
+  stroke-width: 1.2;
+  opacity: 0;
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+.file-op:hover .cmd-chev,
+.file-op:focus-visible .cmd-chev,
+.file-op[aria-expanded="true"] .cmd-chev { opacity: 1; }
+.file-op .cmd-chev.closed { transform: rotate(-90deg); }
+
+/* ── official diff panel ────────────────────────────────────────────────
+   File bar (name + ± stats + copy) over a numbered code body; the +/-
+   meaning is carried by row tint + left rail, not literal prefixes. */
+.file-diff {
+  margin: 4px 0 10px;
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  background: var(--bg-canvas);
+  overflow: hidden;
+}
+.file-diff-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--bg-hover);
+  border-bottom: 1px solid var(--border-light);
+  font-size: var(--text-sm-ui, 13px);
+}
+.file-diff-name { color: var(--fg-primary); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-diff-stats { display: inline-flex; gap: 6px; margin-left: auto; flex: none; font-family: var(--font-mono); font-size: 12px; }
+.file-diff-stats .is-add { color: var(--success); }
+.file-diff-stats .is-del { color: var(--danger); }
+.file-diff-copy {
+  display: inline-flex;
+  flex: none;
+  padding: 2px;
+  border: 0;
+  background: transparent;
+  color: var(--fg-description);
+  cursor: pointer;
+}
+.file-diff-copy svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
+.file-diff-copy:hover { color: var(--fg-secondary); }
+.file-diff-body {
+  font-family: var(--font-mono);
+  font-size: var(--text-code);
+  line-height: 1.6;
+  max-height: 420px;
+  overflow: auto;
+}
+.fdiff-line {
+  display: flex;
+  align-items: baseline;
+  padding: 0 12px 0 0;
+  border-left: 3px solid transparent;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.fdiff-no {
+  flex: none;
+  width: 3.2em;
+  padding-right: 12px;
+  text-align: right;
+  color: var(--fg-description);
+  user-select: none;
+}
+.fdiff-text { min-width: 0; color: var(--fg-secondary); }
+.fdiff-line.is-add { background: rgba(100, 168, 5, 0.10); border-left-color: var(--success); }
+.fdiff-line.is-del { background: rgba(159, 18, 57, 0.08); border-left-color: var(--danger); }
+
+/* Summary reply block — the final agent answer below the collapsed flow. */
+.message-row.is-summary .part-text { color: var(--fg-primary); }
+.cmd-line.is-cmd { color: var(--fg-primary); }
+.cmd-more,
+.cmd-wait { color: var(--fg-description); font-style: italic; }

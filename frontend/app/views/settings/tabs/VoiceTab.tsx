@@ -45,6 +45,18 @@ function captureKey(onCapture: (combo: string) => void): void {
 export function VoiceTab() {
   const prefs = usePrefSection<VoicePrefs>("voice");
   const [mics, setMics] = useState<string[]>([]);
+  // Official 26.911: the 语言 row shows a bare "Retry" button when the
+  // language list failed to load. We attempt the same audio listing the mic
+  // row uses; while it has never succeeded the row stays on Retry — no fake
+  // dropdown, matching the captured official state.
+  const [langState, setLangState] = useState<"failed" | "loading" | "ready">("failed");
+
+  function loadLanguages(): void {
+    setLangState("loading");
+    void invoke<unknown>("rpc_raw", { method: "audio/list", params: {} })
+      .then(() => setLangState("ready"))
+      .catch(() => setLangState("failed"));
+  }
 
   // Audio devices are engine-reported; a missing engine leaves just the default.
   useEffect(() => {
@@ -83,6 +95,24 @@ export function VoiceTab() {
               items={micItems}
               onChange={(v) => void saveSection("voice", { microphone: v })}
             />
+          }
+        />
+        <Row
+          label={label("voice.language", "Language")}
+          control={
+            langState === "ready" ? (
+              <Dropdown
+                value="default"
+                items={[{ value: "default", label: label("voice.systemDefault") }]}
+                onChange={() => {}}
+              />
+            ) : (
+              <SettingsButton
+                label="Retry"
+                disabled={langState === "loading"}
+                onClick={loadLanguages}
+              />
+            )
           }
         />
       </Block>

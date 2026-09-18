@@ -1,17 +1,29 @@
 /**
  * Sidebar: brand header, primary navigation, project list, recent sessions,
- * footer (profile + help). Replaces the sidebar half of shell.js.
- *
- * Projects and sessions come from appStore, which fetches them from the engine.
- * When there is nothing to show, the official empty labels are used rather than
- * placeholder rows.
+ * footer (profile + help), model configuration & reasoning effort, plus
+ * pending permission approval badge and real session deletion.
  */
 
+import { useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { t } from "../../src/js/i18n.js";
-import { setActiveProject, setActiveSession, useAppState } from "@/state/appStore";
-import { getSnapshot as getTurnSnapshot, loadThreadFromSession } from "@/state/turnStore";
+import {
+  refreshAppState,
+  saveSettings,
+  setActiveProject,
+  setActiveSession,
+  useAppState,
+} from "@/state/appStore";
+import {
+  getSnapshot as getTurnSnapshot,
+  loadThreadFromSession,
+  resetTurn,
+} from "@/state/turnStore";
+import { usePendingRequests } from "@/state/hooks";
+import { Dropdown } from "./Dropdown";
 import { useRoute, navigate } from "./useRoute";
 import { dispatchAction, type ShellContext } from "./actions";
+import { useI18n } from "./useI18n";
 
 const NAV_ITEMS = [
   { view: "home", key: "nav.newTask", fallback: "New task" },
@@ -19,6 +31,14 @@ const NAV_ITEMS = [
   { view: "scheduled", key: "nav.scheduled", fallback: "Scheduled" },
   { view: "plugins", key: "nav.plugins", fallback: "Plugins" },
 ] as const;
+
+const REASONING_LEVELS = [
+  { value: "low", label: "低 (Low)" },
+  { value: "medium", label: "中 (Medium)" },
+  { value: "high", label: "高 (High)" },
+  { value: "xhigh", label: "极高 (Extra High)" },
+  { value: "ultra", label: "Ultra" },
+];
 
 function NavIcon({ view }: { view: string }) {
   switch (view) {
@@ -66,8 +86,12 @@ interface SidebarProps {
 }
 
 export function Sidebar({ ctx, collapsed }: SidebarProps) {
-  const { projects, sessions, activeSessionId, activeProjectId } = useAppState();
+  const { projects, sessions, activeSessionId, activeProjectId, settings } = useAppState();
+  const pendingRequests = usePendingRequests();
   const route = useRoute();
+  useI18n();
+
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Recent sessions for the active project (or all when none is selected).
   const selectedProjectId = activeProjectId ?? projects[0]?.id ?? "";
@@ -76,29 +100,36 @@ export function Sidebar({ ctx, collapsed }: SidebarProps) {
     .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))
     .slice(0, 20);
 
+  async function handleDeleteSession(e: React.MouseEvent, sessionId: string): Promise<void> {
+    e.stopPropagation();
+    if (!window.confirm("确定要删除此会话吗？")) return;
+    setDeletingId(sessionId);
+    try {
+      await invoke("delete_session", { sessionId });
+      if (activeSessionId === sessionId) {
+        resetTurn();
+        setActiveSession(null);
+      }
+      await refreshAppState();
+    } catch (err) {
+      console.error("[sidebar] delete_session failed", err);
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  function handleNewTask(): void {
+    resetTurn();
+    setActiveSession(null);
+    navigate("home");
+  }
+
   return (
     <aside className="sidebar" id="sidebar" aria-hidden={collapsed}>
       <div className="sidebar-brand">
-        <button
-          className="brand-title-wrap"
-          id="brand-menu-btn"
-          type="button"
-          aria-label="Codex menu"
-          aria-haspopup="menu"
-          onClick={() => navigate("settings", "general")}
-        >
+        <span className="brand-title-wrap" id="brand-menu-btn">
           <span className="brand-title">{String(t("app.brand.name", "Codex"))}</span>
-          <svg className="brand-chevron" viewBox="0 0 16 16" aria-hidden="true">
-            <path
-              d="m4 6 4 4 4-4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
+        </span>
         <div className="brand-actions">
           <button
             className="brand-icon-btn brand-search"
@@ -142,7 +173,13 @@ export function Sidebar({ ctx, collapsed }: SidebarProps) {
             type="button"
             data-view={item.view}
             id={item.view === "home" ? "nav-new" : undefined}
-            onClick={() => navigate(item.view)}
+            onClick={() => {
+              if (item.view === "home") {
+                handleNewTask();
+              } else {
+                navigate(item.view);
+              }
+            }}
           >
             <span className="ico">
               <NavIcon view={item.view} />
@@ -151,6 +188,41 @@ export function Sidebar({ ctx, collapsed }: SidebarProps) {
           </button>
         ))}
       </nav>
+
+      {/* 待决权限请求面板入口 */}
+      {pendingRequests.length > 0 ? (
+        <div className="sidebar-permission-badge" onClick={() => navigate("home")}>
+          <span className="perm-dot" />
+          <span>待决权限请求 ({pendingRequests.length})</span>
+        </div>
+      ) : null}
+
+      {/* 模型与思考等级快速调节 */}
+      <div className="sidebar-model-box">
+        <div className="sidebar-model-row">
+          <span className="sidebar-model-label">模型:</span>
+          <Dropdown
+            value={settings.activeModel || "gpt-4o"}
+            items={[
+              { value: "gpt-4o", label: "gpt-4o" },
+              { value: "gpt-4o-mini", label: "gpt-4o-mini" },
+              { value: "o1", label: "o1" },
+              { value: "o3-mini", label: "o3-mini" },
+              { value: "claude-3-5-sonnet-20241022", label: "claude-3-5-sonnet" },
+              { value: "deepseek-chat", label: "deepseek-chat" },
+            ]}
+            onChange={(model) => void saveSettings({ activeModel: model })}
+          />
+        </div>
+        <div className="sidebar-model-row">
+          <span className="sidebar-model-label">思考等级:</span>
+          <Dropdown
+            value={settings.modelReasoningEffort || "medium"}
+            items={REASONING_LEVELS}
+            onChange={(effort) => void saveSettings({ modelReasoningEffort: effort })}
+          />
+        </div>
+      </div>
 
       <div className="section-head">
         <span>{String(t("nav.projects", "Projects"))}</span>
@@ -188,13 +260,11 @@ export function Sidebar({ ctx, collapsed }: SidebarProps) {
           <div className="task-list-empty">{String(t("nav.noChats", "No chats"))}</div>
         ) : (
           recent.map((session) => (
-            <button
+            <div
               className={`task-row${session.id === activeSessionId ? " is-active" : ""}`}
               key={session.id}
-              type="button"
               onClick={() => {
                 const turn = getTurnSnapshot();
-                // Re-open the same running thread without wiping its live turn.
                 if (!(turn.active && turn.sessionId === session.id)) {
                   void loadThreadFromSession(session.id);
                 }
@@ -209,7 +279,16 @@ export function Sidebar({ ctx, collapsed }: SidebarProps) {
                 </svg>
               </span>
               <span className="name">{session.title || session.preview || String(t("nav.newTask", "New task"))}</span>
-            </button>
+              <button
+                type="button"
+                className="task-delete-btn"
+                title="删除会话"
+                disabled={deletingId === session.id}
+                onClick={(e) => void handleDeleteSession(e, session.id)}
+              >
+                ✕
+              </button>
+            </div>
           ))
         )}
       </div>
@@ -232,21 +311,21 @@ export function Sidebar({ ctx, collapsed }: SidebarProps) {
         </button>
         <button
           className="sidebar-help-btn"
-          id="sidebar-help"
+          id="sidebar-help-btn"
           type="button"
-          aria-label="Help"
-          onClick={() => dispatchAction("documentation", ctx)}
+          title={String(t("menu.help", "Help"))}
+          aria-label={String(t("menu.help", "Help"))}
+          onClick={() => navigate("settings", "general")}
         >
           <svg viewBox="0 0 18 18" aria-hidden="true">
-            <circle cx="9" cy="9" r="7" fill="none" stroke="currentColor" strokeWidth="1.4" />
+            <circle cx="9" cy="9" r="6" fill="none" stroke="currentColor" strokeWidth="1.3" />
             <path
-              d="M7.2 6.6a1.8 1.8 0 0 1 3.5.5c0 1.1-1.5 1.4-1.5 2.4"
+              d="M7.2 7.2a2 2 0 1 1 2.8 1.8c-.5.3-.8.7-.8 1.4M9 13h.01"
               fill="none"
               stroke="currentColor"
-              strokeWidth="1.4"
+              strokeWidth="1.3"
               strokeLinecap="round"
             />
-            <circle cx="9" cy="12.5" r=".7" fill="currentColor" />
           </svg>
         </button>
       </div>

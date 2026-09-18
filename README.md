@@ -1,12 +1,15 @@
 # Codex-Tauri
 
-Tauri v2 桌面壳 + **官方 Codex app-server**（默认预编译 sidecar，`rust-v0.154.0`）。
+Tauri v2 桌面壳 + **官方 Codex app-server**（唯一引擎形态：预编译 sidecar，`rust-v0.154.0`）。
 
 | 文档 | 说明 |
 |------|------|
 | [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | **架构分层（必读）** |
 | [docs/LAYOUT.md](./docs/LAYOUT.md) | 目录布局与清理规则 |
 | [docs/RUST_BACKEND.md](./docs/RUST_BACKEND.md) | 引擎传输 / 握手 / 方法名 |
+| [docs/BROWSER-DEV.md](./docs/BROWSER-DEV.md) | **浏览器调试模式**（不编译 Rust 跑真实引擎） |
+| [docs/REPORT-2026-09-16.md](./docs/REPORT-2026-09-16.md) | **官方桌面端 UIA 动态逆向总报告**（启动/操控/19 设置页/Turn 流） |
+| [docs/official-ui/CDP_NOTES.md](./docs/official-ui/CDP_NOTES.md) | CDP 结论（Store 版不开远程调试，UIA 为唯一动态路径） |
 | [docs/provider-setup.md](./docs/provider-setup.md) | 自定义供应商 |
 | [docs/official-ui/APPSERVER-METHOD-INVENTORY-0.154.0.md](./docs/official-ui/APPSERVER-METHOD-INVENTORY-0.154.0.md) | 官方方法面清单 |
 
@@ -20,8 +23,8 @@ React UI  →  Tauri Shell API（产品 IPC）  →  app-server JSON-RPC  →  �
 
 | 模式 | 引擎来源 | 用途 |
 |------|----------|------|
-| **默认 / CI** | 官方 `codex-app-server-*.exe` sidecar | 日常产品构建 |
-| 可选 | `--features in-process` 链 `src/backend` | 引擎实验 |
+| **唯一 / CI** | 官方 `codex-app-server-*.exe` sidecar（安装器内置资源） | 日常产品构建 |
+| ~~实验~~ 已退役 | in-process 源码链已移除（feature、workspace 成员、`src/backend` 树），仅存 git 历史 | — |
 
 ## 构建（CI）
 
@@ -51,3 +54,4 @@ npm run build
 - 保持旧 CSS DOM/class 契约  
 - 不随意修改 Codex 核心 Agent 逻辑  
 - 协议以官方 `app-server generate-ts` 为准  
+- 前端改动后，Agent 只负责改码 + `tsc --noEmit`/`scripts/` 静态检查；**不执行 vite 构建、不开内置浏览器测试**——运行与视觉验证由本人自测（2026-09-18 约定）  

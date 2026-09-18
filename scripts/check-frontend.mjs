@@ -124,7 +124,10 @@ let importChecked = 0;
 for (const file of [...tsFiles, ...tsxFiles]) {
   const src = readFileSync(file, "utf8");
   for (const match of src.matchAll(IMPORT_RE)) {
-    const spec = match[1];
+    const rawSpec = match[1];
+    // Vite import queries (?raw / ?url) are part of the specifier, not the
+    // path — strip them before resolving against the filesystem.
+    const spec = rawSpec.replace(/\?(raw|url|inline)$/, "");
     if (!spec.startsWith(".") && !spec.startsWith("@")) continue;
     importChecked += 1;
 

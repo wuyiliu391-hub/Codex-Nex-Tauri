@@ -64,12 +64,19 @@ export function AccountTab() {
 
   const active = providers.find((p) => p.id === settings.activeProviderId) ?? providers[0] ?? null;
 
-  function openEditor(existing?: { id: string; name: string }): void {
+  function openEditor(existing?: {
+    id: string;
+    name: string;
+    baseUrl?: string;
+    protocol?: string;
+  }): void {
     setProbeMsg("");
     setForm({
       ...emptyForm(),
       id: existing?.id ?? "",
       name: existing?.name ?? "",
+      baseUrl: existing?.baseUrl ?? "",
+      protocol: existing?.protocol ?? "openai_chat",
     });
   }
 
@@ -212,7 +219,14 @@ export function AccountTab() {
                   <div className="provider-row-actions">
                     <SettingsButton
                       label={label("action.edit", "Edit")}
-                      onClick={() => openEditor({ id: provider.id, name: provider.name })}
+                      onClick={() =>
+                        openEditor({
+                          id: provider.id,
+                          name: provider.name,
+                          baseUrl: provider.baseUrl,
+                          protocol: provider.protocol,
+                        })
+                      }
                     />
                     <SettingsButton
                       label={

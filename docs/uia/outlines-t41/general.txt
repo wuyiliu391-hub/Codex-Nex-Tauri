@@ -1,0 +1,152 @@
+Document 'ChatGPT' #RootWebArea val="app://-/index.html"
+  Group
+    Group #root
+      StatusBar OFF
+      Group
+        Button '隐藏侧边栏' exp=Expanded
+          Image
+      Group
+        Button '返回'
+          Image
+      Group
+        Button '前进' DIS
+          Image
+      MenuBar '应用程序菜单'
+        MenuItem '文件' #application-menu-trigger-file-menu exp=Collapsed
+        MenuItem '编辑' #application-menu-trigger-edit-menu exp=Collapsed
+        MenuItem '视图' #application-menu-trigger-view-menu exp=Collapsed
+        MenuItem '帮助' #application-menu-trigger-help-menu exp=Collapsed
+      Group
+        Group '设置'
+          Hyperlink '返回应用'
+          Image
+          Text '搜索设置'
+          Edit '搜索设置' #settings-search
+          Text '个人'
+          Button '常规'
+            Image
+          Button '导入'
+            Image
+          Button '外观'
+            Image
+          Button '语音'
+            Image
+          Button '配置'
+            Image
+          Button '个性化'
+            Image
+          Button '宠物'
+            Image
+          Button '键盘快捷键'
+            Image
+          Group
+            Button '账户'
+              Image
+          Text '集成'
+          Button '电脑操控'
+            Image
+          Button '应用快照'
+            Image
+          Button '插件'
+            Image
+          Button '浏览器'
+            Image
+          Text '编码' OFF
+          Button '钩子' OFF
+            Image OFF
+          Button '连接' OFF
+            Image OFF
+          Button 'Git' OFF
+            Image OFF
+          Button '环境' OFF
+            Image OFF
+          Button 'Worktrees' OFF
+            Image OFF
+          Text '已归档' OFF
+          Button '已归档的聊天' OFF
+            Image OFF
+        Separator
+      Group
+        Group
+          Group
+        Group
+          Text '常规'
+        Text '权限'
+        Text '默认权限'
+        Text '默认情况下，ChatGPT 可以读取和编辑其工作空间中的文件。需要时，它可以请求额外访问权限'
+        Button '默认权限始终显示' tog=On DIS
+        Text '完整访问权限'
+        Text '当 ChatGPT 以完整访问权限运行时，它无需你的批准即可编辑你电脑上的任何文件，并运行可访问网络的命令。这会显著增加数据丢失、泄露或意外行为的风险。'
+        Hyperlink '了解更多' val="https://developers.openai.com/codex/concepts/sandboxing"
+        Text '关于风险升高的信息。'
+        Button '在编写器中显示完整访问权限' tog=Off
+        Text '常规'
+        Text '无项目任务文件夹'
+        Text '在项目外启动的任务默认存储数据的位置。'
+        Group
+          Text 'C:\Users\Admin…ocuments\Codex'
+        Button '更改'
+        Text '默认文件打开位置'
+        Text '默认打开文件和文件夹的位置'
+        Button 'Default app Default app' #radix-_r_9c_ exp=Collapsed
+          Image 'Default app'
+          Text 'Default app'
+          Image
+        Text '集成终端 Shell' OFF
+        Text '选择要在集成终端中打开的 Shell。' OFF
+        Button 'PowerShell' #radix-_r_9f_ exp=Collapsed OFF
+        Text '语言' OFF
+        Text '应用 UI 语言' OFF
+        Button '自动检测' exp=Collapsed OFF
+          Image OFF
+        Text '底部面板' OFF
+        Text '在应用标题栏中显示底部面板控件' OFF
+        Button '底部面板' tog=Off OFF
+        Text '提示词建议' OFF
+        Text '通过搜索项目文件和已连接的应用，建议下一步操作' OFF
+        Button '启用情境建议' tog=Off OFF
+        Text '打开源许可证' OFF
+        Text '捆绑依赖项的第三方声明' OFF
+        Button '查看' OFF
+        Text '插件' OFF
+        Text '允许 ChatGPT 使用已安装插件' OFF
+        Button '切换插件' tog=On OFF
+        Text '编辑器' OFF
+        Text '纯文本编辑器' OFF
+        Text '编写消息时，将代码、Markdown 和链接保留为纯文本' OFF
+        Button '纯文本编辑器' tog=Off OFF
+        Text '显示上下文窗口使用情况' OFF
+        Button '在编辑器中显示上下文窗口使用情况' tog=Off OFF
+        Text '发送快捷键' OFF
+        Text '选择按 Enter 时是发送提示还是插入新行' OFF
+        Button '按 Enter 键' #radix-_r_9q_ exp=Collapsed OFF
+        Text '跟进处理方式' OFF
+        Text '在 ChatGPT 运行时将后续消息加入队列，或调整当前运行的方向。按 Ctrl+⏎ 可对单条消息执行相反操作' OFF
+        Group OFF
+          Button '加入队列' tog=Off OFF
+          Button '调整方向' tog=On OFF
+        Text '弹出窗口' OFF
+        Text '弹出窗口快捷键' OFF
+        Text '为弹出窗口设置全局快捷键。不设置则保持关闭。' OFF
+        Text '关闭' OFF
+        Group OFF
+          Button '为 弹出窗口快捷键 设置快捷键' OFF
+            Image OFF
+        Text '默认使用独立聊天' OFF
+        Text '在任何项目外开始新聊天' OFF
+        Button '默认将弹出窗口设为独立聊天' tog=Off OFF
+        Text '通知' OFF
+        Text '轮次完成通知' OFF
+        Text '设置 ChatGPT 完成后何时提醒你' OFF
+        Button '仅在未聚焦时' #radix-_r_a3_ exp=Collapsed OFF
+        Text '启用权限通知' OFF
+        Text '在需要通知权限时显示提醒' OFF
+        Button '启用权限通知' tog=On OFF
+        Text '启用问题通知' OFF
+        Text '需要输入才能继续时显示提醒' OFF
+        Button '启用问题通知' tog=On OFF
+        Text '趣味实验' OFF
+        Text '彩纸礼炮' OFF
+        Text '让 Codex 根据你的要求在应用内放彩纸！' OFF
+        Button '彩纸礼炮' tog=Off OFF
+        StatusBar #DndLiveRegion-3 OFF

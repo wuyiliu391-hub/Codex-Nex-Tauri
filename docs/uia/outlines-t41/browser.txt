@@ -1,0 +1,154 @@
+Document 'ChatGPT' #RootWebArea val="app://-/index.html"
+  Group
+    Group #root
+      StatusBar OFF
+      Group
+        Button '隐藏侧边栏' exp=Expanded
+          Image
+      Group
+        Button '返回'
+          Image
+      Group
+        Button '前进' DIS
+          Image
+      MenuBar '应用程序菜单'
+        MenuItem '文件' #application-menu-trigger-file-menu exp=Collapsed
+        MenuItem '编辑' #application-menu-trigger-edit-menu exp=Collapsed
+        MenuItem '视图' #application-menu-trigger-view-menu exp=Collapsed
+        MenuItem '帮助' #application-menu-trigger-help-menu exp=Collapsed
+      Group
+        Group '设置'
+          Hyperlink '返回应用'
+          Image
+          Text '搜索设置'
+          Edit '搜索设置' #settings-search
+          Text '个人'
+          Button '常规'
+            Image
+          Button '导入'
+            Image
+          Button '外观'
+            Image
+          Button '语音'
+            Image
+          Button '配置'
+            Image
+          Button '个性化'
+            Image
+          Button '宠物'
+            Image
+          Button '键盘快捷键'
+            Image
+          Group
+            Button '账户'
+              Image
+          Text '集成'
+          Button '电脑操控'
+            Image
+          Button '应用快照'
+            Image
+          Button '插件'
+            Image
+          Button '浏览器'
+            Image
+          Text '编码' OFF
+          Button '钩子' OFF
+            Image OFF
+          Button '连接' OFF
+            Image OFF
+          Button 'Git' OFF
+            Image OFF
+          Button '环境' OFF
+            Image OFF
+          Button 'Worktrees' OFF
+            Image OFF
+          Text '已归档' OFF
+          Button '已归档的聊天' OFF
+            Image OFF
+        Separator
+      Group
+        Group
+          Group
+        Group
+          Text '浏览器'
+          Text '管理你的 Browser Use 偏好设置和网站访问权限。'
+        Button '浏览器 让 ChatGPT 控制内置浏览器'
+          Image
+        Group
+          Button '切换 Browser' tog=On
+        Text '常规'
+        Button '导入…'
+        Text '网页 URL 和链接打开位置'
+        Text '链接默认打开位置'
+        Button 'ChatGPT' #radix-_r_169_ exp=Collapsed
+        Text '本地 URL 打开位置'
+        Text '本地开发站点默认打开位置'
+        Button 'ChatGPT' #radix-_r_16c_ exp=Collapsed
+        Text '显示完整网址'
+        Text '在地址栏中显示路径、查询参数和片段'
+        Button '显示完整网址' tog=Off
+        Text '浏览数据'
+        Text '清除应用内浏览器中的浏览历史记录、网站数据、缓存和下载历史记录' OFF
+        Button '清除浏览数据'
+        Text '浏览历史' OFF
+        Text '查看和管理在内置浏览器中访问过的页面' OFF
+        Button '管理' OFF
+        Text '批注截图' OFF
+        Text '截图可帮助 ChatGPT 更好地理解和处理评论，但会增加套餐用量' OFF
+        Button '始终包含' #radix-_r_16i_ exp=Collapsed OFF
+        Text '自动填充和密码' OFF
+        Text '密码管理器' OFF
+        Text '添加、删除和编辑已保存的密码' OFF
+        Button '管理' OFF
+        Text '联系信息' OFF
+        Text '添加、删除和编辑已保存的地址、电话号码和电子邮箱地址' OFF
+        Button '管理' OFF
+        Text '下载' OFF
+        Text '位置' OFF
+        Text '系统下载文件夹' OFF
+        Button '更改' OFF
+        Text '下载前询问保存位置' OFF
+        Text '对在内置浏览器中发起的下载显示保存对话框' OFF
+        Button '下载前询问保存位置' tog=Off OFF
+        Text '下载历史记录' OFF
+        Text '查看和管理从内置浏览器下载的文件' OFF
+        Button '管理下载历史记录' OFF
+        Text '浏览器权限' OFF
+        Text '网站设置' OFF
+        Text '管理内置浏览器中的摄像头和麦克风权限' OFF
+        Button '管理' OFF
+        Text '历史记录' OFF
+        Text '选择 ChatGPT 是否可访问你的内置浏览器历史记录' OFF
+        Button '始终询问' #radix-_r_16r_ exp=Collapsed OFF
+        Text '启用站点工具' OFF
+        Text '允许 ChatGPT 发现并调用网站公开的站点工具，包括 WebMCP' OFF
+        Button '切换 WebMCP' tog=On OFF
+        Text '智能体权限' OFF
+        Text '选择默认权限，并为特定网站添加例外' OFF
+        Button '添加' OFF
+          Image OFF
+        Table OFF
+          DataItem OFF
+            DataItem '网站或模式' OFF
+            DataItem '浏览' #browser-use-site-permissions-column-origin OFF
+            DataItem '下载' #browser-use-site-permissions-column-download OFF
+            DataItem '上传' #browser-use-site-permissions-column-upload OFF
+            DataItem 'Previous permissions Next permissions 操作' OFF
+              Button 'Previous permissions' DIS OFF
+              Button 'Next permissions' OFF
+          DataItem OFF
+            DataItem '默认' OFF
+            DataItem '默认 浏览' OFF
+              Button '默认 浏览' #radix-_r_175_ exp=Collapsed OFF
+            DataItem '默认 下载' OFF
+              Button '默认 下载' #radix-_r_177_ exp=Collapsed OFF
+            DataItem '默认 上传' OFF
+              Button '默认 上传' #radix-_r_179_ exp=Collapsed OFF
+        Text 'Only sites with custom permissions appear here' OFF
+        Text '开发者模式' OFF
+        Image OFF
+        Text '风险升高' OFF
+        Text '启用完整 CDP 访问权限' OFF
+        Text '允许 ChatGPT 在已连接的 Browser Use 会话中使用完整的 Chrome DevTools Protocol (CDP) 访问权限。完整 CDP..' OFF
+        Button '切换完整 CDP 访问权限' tog=Off OFF
+        StatusBar #DndLiveRegion-3 OFF

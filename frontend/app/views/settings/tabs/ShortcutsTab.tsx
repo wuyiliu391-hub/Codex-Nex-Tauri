@@ -1,205 +1,163 @@
 /**
- * Shortcuts tab — searchable binding list with conflict detection and edit.
+ * Shortcuts tab — mirrors the official Codex desktop v26.911 键盘快捷键 page
+ * (Windows UIA capture t41: docs/uia/outlines-t41/shortcuts.txt).
  *
- * Bindings come from the engine (`list_shortcuts`). findConflicts() from
- * shell/useShortcuts is reused so the same rule that drives the dispatcher also
- * drives the warning here. Edits persist via save_shortcuts.
+ * Rows come from the static catalog in app/data/shortcuts-catalog.ts. The
+ * catalog holds the official zh labels/descriptions, so they render as-is for
+ * every UI language — only a zh capture exists (the official zh build shows
+ * exactly these strings; an en localization of the catalog is pending a new
+ * capture).
+ *
+ * Rebinding is intentionally NOT wired: catalog rows carry no action ids that
+ * map onto the Rust shortcut store (AppState.shortcuts), and the shell has no
+ * L3 rebind command yet. 更改/清除/为…设置快捷键 therefore render disabled
+ * alongside read-only chord pills — no fake capture flows, no invented
+ * backend commands.
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { t } from "../../../../src/js/i18n.js";
-import { findConflicts, formatKeys, type ShortcutBinding } from "@/shell/useShortcuts";
-import { BlockCustom, PageHead, SettingsButton } from "../primitives";
+import { formatKeys, normalizeKey } from "@/shell/useShortcuts";
+import { saveSection, usePrefSection } from "@/state/preferencesStore";
+import { SHORTCUTS_CATALOG, type ShortcutCatalogRow } from "../../../data/shortcuts-catalog";
+import { PageHead } from "../primitives";
+
+/** Catalog chord label marking an unassigned row. */
+const UNASSIGNED = "未分配";
+
+/** Bare modifier keys never form a chord on their own. */
+const MODIFIER_KEYS = new Set(["Control", "Alt", "Shift", "Meta"]);
 
 function label(key: string, fallback: string): string {
   return String(t(key, fallback));
 }
 
-/** Backend Shortcut.keys is a string; UI bindings use string[]. */
-function parseKeys(value: unknown): string[] {
-  if (Array.isArray(value)) return value.map(String).filter(Boolean);
-  if (typeof value === "string" && value) {
-    return value.split("+").map((k) => k.trim()).filter(Boolean);
-  }
-  return [];
+/** "为…设置快捷键" → "为 <name> 设置快捷键"; plain fallbacks append the name. */
+function setForLabel(name: string): string {
+  const tpl = label("shortcuts.setFor", "Set shortcut for");
+  return tpl.includes("…") ? tpl.replace("…", ` ${name} `) : `${tpl} ${name}`;
 }
 
-function asBinding(value: unknown): ShortcutBinding | null {
-  if (!value || typeof value !== "object") return null;
-  const rec = value as Record<string, unknown>;
-  const id = typeof rec["id"] === "string" ? rec["id"] : null;
-  if (!id) return null;
-  return {
-    id,
-    label: typeof rec["label"] === "string" ? rec["label"] : id,
-    keys: parseKeys(rec["keys"]),
-  };
-}
-
-/** Rust Shortcut is { id, keys: String, action }. */
-function toBackendShortcuts(bindings: ShortcutBinding[]): Array<{
-  id: string;
-  keys: string;
-  action: string;
-}> {
-  return bindings.map((b) => ({
-    id: b.id,
-    keys: b.keys.join("+"),
-    action: b.id,
-  }));
-}
-
-async function persistShortcuts(bindings: ShortcutBinding[]): Promise<void> {
-  await invoke("save_shortcuts", { shortcuts: toBackendShortcuts(bindings) });
+function CatalogRow({ row }: { row: ShortcutCatalogRow }) {
+  return (
+    <div className="shortcut-row shortcut-row-catalog">
+      <div className="shortcut-copy">
+        <div className="shortcut-name">{row.name}</div>
+        {row.desc ? <div className="shortcut-description">{row.desc}</div> : null}
+      </div>
+      <div className="shortcut-chords">
+        {row.chords.map((chord, index) => (
+          <div className="shortcut-chord" key={`${index}-${chord}`}>
+            {chord === UNASSIGNED ? (
+              <>
+                <div className="shortcut-bindings">
+                  <span className="shortcut-unassigned">
+                    {label("shortcuts.unassigned", "Unassigned")}
+                  </span>
+                </div>
+                <button type="button" className="settings-button shortcut-set" disabled>
+                  {setForLabel(row.name)}
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="shortcut-bindings">
+                  <kbd className="key">{chord}</kbd>
+                </div>
+                <button
+                  type="button"
+                  className="shortcut-edit"
+                  disabled
+                  aria-label={`${label("shortcuts.change", "Change")} ${row.name}`}
+                />
+                <button
+                  type="button"
+                  className="shortcut-delete"
+                  disabled
+                  aria-label={`${label("shortcuts.clear", "Clear")} ${row.name}`}
+                />
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export function ShortcutsTab() {
-  const [bindings, setBindings] = useState<ShortcutBinding[]>([]);
   const [query, setQuery] = useState("");
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [status, setStatus] = useState("");
+  const [chordFilter, setChordFilter] = useState("");
+  const prefs = usePrefSection<{ searchByKeys?: boolean }>("shortcuts");
+  const captureOn = prefs.searchByKeys === true;
 
-  async function load(): Promise<void> {
-    try {
-      const raw = await invoke<unknown>("list_shortcuts");
-      const list = Array.isArray(raw) ? raw : [];
-      setBindings(list.map(asBinding).filter((b): b is ShortcutBinding => b !== null));
-    } catch (err) {
-      console.error("[settings] list_shortcuts failed", err);
-    }
+  function toggleCapture(): void {
+    void saveSection("shortcuts", { searchByKeys: !captureOn });
+    setChordFilter("");
   }
 
+  // 使用快捷键搜索: while on, every non-modifier keydown becomes the chord
+  // filter. The capture swallows the event so the global dispatcher does not
+  // also fire the shortcut being typed.
   useEffect(() => {
-    void load();
-  }, []);
-
-  const conflicts = useMemo(() => findConflicts(bindings), [bindings]);
-  const conflictIds = useMemo(
-    () => new Set(conflicts.flatMap((c) => c.ids)),
-    [conflicts],
-  );
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return bindings;
-    return bindings.filter(
-      (b) =>
-        b.label.toLowerCase().includes(q) ||
-        b.id.toLowerCase().includes(q) ||
-        formatKeys(b.keys).toLowerCase().includes(q),
-    );
-  }, [bindings, query]);
-
-  function captureKeys(id: string): void {
-    setEditingId(id);
-    setStatus(label("shortcuts.pressKeys", "Press the new key combination…"));
-    const once = (ev: KeyboardEvent): void => {
+    if (!captureOn) return;
+    const onKeyDown = (ev: KeyboardEvent): void => {
+      if (MODIFIER_KEYS.has(ev.key)) return;
       ev.preventDefault();
       ev.stopPropagation();
-      const parts: string[] = [];
-      if (ev.ctrlKey) parts.push("Ctrl");
-      if (ev.shiftKey) parts.push("Shift");
-      if (ev.altKey) parts.push("Alt");
-      if (ev.metaKey) parts.push("Meta");
-      if (!["Control", "Alt", "Shift", "Meta"].includes(ev.key)) {
-        parts.push(ev.key.length === 1 ? ev.key.toUpperCase() : ev.key);
-      }
-      document.removeEventListener("keydown", once, true);
-      setEditingId(null);
-      if (!parts.length) {
-        setStatus("");
-        return;
-      }
-      const next = bindings.map((b) => (b.id === id ? { ...b, keys: parts } : b));
-      void persistShortcuts(next)
-        .then(async () => {
-          setBindings(next);
-          setStatus(label("toast.saved", "Saved."));
-          await load();
-        })
-        .catch((err) => {
-          setStatus(err instanceof Error ? err.message : String(err));
-        });
+      setChordFilter(formatKeys(normalizeKey(ev)));
     };
-    document.addEventListener("keydown", once, true);
-  }
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => document.removeEventListener("keydown", onKeyDown, true);
+  }, [captureOn]);
 
-  async function clearBinding(id: string): Promise<void> {
-    const next = bindings.map((b) => (b.id === id ? { ...b, keys: [] } : b));
-    try {
-      await persistShortcuts(next);
-      setBindings(next);
-      setStatus(label("toast.saved", "Saved."));
-      await load();
-    } catch (err) {
-      setStatus(err instanceof Error ? err.message : String(err));
+  const filtered = useMemo(() => {
+    if (captureOn) {
+      return chordFilter
+        ? SHORTCUTS_CATALOG.filter((row) => row.chords.includes(chordFilter))
+        : SHORTCUTS_CATALOG;
     }
-  }
+    const q = query.trim().toLowerCase();
+    if (!q) return SHORTCUTS_CATALOG;
+    return SHORTCUTS_CATALOG.filter(
+      (row) =>
+        row.name.toLowerCase().includes(q) ||
+        row.desc.toLowerCase().includes(q) ||
+        row.chords.some((chord) => chord.toLowerCase().includes(q)),
+    );
+  }, [captureOn, chordFilter, query]);
 
   return (
     <>
-      <PageHead
-        title={label("settings.shortcuts", "Keyboard shortcuts")}
-        desc={label("settings.shortcutsDesc", "")}
-      />
+      <PageHead title={label("shortcuts.title", "Keyboard shortcuts")} />
 
-      <BlockCustom title="">
-        <label className="shortcuts-search">
-          <input
-            type="text"
-            placeholder={label("shortcuts.search", "Search shortcuts")}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </label>
-      </BlockCustom>
+      <div className="shortcuts-search-bar">
+        <span className="shortcuts-search-icon" />
+        <input
+          type="text"
+          className="shortcuts-search-input"
+          placeholder={label("shortcuts.search", "Search shortcuts")}
+          value={captureOn ? chordFilter : query}
+          readOnly={captureOn}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <button
+          type="button"
+          className={`shortcuts-keys-toggle${captureOn ? " is-on" : ""}`}
+          aria-pressed={captureOn}
+          aria-label={label("shortcuts.searchByKeys", "Search by shortcut")}
+          title={label("shortcuts.searchByKeys", "Search by shortcut")}
+          onClick={toggleCapture}
+        />
+      </div>
 
-      {conflicts.length ? (
-        <BlockCustom title="">
-          <div className="settings-card site-empty">
-            {conflicts.length} conflicting binding{conflicts.length === 1 ? "" : "s"}:{" "}
-            {conflicts.map((c) => `${c.keys} (${c.ids.join(", ")})`).join("; ")}
-          </div>
-        </BlockCustom>
-      ) : null}
-
-      {status ? (
-        <BlockCustom title="">
-          <div className="settings-card site-empty">{status}</div>
-        </BlockCustom>
-      ) : null}
-
-      <BlockCustom title={label("settings.shortcuts", "Keyboard shortcuts")}>
-        <div className="settings-card">
-          {filtered.length === 0 ? (
-            <div className="site-empty">{label("shortcuts.empty", "No shortcuts found.")}</div>
-          ) : (
-            filtered.map((binding) => (
-              <div
-                className={`settings-row${conflictIds.has(binding.id) ? " is-conflict" : ""}${editingId === binding.id ? " is-editing" : ""}`}
-                key={binding.id}
-              >
-                <div className="settings-row-copy">
-                  <div className="settings-row-title">{binding.label}</div>
-                </div>
-                <div className="settings-row-control">
-                  <kbd>{formatKeys(binding.keys) || "—"}</kbd>
-                  <SettingsButton
-                    label={label("action.edit", "Edit")}
-                    disabled={editingId === binding.id}
-                    onClick={() => captureKeys(binding.id)}
-                  />
-                  <SettingsButton
-                    label={label("shortcuts.clear", "Clear")}
-                    onClick={() => void clearBinding(binding.id)}
-                  />
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </BlockCustom>
+      <div className="shortcuts-list">
+        {filtered.length === 0 ? (
+          <div className="site-empty">{label("shortcuts.empty", "No shortcuts found.")}</div>
+        ) : (
+          filtered.map((row) => <CatalogRow key={row.name} row={row} />)
+        )}
+      </div>
     </>
   );
 }

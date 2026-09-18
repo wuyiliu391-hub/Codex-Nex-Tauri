@@ -1,194 +1,151 @@
-# Rust Backend Integration — official `codex-app-server` v0.154.0
+# Rust Backend Integration — official `codex-app-server` (v0.154.0 sidecar)
 
-This document is the source of truth for how Codex-Tauri embeds the official
-OpenAI Codex Rust engine (`C:\Users\Administrator\Desktop\codex-rust-v0.154.0\codex-rs`).
+How Codex-Tauri drives the official OpenAI Codex engine. This document covers
+the L1 (engine host) / L2 (engine client) layers from `docs/ARCHITECTURE.md`:
+transport, startup, handshake, method names, approvals, and the event bridge.
 
-## Decision (2026-09-17 revision): in-process is now the default
+## Decision (2026-09-18, final): shell-only + prebuilt sidecar
 
-The official `codex-rs` sources live **in this repository** under
-`src/backend/` and are members of the root workspace, so the shell can link
-them directly instead of shipping/pointing at an external `codex-app-server.exe`.
+The Tauri shell is the only Rust code we compile. The engine is always the
+official prebuilt `codex-app-server` binary (GitHub Releases, tag
+`rust-v0.154.0`), spawned as a child process and spoken to over WebSocket
+JSON-RPC. It is shipped as a bundled installer resource, never built here.
 
-As of this revision **`default = ["in-process"]`**: the engine runs inside the
-Tauri process and no external binary is required. Opt out with
-`--no-default-features` to fall back to the sidecar.
+The earlier **in-process experiment** (vendoring the engine sources into
+`src/backend/`, linking them via a cargo feature) is **retired**: the feature
+and all path dependencies were removed from `src-tauri/Cargo.toml`, the root
+workspace is `members = ["src-tauri"]` only, and no code references it any
+more. The vendored tree was deleted from the working branch; it remains
+recoverable from git history if the experiment is ever resumed. Do **not**
+re-add engine path dependencies to the shell.
 
-The earlier "sidecar only" decision was reversed deliberately; the trade-off
-(compile time, coupling to core changes) is accepted in exchange for removing
-the external binary and getting the full in-process event stream.
+Every statement below describes what `src-tauri/src/codex/*` actually does
+today.
 
-### Event forwarding adapter
+## How the engine is started
 
-The in-process runtime exposes events via `InProcessClientHandle::next_event()`
-as `InProcessServerEvent` values. `sidecar.rs` pumps them into the same
-`broadcast::Sender<ServerMessage>` the sidecar used, by serializing each event
-to JSON and re-parsing with `protocol::parse_server_message`. Because
-`ServerNotification` serializes to `{ "method", "params" }` and `ServerRequest`
-to `{ "method", "id", "params" }`, both land on the existing parser branches —
-so `events.rs` and the whole `codex:*` → `agent:*` frontend chain are unchanged.
-
-### Mode A — Sidecar binary (opt-in fallback)
-
-Selected with `--no-default-features`. Spawns `codex-app-server.exe` and
-speaks JSON-RPC over WebSocket (`ws://127.0.0.1:17457`). Kept because it needs
-no backend build time and remains useful for shell-only builds.
-
----
-
-## Mode A — Sidecar binary (default, required for CI)
-
-### How official app-server is started
-
-From `app-server/src/main.rs`:
+CLI surface of the official binary (from upstream `app-server/src/main.rs`):
 
 | CLI flag | Default | Notes |
 |----------|---------|-------|
 | `--listen URL` | `stdio://` | Supported: `stdio://`, `unix://`, `unix://PATH`, `ws://IP:PORT`, `off` |
-| `--session-source SOURCE` | `vscode` | ⚠️ **Not present in the shipped 0.154.0-alpha.6.2 binary** — passing it aborts startup. Probed at runtime; only forwarded when `--help` advertises it. |
-| `--strict-config` | false | Reject unknown config.toml fields. |
+| `--session-source SOURCE` | `vscode` | ⚠️ **Not present in the shipped `codex-cli 0.154.0-alpha.6.2` binary** — passing it aborts startup. Probed at runtime; only forwarded when `--help` advertises it. |
+| `--strict-config` | false | Reject unknown `config.toml` fields. |
 | `--remote-control` | false | Hidden; enables remote-control without persistence. |
 
-`AppServerTransport` (`app-server-transport/src/transport/mod.rs`):
+`sidecar.rs` spawns (see *CLI shape probing* below for why two argv shapes
+exist):
 
 ```text
-DEFAULT_LISTEN_URL = "stdio://"
-```
-
-Official Desktop uses **stdio spawn** (pipes on the child process). That is
-the lowest-latency and most secure transport (no open TCP port).
-
-### Transport recommendation for Codex-Tauri
-
-| Option | Pros | Cons | Status |
-|--------|------|------|--------|
-| **stdio://** | Official default; no port; works with multi-instance | Needs a stdio JSON-RPC client (new code in `client.rs`) | Documented, not default yet |
-| **ws://127.0.0.1:17457** | Existing `CodexClient` already speaks WS; trivial to debug | Loopback port; port collisions | **Current default** |
-| unix:// | N/A on Windows | — | Not used |
-
-**Recommendation:** keep **WebSocket on 17457** for the current shell
-(works with the existing EngineHandle / CodexClient). Follow-up work: add
-a stdio transport behind `settings.app_server_listen = "stdio://"` that
-spawns with pipes and reuses the same JSON-RPC framing. Do not block the
-desktop on that.
-
-### Binary resolution + content-addressed install (mirrors official Desktop)
-
-Official Desktop copies `codex.exe` into:
-
-```
-%LOCALAPPDATA%\OpenAI\Codex\bin\<content-hash>\
-```
-
-Codex-Tauri mirrors that layout under its own app dir:
-
-```
-%LOCALAPPDATA%\CodexDesktop\bin\<fnv1a64-of-file-bytes>\codex-app-server.exe
-```
-
-Resolution order (implemented in `src/codex/sidecar.rs`):
-
-1. `CODEX_APP_SERVER` environment variable (absolute path)
-2. `settings.app_server_binary` (user-configured absolute path)
-3. Previously installed hash-dir under `%LOCALAPPDATA%\CodexDesktop\bin\`
-4. Bundled resource / dev `src-tauri/binaries/codex-app-server-*.exe`
-5. Bare `codex-app-server.exe` on `PATH`
-
-If a source path (1/2/4) differs from the installed hash dir, the file is
-**copied** into a new hash dir before spawn. The old hash dirs are left in
-place (official also keeps prior versions for rollback).
-
-### Spawn argv
-
-The binary ships in two shapes and `sidecar.rs` **probes which one it is** by
-running `<bin> app-server --help` and `<bin> --help` (see
-`probe_invocation`). Do not assume from the filename — the official multi-call
-`codex.exe` is routinely dropped in under the standalone filename.
-
-```
 # standalone codex-app-server.exe
 codex-app-server.exe --listen ws://127.0.0.1:17457
 
 # multi-call codex.exe (what the official desktop installs)
 codex.exe app-server --listen ws://127.0.0.1:17457
+
+# only when the probed build advertises the flag:
+--session-source codex-desktop
 ```
 
-`settings.app_server_listen` overrides the listen URL when non-empty.
+`settings.app_server_listen` overrides the listen URL when non-empty;
+otherwise `DEFAULT_LISTEN_URL = "ws://127.0.0.1:17457"` is used.
 
-> **Correction (2026-09-17, measured on `codex-cli 0.154.0-alpha.6.2`).**
-> The earlier claim that the shipped binary accepts `--session-source` is
-> **wrong**. `codex.exe app-server --session-source …` exits immediately with
-> `error: unexpected argument '--session-source' found`, so nothing ever binds
-> the port and every RPC fails with `os error 10061` (connection refused).
-> The flag exists in the source tree this doc was written against, but not in
-> the released alpha. `probe_invocation` now reads the `--help` text and only
-> passes `--session-source` when the build actually advertises it.
+Provider API keys are **never written into the engine config**: the shell
+stores them in `shell-state.json` (`provider_secrets`) and injects each one
+into the child process as the env var named by the provider's `env_key`
+(see `state::provider_env_key`, and `docs/provider-setup.md`).
 
-### Building the sidecar
+### Transport
 
-```powershell
-# Build via workspace cargo / CI (shell + official sidecar by default)
-cargo tauri build -- --no-default-features
-# or manually:
-cd ..\codex-rust-v0.154.0\codex-rs
-cargo build -p codex-app-server --release
-copy target\release\codex-app-server.exe `
-  ..\Codex-Tauri\src-tauri\binaries\codex-app-server-x86_64-pc-windows-msvc.exe
+| Option | Pros | Cons | Status |
+|--------|------|------|--------|
+| `ws://127.0.0.1:17457` | `CodexClient` already speaks WS; trivial to debug | Loopback TCP port, unauthenticated — any local process may connect; port collisions | **Current and only transport** |
+| `stdio://` | Official desktop default; no port; lower latency | Needs a stdio JSON-RPC client (new code in `client.rs`) | Documented follow-up; **not implemented** |
+| `unix://` | — | N/A on Windows (primary target) | Not used |
+
+Follow-up work: add a stdio transport behind `settings.app_server_listen =
+"stdio://"` reusing the same JSON-RPC framing. Do not block the desktop on
+that. Accepting the loopback-WS risk is a deliberate Windows-first trade-off;
+if this ships beyond single-user machines, revisit authentication first.
+
+### Binary resolution + content-addressed install
+
+Implementation: `src-tauri/src/codex/sidecar.rs::resolve_sidecar_source`.
+Source lookup order:
+
+1. `CODEX_APP_SERVER` environment variable (absolute path)
+2. `settings.app_server_binary` (user-configured absolute path)
+3. **Bundled payload / dev drop** — tried before any previous install so an
+   updated installer is never shadowed by an older engine left behind:
+   `resource_dir()/binaries/…` (NSIS/MSI resource), then files adjacent to
+   `current_exe()`, then the dev path `src-tauri/binaries/…`. Candidate
+   filenames per directory: `binaries/codex-app-server-x86_64-pc-windows-msvc.exe`,
+   `codex-app-server.exe`, `codex-app-server-x86_64-pc-windows-msvc.exe`.
+4. Previous content-hash install: newest copy under
+   `%LOCALAPPDATA%\CodexDesktop\bin\<hash>\`
+5. `PATH` fallback — the bare name `codex-app-server.exe` is spawned as-is.
+
+When a source file is found it is **copied** into
+`%LOCALAPPDATA%\CodexDesktop\bin\<fnv1a64-of-file-bytes>\codex-app-server.exe`
+before spawn — mirroring the official Desktop layout, content-addressed so
+identical bytes dedupe and upgrades land atomically. Two caveats, both known:
+
+* The FNV-1a hash is a **version key, not an integrity check** (the code says
+  so; CI does not verify a SHA-256 against an expected value today).
+* Old hash dirs are never pruned (the official installer keeps them for
+  rollback; ours just accumulates — a one-off cleanup is fine).
+
+If installation into the hash dir fails, the source path is spawned directly.
+If nothing resolves, the shell still boots (see *Degradation* below).
+
+### CLI shape probing
+
+`probe_invocation` runs `<bin> app-server --help` then `<bin> --help` to
+decide whether the file is a standalone app-server or the official multi-call
+`codex.exe`, and whether it accepts `--session-source`. **Do not assume from
+the filename** — the multi-call binary is routinely dropped in under the
+standalone name. If both probes fail, fall back to a filename heuristic and
+omit `--session-source`.
+
+> **Measured correction (2026-09-17).** The claim that the shipped binary
+> accepts `--session-source` was wrong: on `codex-cli 0.154.0-alpha.6.2`,
+> `codex.exe app-server --session-source …` dies with
+> `error: unexpected argument '--session-source' found` — nothing binds the
+> port and every RPC fails with `os error 10061`. Hence: pass it only when
+> `--help` advertises it.
+
+### Building and packaging
+
+* Local: `scripts/build.ps1` (requires the sidecar in `src-tauri/binaries/`,
+  collects installers via `scripts/stage-dist.ps1` into `dist/`).
+* CI: `.github/workflows/build-fast.yml` / `build-release.yml` download the
+  official exe (cached), then `cargo tauri build -- --no-default-features`
+  (`--no-default-features` is a harmless belt-and-braces leftover: the shell
+  has no non-default features since the in-process experiment was retired).
+* The exe enters installers via `tauri.conf.json` `bundle.resources`
+  (`binaries/codex-app-server-x86_64-pc-windows-msvc.exe`), **not** via
+  `externalBin`/sidecar mechanism, so `TAURI_SKIP_SIDECAR_CHECK=1` is set
+  during the build.
+* The workspace has no engine members, so no engine source is ever compiled.
+
+Where to get the exe without building anything (both shapes work because
+probing is runtime-based):
+
+```text
+# GitHub Releases (what CI uses):
+https://github.com/openai/codex/releases/tag/rust-v0.154.0
+
+# or reuse the official desktop's own install (verified on this machine:
+# codex-cli 0.154.0-alpha.6.2, ~284 MB, binds 17457 in ~250 ms):
+%LOCALAPPDATA%\OpenAI\Codex\bin\<content-hash>\codex.exe
+%USERPROFILE%\.codex\plugins\.plugin-appserver\codex.exe
 ```
 
-CI: the main `build-windows` job is **shell-only** and must keep compiling
-or when `CODEX_RUST_PATH` is available) produces the sidecar artifact.
+## Handshake (required, three steps)
 
-### In-process feature is OFF by default
+`CodexClient::connect` performs this on every connection (`client.rs`):
 
-`Cargo.toml` documents an optional path dependency:
-
-```toml
-# codex-app-server-client = { path = ".../codex-rs/app-server-client", optional = true }
-[features]
-default = []
-# in-process = ["dep:codex-app-server-client"]
-```
-
-Enable only on machines that have the full official tree. Cloud CI never
-enables it, so shell-only builds stay green.
-
----
-
-## Mode B — In-process (`codex-app-server-client`)
-
-Official crates:
-
-| Crate | Role |
-|-------|------|
-| `codex-app-server` | Runtime (`MessageProcessor`, transports, `in_process`) |
-| `codex-app-server-client` | Facade: `InProcessAppServerClient` / `RemoteAppServerClient` |
-| `codex-app-server-protocol` | Wire types (`ClientRequest`, `ServerNotification`, …) |
-| `codex-core` | Agent loop, tools, config |
-| `codex-protocol` | Core protocol / session store types |
-
-`codex-app-server-client::InProcessAppServerClient::start`:
-
-- takes `InProcessClientStartArgs` (config, session_source, client_name/version)
-- runs `initialize` / `initialized` handshake internally
-- exposes typed `ClientRequest` + ordered `AppServerEvent` stream
-
-**Mark as optional.** Pulling this crate pulls the entire workspace. Keep
-the feature off by default; do not copy crates into Codex-Tauri.
-
-When the feature is enabled later:
-
-```rust
-#[cfg(feature = "in-process")]
-// EngineHandle::start uses InProcessAppServerClient instead of spawn+WS.
-```
-
----
-
-## Handshake (required)
-
-Every connection must complete:
-
-1. Client → server request:
+1. Request:
    ```json
    {
      "id": "initialize",
@@ -203,21 +160,25 @@ Every connection must complete:
      }
    }
    ```
+   (`version` comes from `CARGO_PKG_VERSION` of `src-tauri`.)
 2. Server responds with `{ userAgent, codexHome, platformFamily, platformOs }`.
-3. Client → server notification: `{"method":"initialized"}` (no params field).
+3. Notification `{"method":"initialized"}` — **no params field** (official
+   tests assert this). Without step 3 the server rejects most subsequent
+   methods.
 
-Without step 3 the server rejects most subsequent methods (`Already not
-initialized` / connection-scoped gate).
-
-`CodexClient::connect` performs this handshake automatically.
-
----
+Timeouts: `initialize` 10 s; ordinary requests 120 s; notification fan-out
+uses a `tokio::sync::broadcast` channel (capacity 256) so the event bridge
+and other subscribers never steal from the pending-request map.
 
 ## Method names (v0.154.0)
 
-Authoritative source: `app-server-protocol/src/protocol/common.rs`
-(`client_request_definitions!`, `server_request_definitions!`,
-`server_notification_definitions!`).
+The engine's authoritative list lives in the upstream `codex-rs` tag at
+`app-server-protocol/src/protocol/common.rs`; regenerate from the official
+binary's `app-server generate-ts` / `generate-json-schema` output when in
+doubt — never guess RPC names. The shell-side mirror of what we actually
+call is `src-tauri/src/codex/protocol.rs` (hand-maintained; keep in sync
+with the frontend's generated tables in `frontend/src/protocol/`, which are
+CI-checked by `scripts/verify-notification-coverage.mjs`).
 
 ### Client → server (requests)
 
@@ -225,40 +186,51 @@ Authoritative source: `app-server-protocol/src/protocol/common.rs`
 |---------|--------|
 | Handshake | `initialize` |
 | Create thread | `thread/start` |
-| List threads | `thread/list` (response: `{ data: Thread[], nextCursor }`) |
-| Read thread | `thread/read` |
-| Resume / fork / delete / archive / unarchive | `thread/resume`, `thread/fork`, `thread/delete`, `thread/archive`, `thread/unarchive` |
+| List threads | `thread/list` (response: `{ data, nextCursor, backwardsCursor }`) |
+| Read / resume / fork / delete / archive / unarchive | `thread/read`, `thread/resume`, `thread/fork`, `thread/delete`, `thread/archive`, `thread/unarchive` |
 | Timeline | `thread/timeline/list` (**not** `thread/timeline`) |
-| Compact | `thread/compact/start` |
+| Turns / items / loaded threads | `thread/turns/list`, `thread/items/list`, `thread/loaded/list` |
+| Rename / compact | `thread/name/set`, `thread/compact/start` |
+| In-thread shell | `thread/shellCommand` |
 | Start turn | `turn/start` — params `{ threadId, input: UserInput[] }`, **not** `{ input: { items } }` |
 | Steer / interrupt | `turn/steer`, `turn/interrupt` |
-| Config | `config/read`, `config/value/write`, `config/batchWrite` (**not** `config/get` / `config/update`) |
-| Models | `model/list` |
-| Account | `account/read` (deprecated alias: `getAuthStatus`) |
-| MCP status | `mcpServerStatus/list` (**not** `mcp/listServers`) |
-| MCP reload | `config/mcpServer/reload` |
-| Skills | `skills/list` |
-| Plugins | `plugin/list`, `plugin/install`, `plugin/uninstall` (**no** `plugin/setEnabled`) |
+| Config | `config/read`, `config/value/write`, `config/batchWrite` (**not** `config/get` / `config/update`), `configRequirements/read` |
+| Models | `model/list`, `modelProvider/capabilities/read` |
+| Account | `account/read` (`getAuthStatus` is a deprecated alias) |
+| MCP | `mcpServerStatus/list` (**not** `mcp/listServers`), `config/mcpServer/reload`, `mcpServer/oauth/login`, `mcpServer/tool/call`, `mcpServer/resource/read` |
+| Skills | `skills/list`, `skills/config/write` |
+| Plugins | `plugin/list`, `plugin/read`, `plugin/search`, `plugin/install`, `plugin/uninstall` (**no** `plugin/setEnabled`) |
 | Hooks | `hooks/list` |
-| One-off shell | `command/exec` (**not** `shell/open`) | argv `command: [bin, ...]` + client `processId` for TTY streaming |
-| Write shell stdin | `command/exec/write` | `{ processId, deltaBase64 }` or `{ processId, closeStdin: true }` |
-| Terminate shell | `command/exec/terminate` | `{ processId }` |
+| Shell exec | `command/exec` (**not** `shell/open`): argv `command: [bin, …]` + client `processId` for TTY streaming |
+| Exec write / resize / terminate | `command/exec/write` (`{ processId, deltaBase64 }` or `{ processId, closeStdin: true }`), `command/exec/resize`, `command/exec/terminate` |
+| Filesystem | `fs/readDirectory`, `fs/readFile`, `fs/writeFile`, `fuzzyFileSearch` |
+| Misc | `feedback/upload`, `server/diagnostics`, `project/list`, `project/read`, `project/create` |
 
-### Client → server (notification)
+Note: `project/*`, `plugin/search`, `server/diagnostics` and
+`thread/timeline/list` are ours-side names or shell notes — cross-check
+`docs/official-ui/APPSERVER-METHOD-INVENTORY-0.154.0.md` before treating any
+method as official.
+
+### Client → server (notifications)
 
 | Purpose | Method |
 |---------|--------|
 | Handshake complete | `initialized` |
 
-### Server → client (requests — reply with JSON-RPC response, not a new method)
+### Server → client (requests — reply to the server request id)
 
-Turn/start approvals use **v2** methods. Reply to the **server request id**
-with a result object; there is no `approval/respond` client method.
+`turn/start` approvals use the **v2** methods. Answer with a JSON-RPC
+response to the **server request id**; there is no `approval/respond` client
+method. `resolve_approval` / `respond_server_request` (in
+`commands/engine.rs`) forward the decision; the decision set must come from
+the request's own `availableDecisions`, and e.g.
+`acceptWithExecpolicyAmendment` requires echoing back the server-provided
+amendment payload.
 
 | Purpose | Method | Result body |
 |---------|--------|-------------|
-| Exec approval | `item/commandExecution/requestApproval` | `{ "decision": "accept" \| "decline" \| "cancel" \| "acceptForSession" }` |
-| File change approval | `item/fileChange/requestApproval` | `{ "decision": "accept" \| "decline" \| "cancel" \| "acceptForSession" }` |
+| Exec approval | `item/commandExecution/requestApproval` | `{ "decision": "accept" \| "acceptForSession" \| "decline" \| "cancel" \| … }` |
+| File change approval | `item/fileChange/requestApproval` | same decision set |
 | Permissions | `item/permissions/requestApproval` | decision object |
 | User input | `item/tool/requestUserInput` | answers object |
 | MCP elicitation | `mcpServer/elicitation/request` | elicitation response |
@@ -266,73 +238,75 @@ with a result object; there is no `approval/respond` client method.
 Legacy (v1 turns only, not used by `turn/start`): `execCommandApproval`,
 `applyPatchApproval`.
 
-### Server → client (notifications)
+### Notifications → Tauri events
 
-High-value names for the event bridge:
+`events.rs::map_server_message` routes every server message:
 
-```
-error
-thread/started, thread/status/changed, thread/archived, thread/deleted,
-thread/unarchived, thread/closed, thread/name/updated, thread/tokenUsage/updated
-turn/started, turn/completed, turn/diff/updated, turn/plan/updated
-item/started, item/completed
-item/agentMessage/delta
-item/commandExecution/outputDelta
-item/fileChange/outputDelta, item/fileChange/patchUpdated
-item/mcpToolCall/progress
-serverRequest/resolved
-skills/changed
-config/warnings
-```
+* **Notifications** → `codex:{method}`, with both `/` and `.` replaced by
+  `-` (dots are rejected by plugin:event validation), e.g.
+  `turn/completed` → `codex:turn-completed`,
+  `item/agentMessage/delta` → `codex:item-agentMessage-delta`,
+  `thread/tokenUsage/updated` → `codex:thread-tokenUsage-updated`.
+* **Requests** — approvals → `codex:approval`; user-input / elicitation →
+  `codex:user-input`; anything else → `codex:server-request-<sanitized>`.
+  ⚠️ Known gap: the frontend bridge currently only listens on
+  `codex:approval` / `codex:user-input`; the third-family channels
+  (`item/tool/call`, `currentTime/read`, `attestation/generate`,
+  `chatgptAuthTokens/refresh`) are emitted but unhandled and will stall the
+  turn. Track/fix in `frontend/app/bridge/events.ts`.
+* The frontend binds **all** notification methods from the generated table
+  (`frontend/src/protocol/notifications.ts`, 83 entries) and the reducer
+  surfaces unknown methods as visible warnings — do not re-introduce
+  hand-written notification lists.
 
-Emitted as Tauri events `codex:{method with / replaced by -}` (dots are
-rejected by plugin:event validation), e.g.
-`codex:turn-completed`, `codex:item-agentMessage-delta`.
+`serverRequest/resolved` (a notification) tells the UI a pending request was
+answered elsewhere; the bridge clears its pending map on it.
 
----
+## Response-shape gotchas (frontend)
 
-## Frontend mapping notes
+* `thread/list` returns `{ data: [...], nextCursor, backwardsCursor }` —
+  **not** `{ threads: [...] }`. Same `{ data: [...] }` shape for
+  `mcpServerStatus/list`.
+* `thread/start` responses nest the thread under `thread` — the `new_session`
+  command flattens it and also keeps `threadStart`.
+* `config/read` → model providers arrive as `model_providers` map;
+  `list_providers` normalizes it to `{ providers: [] }`.
+* Settings save is a **dual write**: shell store (`save_settings`) plus
+  `config/batchWrite` with `{ edits: [{ keyPath, value, mergeStrategy }],
+  reloadUserConfig }` — **not** `{ writes }`.
 
-`thread/list` returns `{ data: [...], nextCursor, backwardsCursor }` — **not**
-`{ threads: [...] }`. `bridge.js::extractSessions` therefore also accepts
-`resp.data`. Same for `mcpServerStatus/list` → `{ data: [...] }`.
+## Degradation without an engine binary
 
-`GetState` composites local shell state + fail-soft engine calls. See
+The shell boots normally: `engine_status.connected == false`, `initialize`
+result `null`, engine-backed views show empty lists, and startup logs an
+explicit `no codex-app-server binary resolved` warning (plus the suggested
+remedies: drop the exe into `src-tauri/binaries/`, set `CODEX_APP_SERVER`,
+or set `settings.app_server_binary`). Desktop-only features (pets, calendar,
+scheduled tasks, plugin market, …) keep working — they are local store
+commands, never disguised engine calls.
 
----
+## Known limitations (tracked)
 
-## Prebuilt binary requirement
-
-A working desktop **requires a prebuilt** engine binary
-(target `x86_64-pc-windows-msvc`) matching v0.154.0. Either shape works:
-
-1. Drop it at `src-tauri/binaries/codex-app-server-x86_64-pc-windows-msvc.exe`, **or**
-2. Set `CODEX_APP_SERVER` / `settings.app_server_binary` to an absolute path, **or**
-3. Put `codex-app-server.exe` on `PATH`.
-
-**Where to get it without building anything.** The official Windows desktop
-already ships a suitable multi-call binary — no `cargo` needed:
-
-```
-%LOCALAPPDATA%\OpenAI\Codex\bin\<content-hash>\codex.exe
-%USERPROFILE%\.codex\plugins\.plugin-appserver\codex.exe
-```
-
-Verified on this machine: `codex-cli 0.154.0-alpha.6.2`, ~284 MB, and
-`codex.exe app-server --listen ws://127.0.0.1:17457` binds the port in ~250 ms.
-Copy it to the path in (1) — the filename does not need to match the real
-shape, because `probe_invocation` detects the subcommand requirement at runtime.
-
-Without a binary the shell still boots; `engine_status.connected == false` and
-engine-backed UI degrades to empty lists. Startup also logs an explicit
-`no codex-app-server binary resolved` warning instead of failing silently.
-
----
+* In-flight requests are not failed fast when the WS reader dies; callers
+  wait out the 120 s timeout. Pending-map draining belongs in `client.rs`.
+* No liveness monitor for the child process: a crashed engine is not respawned
+  and no `engine:down` event reaches the UI until the next lazy reconnect.
+* Two concurrent `rpc()` calls on a cold start can race and double-connect;
+  the loser's connection (and any in-flight server requests on it) is
+  dropped.
+* `ws://` has no auth token (see *Transport*).
+* No SHA-256 pinning for the downloaded/installed exe anywhere yet.
 
 ## Constraints checklist
 
-- [x] Do not copy official crates into Codex-Tauri
-- [x] Path dependency only behind an optional feature (off by default)
-- [x] Shell-only CI still compiles (no official tree needed)
-- [x] Official tree is read-only
-- [x] Windows paths / `%LOCALAPPDATA%` install layout
+- [x] No engine source is compiled by this repo; the vendored `src/backend`
+      experiment is retired (git history only)
+- [x] Shell-only CI build; engine exe arrives by download, bundled as an
+      installer resource
+- [x] Transport + handshake exactly as the official tests define
+- [x] RPC names traceable to `protocol.rs` ↔ generated `src/protocol/*` ↔
+      official method inventory; no hand-guessed names
+- [x] Server requests always replyable (accept/decline/…) to avoid stalled
+      turns — third-family channels are the known remaining hole
+- [x] API keys stay in the shell store, injected via env; never in
+      `config.toml`, never in the frontend

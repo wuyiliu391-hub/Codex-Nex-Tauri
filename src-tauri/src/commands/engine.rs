@@ -184,7 +184,19 @@ pub async fn respond_server_request(
 /// List model providers from config/read. Engine has no dedicated
 /// `modelProvider/list` — providers live in config.
 #[tauri::command]
-pub async fn list_providers(engine: State<'_, EngineHandle>) -> Result<Value, String> {
+pub async fn list_providers(
+    app: tauri::AppHandle,
+    engine: State<'_, EngineHandle>,
+) -> Result<Value, String> {
+    use tauri::Manager as _;
+    let (protocols, endpoints) = match app.try_state::<crate::state::AppState>() {
+        Some(st) => match st.inner.lock() {
+            Ok(inner) => (inner.provider_protocols.clone(), inner.provider_endpoints.clone()),
+            Err(_) => (HashMap::new(), HashMap::new()),
+        },
+        None => (HashMap::new(), HashMap::new()),
+    };
+
     match rpc(&engine, CONFIG_READ, json!({})).await {
         Ok(v) => {
             // Normalize to { providers: [...] } for bridge extractProviders.
@@ -203,6 +215,12 @@ pub async fn list_providers(engine: State<'_, EngineHandle>) -> Result<Value, St
                                 let mut val = val.clone();
                                 if let Some(obj) = val.as_object_mut() {
                                     obj.entry("id").or_insert_with(|| Value::String(k.clone()));
+                                    if let Some(proto) = protocols.get(k) {
+                                        obj.insert("protocol".into(), Value::String(proto.clone()));
+                                    }
+                                    if let Some(real_url) = endpoints.get(k) {
+                                        obj.insert("realBaseUrl".into(), Value::String(real_url.clone()));
+                                    }
                                 }
                                 val
                             })
@@ -273,21 +291,51 @@ pub async fn save_provider(
         .trim()
         .to_string();
 
-    // 0.154 dropped `wire_api = "chat"`; `responses` is the only supported wire,
-    // so the UI's protocol choice no longer maps onto a config field.
-    const WIRE_API: &str = "responses";
-    let env_key = crate::state::provider_env_key(&id);
+    let protocol = provider
+        .get("protocol")
+        .and_then(|v| v.as_str())
+        .unwrap_or("openai_chat")
+        .trim()
+        .to_string();
+    let default_model = provider
+        .get("defaultModel")
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim().to_string());
 
-    // Store the secret outside config.toml and mark the provider dirty so the
-    // next sidecar spawn picks it up.
-    if !api_key.is_empty() {
-        if let Some(state) = app.try_state::<crate::state::AppState>() {
-            if let Ok(mut inner) = state.inner.lock() {
+    let needs_adapter = protocol != "openai_responses";
+    let effective_base_url = if needs_adapter {
+        format!("http://127.0.0.1:{}/v1", crate::codex::DEFAULT_ADAPTER_PORT)
+    } else {
+        base_url.clone()
+    };
+
+    // Store the route in the protocol adapter
+    if let Some(adapter_state) = app.try_state::<crate::codex::AdapterState>() {
+        adapter_state.set_route(crate::codex::ProviderRoute {
+            id: id.clone(),
+            protocol: protocol.clone(),
+            target_base_url: base_url.clone(),
+            api_key: api_key.clone(),
+            default_model: default_model.clone(),
+        });
+        adapter_state.set_active(&id);
+    }
+
+    // Persist provider secret, protocol and real endpoint in AppState
+    if let Some(state) = app.try_state::<crate::state::AppState>() {
+        if let Ok(mut inner) = state.inner.lock() {
+            if !api_key.is_empty() {
                 inner.provider_secrets.insert(id.clone(), api_key.clone());
             }
-            state.save().map_err(|e| e.to_string())?;
+            inner.provider_protocols.insert(id.clone(), protocol.clone());
+            inner.provider_endpoints.insert(id.clone(), base_url.clone());
         }
+        state.save().map_err(|e| e.to_string())?;
     }
+
+    // 0.154 dropped `wire_api = "chat"`; `responses` is the only supported wire.
+    const WIRE_API: &str = "responses";
+    let env_key = crate::state::provider_env_key(&id);
 
     let mut edits = vec![
         json!({
@@ -297,7 +345,7 @@ pub async fn save_provider(
         }),
         json!({
             "keyPath": format!("model_providers.{id}.base_url"),
-            "value": base_url,
+            "value": effective_base_url,
             "mergeStrategy": "replace",
         }),
         json!({

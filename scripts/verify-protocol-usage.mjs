@@ -108,7 +108,7 @@ if (unknown.length === 0) {
 
 // ── coverage: every server notification must be classified in the store ──
 
-const STORE = join(ROOT, "frontend", "app", "state", "turnStore.ts");
+const STORE = join(ROOT, "frontend", "app", "state", "notificationReducer.ts");
 let coverageMissing = [];
 
 try {
@@ -117,7 +117,7 @@ try {
   /** Pull the string literals out of `const NAME ... = [ ... ]`. */
   function extractArray(name) {
     const re = new RegExp(
-      `const\\s+${name}\\s*(?::[^=]+)?=\\s*(?:new Set\\()?\\s*\\[([\\s\\S]*?)\\]`,
+      `const\\s+${name}\\s*(?::[^=]+)?=\\s*(?:new Set(?:<[^>]+>)?\\()?\\s*\\[([\\s\\S]*?)\\]`,
     );
     const m = store.match(re);
     if (!m) return [];
@@ -126,7 +126,7 @@ try {
 
   // Case labels inside applyNotification's switch.
   const switchCases = [...store.matchAll(/case\s+"([^"]+)":/g)].map((m) => m[1]);
-  const declared = extractArray("INTENTIONALLY_UNHANDLED");
+  const declared = extractArray("AMBIENT_METHODS").concat(extractArray("INTENTIONALLY_UNHANDLED"));
 
   const covered = new Set([...switchCases, ...declared]);
   coverageMissing = protocol.notifications

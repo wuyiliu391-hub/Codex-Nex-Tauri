@@ -48,34 +48,8 @@ regex = "1"
 # workspace declaration so it resolves to the already-locked 0.12.
 reqwest = { version = "0.12", features = ["json"] }
 
-# ─── In-process native engine backend ─────────────────────────────────────────
-codex-app-server          = { path = "../src/backend/app-server",          optional = true }
-codex-app-server-protocol = { path = "../src/backend/app-server-protocol", optional = true }
-codex-app-server-client   = { path = "../src/backend/app-server-client",   optional = true }
-codex-protocol            = { path = "../src/backend/protocol",            optional = true }
-codex-core                = { path = "../src/backend/core",                optional = true }
-codex-config              = { path = "../src/backend/config",              optional = true }
-codex-arg0                = { path = "../src/backend/arg0",                optional = true }
-codex-exec-server         = { path = "../src/backend/exec-server",         optional = true }
-codex-feedback            = { path = "../src/backend/feedback",            optional = true }
-
 [features]
-# Product/CI default is shell-only (engine = official prebuilt sidecar under
-# src-tauri/binaries/). Do not put in-process in default — that compiles
-# src/backend. Opt-in only: --features in-process
-# tauri-cli: cargo tauri build -- --no-default-features
 default = []
-in-process = [
-    "dep:codex-app-server",
-    "dep:codex-app-server-protocol",
-    "dep:codex-app-server-client",
-    "dep:codex-protocol",
-    "dep:codex-core",
-    "dep:codex-config",
-    "dep:codex-arg0",
-    "dep:codex-exec-server",
-    "dep:codex-feedback",
-]
 
 # NOTE: Cargo only honors [profile.*] at the workspace root. Do not add
 # [profile.release] here - it is ignored (CI log: "profiles for the non root

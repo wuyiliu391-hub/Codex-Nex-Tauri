@@ -34,7 +34,9 @@ body {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
-/* Use Medium face for bold/headings — OpenAI Sans only ships 400/500; heavier weights are mapped to Medium */
+/* Bold/headings request 700 via --font-weight-bold. official-tokens.css maps
+   700 -> OpenAISans-Medium (official ships only 400/500), so rendered weight is
+   Medium - not synthetic thin - under font-synthesis: none. */
 b, strong { font-weight: var(--font-weight-bold, 700); }
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-sans);
@@ -137,9 +139,11 @@ body.sidebar-collapsed .app-toolbar { background: var(--bg-canvas); }
   background: transparent;
   color: var(--fg-titlebar, color-mix(in srgb, var(--fg-primary, #1a1c1f) 72%, transparent));
   font-family: var(--font-sans);
-  font-size: 12px;
+  /* Titlebar chrome — match dropdown rows so CJK labels stay readable. */
+  font-size: var(--text-sm-ui, 13px);
   font-weight: 400;
   line-height: 1;
+  letter-spacing: var(--tracking-ui, 0);
   cursor: pointer;
 }
 .desktop-menu-trigger:hover,
@@ -444,10 +448,10 @@ html.theme-dark[data-sidebar-style="lavender"] .sidebar .project-item.is-active 
   background: transparent;
   padding: 4px 6px;
   border-radius: var(--radius-md);
-  cursor: pointer;
+  cursor: default;
   color: var(--fg-primary);
 }
-.brand-title-wrap:hover {
+button.brand-title-wrap:hover {
   background: var(--bg-hover);
 }
 .brand-title {
@@ -648,6 +652,73 @@ html.theme-dark[data-sidebar-style="lavender"] .sidebar .project-item.is-active 
 }
 .sidebar-help-btn:hover { background: var(--bg-hover); color: var(--fg-primary); }
 .sidebar-help-btn svg { width: 16px; height: 16px; }
+
+/* ── Sidebar Extension: Pending permissions, Model selector, Delete session ── */
+.sidebar-permission-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 6px 2px;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--accent-ring, #2563eb) 12%, transparent);
+  color: var(--accent-ring, #2563eb);
+  font-size: var(--text-xs, 12px);
+  font-weight: 500;
+  cursor: pointer;
+}
+.sidebar-permission-badge:hover {
+  background: color-mix(in srgb, var(--accent-ring, #2563eb) 20%, transparent);
+}
+.sidebar-permission-badge .perm-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--accent-ring, #2563eb);
+  box-shadow: 0 0 6px var(--accent-ring, #2563eb);
+}
+
+.sidebar-model-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 6px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--fg-primary) 4%, transparent);
+}
+.sidebar-model-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--text-xs, 12px);
+  color: var(--fg-secondary);
+}
+.sidebar-model-label {
+  flex: none;
+  font-weight: 500;
+}
+
+.task-delete-btn {
+  opacity: 0;
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: 11px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity .12s ease;
+}
+.task-row:hover .task-delete-btn {
+  opacity: 1;
+}
+.task-delete-btn:hover {
+  color: #ef4444;
+  background: color-mix(in srgb, #ef4444 10%, transparent);
+}
 
 /* Workspace toggle button (top-right of main card, matching official-home.png) */
 .workspace-toggle-btn {

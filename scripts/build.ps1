@@ -1,20 +1,23 @@
 $ErrorActionPreference = "Stop"
 # Cloud/dev build helper. Requires Rust + Tauri CLI on PATH.
+# Product output: flat installers under dist/ (self-contained NSIS/MSI).
 Set-Location $PSScriptRoot\..
 
 $sidecar = "src-tauri\binaries\codex-app-server-x86_64-pc-windows-msvc.exe"
 if (-not (Test-Path $sidecar)) {
-  Write-Warning "Sidecar missing: $sidecar (engine will be offline until provided)"
-  Write-Host "Build it with: .\scripts\build-sidecar.ps1  (needs official codex-rust tree)"
+  throw "Sidecar missing: $sidecar`nDownload official rust-v0.154.0 binary into src-tauri\binaries\ (see docs/ARCHITECTURE.md). Installers embed this engine."
 }
 
 Push-Location src-tauri
 try {
-  cargo check --message-format=short
+  # Product/CI path is shell-only; runner args go after `--`.
+  cargo tauri build -- --no-default-features
   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-  cargo tauri build
 } finally {
   Pop-Location
 }
 
-Write-Host "Done. See src-tauri\target\release\"
+& (Join-Path $PSScriptRoot "stage-dist.ps1")
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+Write-Host "Done. Desktop product installers are in dist\ (not target\)."

@@ -32,8 +32,32 @@ interface AppearancePrefs {
   diffMarkers?: boolean | string;
 }
 
-/** Base body size the type ladder is scaled against (official default 15px). */
-const BASE_FONT_PX = 15;
+/**
+ * Type-scale defaults.
+ *
+ * tokens.css owns the rendered ladder (--text-base: 14px, --text-sm: 12px,
+ * --text-code: 13px, …). Shell prefs (src/js/state.js) ship uiFontSize=15 /
+ * codeFontSize=13. Those defaults must NOT write inline --text-* overrides —
+ * a 15px-based ladder remaps sm→13/base→15 and fights the CSS tokens.
+ * Only write when the user customized away from the shell defaults.
+ */
+const TOKENS_BASE_PX = 14; // tokens.css --text-base
+const SHELL_DEFAULT_UI_PX = 15; // state.js appearance.uiFontSize
+const SHELL_DEFAULT_CODE_PX = 13; // state.js codeFontSize == tokens --text-code
+
+/** tokens.css ladder units (scale 1 = CSS defaults). Includes --text-sm-ui. */
+const TYPE_LADDER: ReadonlyArray<readonly [string, number]> = [
+  ["--text-2xs", 11],
+  ["--text-xs", 12],
+  ["--text-sm", 12],
+  ["--text-sm-ui", 13],
+  ["--text-md", 14],
+  ["--text-base", 14],
+  ["--text-lg", 16],
+  ["--text-heading-sm", 18],
+  ["--text-heading-md", 20],
+  ["--text-heading-lg", 24],
+];
 
 export function applyTheme(theme: string | undefined): void {
   const html = document.documentElement;
@@ -47,22 +71,38 @@ export function applyTheme(theme: string | undefined): void {
   }
 }
 
-/** Rescale the whole type ladder proportionally — never overwrite --text-base alone. */
+/**
+ * Rescale the whole type ladder proportionally — never overwrite --text-base alone.
+ * When prefs are unset or still at shell defaults, leave tokens.css in control
+ * (remove any prior inline overrides). Scale custom sizes from TOKENS_BASE_PX
+ * so a user size of 14 is identity and --text-sm-ui tracks the same factor.
+ */
 function applyTypeScale(uiFontSize: number | undefined, codeFontSize: number | undefined): void {
   const root = document.documentElement;
-  const base = Math.max(12, Math.min(18, Number(uiFontSize) || BASE_FONT_PX));
-  const scale = base / BASE_FONT_PX;
-  root.style.setProperty("--text-2xs", `${(11 * scale).toFixed(2)}px`);
-  root.style.setProperty("--text-xs", `${(12 * scale).toFixed(2)}px`);
-  root.style.setProperty("--text-sm", `${(13 * scale).toFixed(2)}px`);
-  root.style.setProperty("--text-md", `${(14 * scale).toFixed(2)}px`);
-  root.style.setProperty("--text-base", `${base}px`);
-  root.style.setProperty("--text-lg", `${(16 * scale).toFixed(2)}px`);
-  root.style.setProperty("--text-heading-sm", `${(17 * scale).toFixed(2)}px`);
-  root.style.setProperty("--text-heading-md", `${(20 * scale).toFixed(2)}px`);
-  root.style.setProperty("--text-heading-lg", `${(23 * scale).toFixed(2)}px`);
-  const code = Math.max(10, Math.min(16, Number(codeFontSize) || 13));
-  root.style.setProperty("--text-code", `${code}px`);
+
+  const uiRaw = uiFontSize == null ? Number.NaN : Number(uiFontSize);
+  const uiCustom = Number.isFinite(uiRaw) && uiRaw !== SHELL_DEFAULT_UI_PX;
+
+  if (uiCustom) {
+    const base = Math.max(12, Math.min(18, uiRaw));
+    const scale = base / TOKENS_BASE_PX;
+    for (const [prop, px] of TYPE_LADDER) {
+      root.style.setProperty(prop, `${(px * scale).toFixed(2)}px`);
+    }
+  } else {
+    for (const [prop] of TYPE_LADDER) {
+      root.style.removeProperty(prop);
+    }
+  }
+
+  const codeRaw = codeFontSize == null ? Number.NaN : Number(codeFontSize);
+  const codeCustom = Number.isFinite(codeRaw) && codeRaw !== SHELL_DEFAULT_CODE_PX;
+  if (codeCustom) {
+    const code = Math.max(10, Math.min(16, codeRaw));
+    root.style.setProperty("--text-code", `${code}px`);
+  } else {
+    root.style.removeProperty("--text-code");
+  }
 }
 
 export function applyAppearanceVars(a: AppearancePrefs = {}): void {

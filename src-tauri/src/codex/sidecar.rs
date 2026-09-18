@@ -1,7 +1,4 @@
 //! Start / stop official `codex-app-server` as a Tauri sidecar and hold the RPC client.
-//!
-//! Mirrors official Desktop's content-addressed install under
-//! `%LOCALAPPDATA%\CodexDesktop\bin\<hash>\` (see docs/RUST_BACKEND.md).
 
 use super::client::CodexClient;
 use super::protocol::ServerMessage;
@@ -22,206 +19,7 @@ pub const CODEX_APP_SERVER_ENV: &str = "CODEX_APP_SERVER";
 
 const EVENT_CAPACITY: usize = 256;
 
-#[cfg(feature = "in-process")]
-pub mod in_process_backend {
-    use super::*;
-    use codex_app_server::in_process::{
-        self, InProcessClientHandle, InProcessClientSender, InProcessServerEvent,
-        InProcessStartArgs,
-    };
-    use codex_app_server_protocol::{
-        ClientInfo, ClientRequest, InitializeCapabilities, InitializeParams, RequestId,
-        ServerMessage as ProtocolServerMessage,
-    };
-    use codex_arg0::Arg0DispatchPaths;
-    use codex_config::{CloudConfigBundleLoader, LoaderOverrides, NoopThreadConfigLoader};
-    use codex_core::config::Config;
-    use codex_exec_server::EnvironmentManager;
-    use codex_feedback::CodexFeedback;
-    use codex_protocol::protocol::SessionSource;
-    use std::sync::atomic::AtomicI64;
-
-    pub struct InProcessEngine {
-        /// Kept for request/response; the full handle (which owns the event
-        /// receiver) is moved into the event-pump task in `start`.
-        sender: InProcessClientSender,
-        next_request_id: AtomicI64,
-        /// Signals the event-pump task to shut the runtime down.
-        shutdown_tx: Option<tokio::sync::oneshot::Sender<()>>,
-    }
-
-    impl InProcessEngine {
-        pub async fn start(
-            _app: &AppHandle,
-            events_tx: broadcast::Sender<ServerMessage>,
-        ) -> anyhow::Result<Self> {
-            let codex_home = codex_core::config::find_codex_home()
-                .unwrap_or_else(|_| dirs::data_dir().unwrap_or_default().join("codex"));
-
-            let config = codex_core::config::load_config(&codex_home)
-                .await
-                .unwrap_or_default();
-            let config = std::sync::Arc::new(config);
-
-            let initialize = InitializeParams {
-                client_info: ClientInfo {
-                    name: "codex-desktop-tauri".to_string(),
-                    title: Some("Codex Desktop (Tauri)".to_string()),
-                    version: env!("CARGO_PKG_VERSION").to_string(),
-                },
-                capabilities: Some(InitializeCapabilities {
-                    experimental_api: true,
-                    request_attestation: false,
-                    extensions: None,
-                    opt_out_notification_methods: None,
-                    mcp_server_openai_form_elicitation: false,
-                }),
-            };
-
-            let args = InProcessStartArgs {
-                arg0_paths: Arg0DispatchPaths::default(),
-                config: std::sync::Arc::clone(&config),
-                cli_overrides: Vec::new(),
-                loader_overrides: LoaderOverrides::default(),
-                strict_config: false,
-                cloud_config_bundle: CloudConfigBundleLoader::default(),
-                thread_config_loader: std::sync::Arc::new(NoopThreadConfigLoader),
-                feedback: CodexFeedback::new(),
-                log_db: None,
-                state_db: None,
-                environment_manager: std::sync::Arc::new(EnvironmentManager::default_for_tests()),
-                config_warnings: Vec::new(),
-                session_source: SessionSource::Custom("codex-desktop".to_string()),
-                enable_codex_api_key_env: true,
-                initialize,
-                channel_capacity: in_process::DEFAULT_IN_PROCESS_CHANNEL_CAPACITY,
-            };
-
-            let handle = in_process::start(args)
-                .await
-                .map_err(|e| anyhow::anyhow!("failed to start in-process app server: {e}"))?;
-
-            // Split the handle: the sender drives requests/responses here, the
-            // handle itself (owning the event receiver) drives the event pump.
-            let sender = handle.sender();
-            let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
-            spawn_event_pump(handle, events_tx, shutdown_rx);
-
-            Ok(Self {
-                sender,
-                next_request_id: AtomicI64::new(1),
-                shutdown_tx: Some(shutdown_tx),
-            })
-        }
-
-        pub async fn rpc(
-            &self,
-            method: &str,
-            params: Option<serde_json::Value>,
-        ) -> Result<serde_json::Value, String> {
-            let id = self.next_request_id.fetch_add(1, Ordering::SeqCst);
-            let req_json = serde_json::json!({
-                "id": id,
-                "method": method,
-                "params": params.unwrap_or(serde_json::Value::Null)
-            });
-            let client_req: ClientRequest = serde_json::from_value(req_json)
-                .map_err(|e| format!("invalid RPC request '{method}': {e}"))?;
-
-            let res = self
-                .sender
-                .request(client_req)
-                .await
-                .map_err(|e| format!("in-process RPC '{method}' I/O error: {e}"))?;
-
-            match res {
-                Ok(val) => Ok(val),
-                Err(err) => Err(format!(
-                    "RPC '{method}' error: {} (code {})",
-                    err.message, err.code
-                )),
-            }
-        }
-
-        pub fn respond(
-            &self,
-            id: serde_json::Value,
-            result: serde_json::Value,
-        ) -> Result<(), String> {
-            let req_id = match id {
-                serde_json::Value::Number(n) => RequestId::Integer(n.as_i64().unwrap_or(0)),
-                serde_json::Value::String(s) => RequestId::String(s),
-                _ => RequestId::Integer(0),
-            };
-            self.sender
-                .respond_to_server_request(req_id, result)
-                .map_err(|e| format!("respond error: {e}"))
-        }
-
-        pub async fn shutdown(mut self) {
-            if let Some(tx) = self.shutdown_tx.take() {
-                let _ = tx.send(());
-            }
-        }
-    }
-
-    /// Forward every in-process event into the shell's `ServerMessage` channel.
-    ///
-    /// Runs for the lifetime of the runtime; `shutdown_rx` lets the engine stop
-    /// it gracefully, after which the runtime handle is awaited.
-    fn spawn_event_pump(
-        mut handle: InProcessClientHandle,
-        events_tx: broadcast::Sender<ServerMessage>,
-        mut shutdown_rx: tokio::sync::oneshot::Receiver<()>,
-    ) {
-        tauri::async_runtime::spawn(async move {
-            loop {
-                tokio::select! {
-                    maybe_event = handle.next_event() => {
-                        match maybe_event {
-                            Some(event) => {
-                                if let Some(msg) = event_to_server_message(event) {
-                                    let _ = events_tx.send(msg);
-                                }
-                            }
-                            None => break,
-                        }
-                    }
-                    _ = &mut shutdown_rx => break,
-                }
-            }
-            let _ = handle.shutdown().await;
-        });
-    }
-
-    /// Convert one in-process event into the wire-level [`ServerMessage`].
-    ///
-    /// Reuses [`crate::codex::protocol::parse_server_message`] instead of
-    /// matching variants by hand: `ServerNotification` serialises to
-    /// `{ "method", "params" }` and `ServerRequest` to
-    /// `{ "method", "id", "params" }` — exactly the shapes that parser already
-    /// handles, so the sidecar and in-process paths share one parsing contract.
-    fn event_to_server_message(event: InProcessServerEvent) -> Option<ServerMessage> {
-        match event {
-            InProcessServerEvent::ServerNotification(notification) => {
-                let text = serde_json::to_string(&*notification).ok()?;
-                crate::codex::protocol::parse_server_message(&text)
-            }
-            InProcessServerEvent::ServerRequest(request) => {
-                let text = serde_json::to_string(&*request).ok()?;
-                crate::codex::protocol::parse_server_message(&text)
-            }
-            InProcessServerEvent::Lagged { skipped } => {
-                tracing::warn!(skipped, "in-process event stream lagged; events dropped");
-                None
-            }
-        }
-    }
-}
-
 pub struct EngineHandle {
-    #[cfg(feature = "in-process")]
-    in_process: std::sync::Arc<tokio::sync::Mutex<Option<in_process_backend::InProcessEngine>>>,
     child: Mutex<Option<Child>>,
     client: Mutex<Option<CodexClient>>,
     running: AtomicBool,
@@ -233,28 +31,6 @@ pub struct EngineHandle {
 impl EngineHandle {
     pub fn start(app: &AppHandle) -> tauri::Result<Self> {
         let (events_tx, _) = broadcast::channel(EVENT_CAPACITY);
-
-        #[cfg(feature = "in-process")]
-        let in_process = {
-            let tx_clone = events_tx.clone();
-            let app_clone = app.clone();
-            let engine_holder = std::sync::Arc::new(tokio::sync::Mutex::new(None));
-            let holder_clone = engine_holder.clone();
-
-            tauri::async_runtime::spawn(async move {
-                match in_process_backend::InProcessEngine::start(&app_clone, tx_clone).await {
-                    Ok(eng) => {
-                        tracing::info!("In-process Codex native backend started successfully");
-                        let mut guard = holder_clone.lock().await;
-                        *guard = Some(eng);
-                    }
-                    Err(e) => {
-                        tracing::warn!(error = %e, "Failed to start in-process Codex backend");
-                    }
-                }
-            });
-            engine_holder
-        };
 
         let settings_listen = app
             .state::<AppState>()
@@ -272,83 +48,74 @@ impl EngineHandle {
 
         let mut child = None;
 
-        // When the in-process backend is compiled in, no external binary is
-        // spawned: the engine runs inside this process. The sidecar path below
-        // is kept for builds that opt the feature out (and as a graceful
-        // fallback if the in-process runtime fails to start — see `rpc`).
-        #[cfg(not(feature = "in-process"))]
-        {
-            let bin = resolve_and_install_sidecar(app);
+        let bin = resolve_and_install_sidecar(app);
 
-            // Provider API keys are kept in the shell store and handed to the
-            // sidecar as environment variables, so config.toml only ever carries
-            // the `env_key` *name*. See `state::provider_env_key`.
-            let provider_env: Vec<(String, String)> = match app.try_state::<AppState>() {
-                Some(state) => match state.inner.lock() {
-                    Ok(inner) => inner
-                        .provider_secrets
-                        .iter()
-                        .map(|(id, secret)| (crate::state::provider_env_key(id), secret.clone()))
-                        .collect(),
-                    Err(_) => Vec::new(),
-                },
-                None => Vec::new(),
-            };
+        // Provider API keys are kept in the shell store and handed to the
+        // sidecar as environment variables, so config.toml only ever carries
+        // the `env_key` *name*. See `state::provider_env_key`.
+        let provider_env: Vec<(String, String)> = match app.try_state::<AppState>() {
+            Some(state) => match state.inner.lock() {
+                Ok(inner) => inner
+                    .provider_secrets
+                    .iter()
+                    .map(|(id, secret)| (crate::state::provider_env_key(id), secret.clone()))
+                    .collect(),
+                Err(_) => Vec::new(),
+            },
+            None => Vec::new(),
+        };
 
-            if bin.exists() {
-                let invocation = probe_invocation(&bin);
-                let mut cmd = Command::new(&bin);
-                for (name, value) in &provider_env {
-                    cmd.env(name, value);
-                }
-                // The official desktop ships a multi-call `codex.exe`; the app-server
-                // transport only starts when the `app-server` subcommand comes first.
-                // A standalone `codex-app-server.exe` takes no subcommand.
-                for arg in &invocation.prefix {
-                    cmd.arg(arg);
-                }
-                cmd.arg("--listen").arg(&settings_listen);
-                // Only pass `--session-source` when this build accepts it. The shipped
-                // 0.154.0-alpha binary rejects it as an unknown argument and exits
-                // immediately, leaving nothing listening on the port (symptom:
-                // "由于目标计算机积极拒绝，无法连接" / os error 10061).
-                if invocation.session_source {
-                    cmd.arg("--session-source").arg(SESSION_SOURCE);
-                }
-                // Hide the console window on Windows release builds.
-                #[cfg(windows)]
-                {
-                    use std::os::windows::process::CommandExt;
-                    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-                    cmd.creation_flags(CREATE_NO_WINDOW);
-                }
-                match cmd.spawn() {
-                    Ok(c) => {
-                        tracing::info!(
-                            path=%bin.display(),
-                            listen=%settings_listen,
-                            prefix=?invocation.prefix,
-                            session_source=invocation.session_source,
-                            "spawned codex-app-server"
-                        );
-                        child = Some(c);
-                    }
-                    Err(e) => {
-                        tracing::warn!(error=%e, path=%bin.display(), "failed to spawn codex-app-server");
-                    }
-                }
-            } else {
-                tracing::warn!(
-                    "no codex-app-server binary resolved; engine stays disconnected. \
-                     Put it at src-tauri/binaries/codex-app-server-x86_64-pc-windows-msvc.exe, \
-                     set CODEX_APP_SERVER, or set settings.app_server_binary."
-                );
+        if bin.exists() {
+            let invocation = probe_invocation(&bin);
+            let mut cmd = Command::new(&bin);
+            for (name, value) in &provider_env {
+                cmd.env(name, value);
             }
+            // The official desktop ships a multi-call `codex.exe`; the app-server
+            // transport only starts when the `app-server` subcommand comes first.
+            // A standalone `codex-app-server.exe` takes no subcommand.
+            for arg in &invocation.prefix {
+                cmd.arg(arg);
+            }
+            cmd.arg("--listen").arg(&settings_listen);
+            // Only pass `--session-source` when this build accepts it. The shipped
+            // 0.154.0-alpha binary rejects it as an unknown argument and exits
+            // immediately, leaving nothing listening on the port (symptom:
+            // "由于目标计算机积极拒绝，无法连接" / os error 10061).
+            if invocation.session_source {
+                cmd.arg("--session-source").arg(SESSION_SOURCE);
+            }
+            // Hide the console window on Windows release builds.
+            #[cfg(windows)]
+            {
+                use std::os::windows::process::CommandExt;
+                const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+                cmd.creation_flags(CREATE_NO_WINDOW);
+            }
+            match cmd.spawn() {
+                Ok(c) => {
+                    tracing::info!(
+                        path=%bin.display(),
+                        listen=%settings_listen,
+                        prefix=?invocation.prefix,
+                        session_source=invocation.session_source,
+                        "spawned codex-app-server"
+                    );
+                    child = Some(c);
+                }
+                Err(e) => {
+                    tracing::warn!(error=%e, path=%bin.display(), "failed to spawn codex-app-server");
+                }
+            }
+        } else {
+            tracing::warn!(
+                "no codex-app-server binary resolved; engine stays disconnected. \
+                 Put it at src-tauri/binaries/codex-app-server-x86_64-pc-windows-msvc.exe, \
+                 set CODEX_APP_SERVER, or set settings.app_server_binary."
+            );
         }
 
         Ok(Self {
-            #[cfg(feature = "in-process")]
-            in_process,
             child: Mutex::new(child),
             client: Mutex::new(None),
             running: AtomicBool::new(false),
@@ -358,15 +125,6 @@ impl EngineHandle {
     }
 
     pub fn is_running(&self) -> bool {
-        #[cfg(feature = "in-process")]
-        {
-            if let Ok(guard) = self.in_process.try_lock() {
-                if guard.is_some() {
-                    return true;
-                }
-            }
-        }
-
         self.running.load(Ordering::SeqCst)
             || self
                 .client
@@ -381,12 +139,10 @@ impl EngineHandle {
     }
 
     /// Clone the client out of the mutex so the guard is dropped before any await.
-    #[cfg(not(feature = "in-process"))]
     fn client_clone(&self) -> Option<CodexClient> {
         self.client.lock().ok().and_then(|g| g.clone())
     }
 
-    #[cfg(not(feature = "in-process"))]
     fn store_client(&self, client: CodexClient) {
         // Forward this client's broadcast into the stable EngineHandle channel.
         let mut rx = client.subscribe();
@@ -411,7 +167,6 @@ impl EngineHandle {
         self.running.store(true, Ordering::SeqCst);
     }
 
-    #[cfg(not(feature = "in-process"))]
     fn listen_url(&self) -> String {
         self.listen_url
             .lock()
@@ -420,7 +175,6 @@ impl EngineHandle {
     }
 
     /// True when we spawned a sidecar and it has not exited yet.
-    #[cfg(not(feature = "in-process"))]
     fn sidecar_alive(&self) -> bool {
         self.child
             .lock()
@@ -438,7 +192,6 @@ impl EngineHandle {
     /// startup and surfaces as a spurious
     /// `connect codex-app-server: ... os error 10061`.
     /// When no sidecar was spawned we fail fast instead of stalling the UI.
-    #[cfg(not(feature = "in-process"))]
     async fn connect_with_retry(&self, url: &str) -> Result<CodexClient, String> {
         const ATTEMPTS: u32 = 40;
         const DELAY_MS: u64 = 250;
@@ -474,98 +227,39 @@ impl EngineHandle {
         method: &str,
         params: Option<serde_json::Value>,
     ) -> Result<serde_json::Value, String> {
-        #[cfg(feature = "in-process")]
-        {
-            // The backend is started on a background task so `EngineHandle::start`
-            // stays non-blocking. An RPC issued before it finishes must wait for
-            // it rather than fall through to the (not spawned) sidecar path.
-            const ATTEMPTS: u32 = 40;
-            const DELAY_MS: u64 = 100;
-            for attempt in 0..ATTEMPTS {
-                {
-                    let in_proc = self.in_process.lock().await;
-                    if let Some(engine) = in_proc.as_ref() {
-                        return engine.rpc(method, params).await;
-                    }
-                }
-                if attempt + 1 < ATTEMPTS {
-                    tokio::time::sleep(std::time::Duration::from_millis(DELAY_MS)).await;
-                }
+        if let Some(client) = self.client_clone() {
+            if client.is_connected() {
+                return client.request(method, params).await;
             }
-            return Err("in-process Codex backend is not available (failed to start?)".to_string());
         }
-
-        #[cfg(not(feature = "in-process"))]
-        {
-            if let Some(client) = self.client_clone() {
-                if client.is_connected() {
-                    return client.request(method, params).await;
-                }
-            }
-            let url = self.listen_url();
-            let client = self
-                .connect_with_retry(&url)
-                .await
-                .map_err(|e| format!("connect codex-app-server: {e}"))?;
-            // Kick off a warm-up so the UI can read initialize metadata later.
-            let result = client.request(method, params).await;
-            self.store_client(client);
-            result
-        }
+        let url = self.listen_url();
+        let client = self
+            .connect_with_retry(&url)
+            .await
+            .map_err(|e| format!("connect codex-app-server: {e}"))?;
+        // Kick off a warm-up so the UI can read initialize metadata later.
+        let result = client.request(method, params).await;
+        self.store_client(client);
+        result
     }
 
     /// Resolve a server→client request (approval / user input / elicitation).
     pub fn respond(&self, id: serde_json::Value, result: serde_json::Value) -> Result<(), String> {
-        #[cfg(feature = "in-process")]
-        {
-            if let Ok(guard) = self.in_process.try_lock() {
-                if let Some(engine) = guard.as_ref() {
-                    return engine.respond(id, result);
-                }
-            }
-            return Err("in-process Codex backend is not available".to_string());
+        let client = self
+            .client_clone()
+            .ok_or_else(|| "engine not connected".to_string())?;
+        if !client.is_connected() {
+            return Err("engine not connected".into());
         }
-
-        #[cfg(not(feature = "in-process"))]
-        {
-            let client = self
-                .client_clone()
-                .ok_or_else(|| "engine not connected".to_string())?;
-            if !client.is_connected() {
-                return Err("engine not connected".into());
-            }
-            client.respond(id, result)
-        }
+        client.respond(id, result)
     }
 
     /// Metadata from the last successful initialize handshake.
-    ///
-    /// Only the sidecar path exposes the handshake result; the in-process
-    /// backend performs `initialize` internally without returning it, so this
-    /// stays `None` there (the frontend treats it as optional).
     pub fn initialize_meta(&self) -> Option<serde_json::Value> {
-        #[cfg(not(feature = "in-process"))]
-        {
-            return self.client_clone().and_then(|c| c.initialize_result());
-        }
-        #[cfg(feature = "in-process")]
-        {
-            None
-        }
+        return self.client_clone().and_then(|c| c.initialize_result());
     }
 
     pub fn shutdown(&self) {
-        #[cfg(feature = "in-process")]
-        {
-            let in_proc = self.in_process.clone();
-            tauri::async_runtime::spawn(async move {
-                let mut guard = in_proc.lock().await;
-                if let Some(engine) = guard.take() {
-                    engine.shutdown().await;
-                }
-            });
-        }
-
         if let Ok(mut guard) = self.client.lock() {
             if let Some(c) = guard.take() {
                 c.close();
@@ -704,7 +398,25 @@ fn resolve_and_install_sidecar(app: &AppHandle) -> PathBuf {
     }
 }
 
+/// Candidate engine filenames under a directory, highest priority first.
+fn sidecar_names_in_dir(dir: &Path) -> [PathBuf; 3] {
+    [
+        dir.join("binaries")
+            .join("codex-app-server-x86_64-pc-windows-msvc.exe"),
+        dir.join("codex-app-server.exe"),
+        dir.join("codex-app-server-x86_64-pc-windows-msvc.exe"),
+    ]
+}
+
+fn first_existing(paths: [PathBuf; 3]) -> Option<PathBuf> {
+    paths.into_iter().find(|p| p.exists())
+}
+
 /// Find a source binary without installing it.
+///
+/// Bundled payload (NSIS/MSI resources, exe-adjacent files) wins over a
+/// previous LocalAppData hash-dir copy so an updated installer is not shadowed
+/// by an older engine left behind from a prior run.
 fn resolve_sidecar_source(app: &AppHandle) -> Option<PathBuf> {
     // 1. CODEX_APP_SERVER env
     if let Ok(p) = std::env::var(CODEX_APP_SERVER_ENV) {
@@ -723,20 +435,16 @@ fn resolve_sidecar_source(app: &AppHandle) -> Option<PathBuf> {
         }
     }
 
-    // 3. Existing hash-dir install (most recent)
-    if let Some(installed) = latest_hash_dir_install() {
-        return Some(installed);
-    }
-
-    // 4. Bundled / dev binaries
+    // 3. Self-contained installer payload / dev drop
     if let Ok(dir) = app.path().resource_dir() {
-        let candidates = [
-            dir.join("binaries/codex-app-server-x86_64-pc-windows-msvc.exe"),
-            dir.join("codex-app-server.exe"),
-        ];
-        for c in candidates {
-            if c.exists() {
-                return Some(c);
+        if let Some(hit) = first_existing(sidecar_names_in_dir(&dir)) {
+            return Some(hit);
+        }
+    }
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            if let Some(hit) = first_existing(sidecar_names_in_dir(dir)) {
+                return Some(hit);
             }
         }
     }
@@ -744,6 +452,11 @@ fn resolve_sidecar_source(app: &AppHandle) -> Option<PathBuf> {
         .join("binaries/codex-app-server-x86_64-pc-windows-msvc.exe");
     if dev.exists() {
         return Some(dev);
+    }
+
+    // 4. Previous content-hash install (fallback)
+    if let Some(installed) = latest_hash_dir_install() {
+        return Some(installed);
     }
 
     // 5. PATH

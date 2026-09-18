@@ -40,7 +40,8 @@ export function defaultSettings() {
     activeModel: "",
     shell: "powershell",
     terminalShell: "powershell",
-    language: "en",
+    // Matches src-tauri Settings empty → "zh-CN". Boot also follows navigator.
+    language: "zh-CN",
     mcpServer: false,
     mcpServerPort: 1455,
     fileOpenDestination: "editor",
@@ -100,19 +101,23 @@ export function defaultPreferences() {
       fullCdpAccess: false,
     },
     computerUse: {
-      anyApp: false,
+      anyApp: true,
+      excel: true,
       allowlist: [],
     },
     git: {
-      branchPrefix: "",
-      mergeMethod: "squash",
+      branchPrefix: "codex/",
+      mergeMethod: "merge",
       forcePush: false,
-      draftPR: false,
-      reviewDelivery: "comments",
+      draftPR: true,
+      reviewDelivery: "inline",
+      autoMerge: false,
       commitInstructions: "",
+      monitorInstructions: "",
+      prInstructions: "",
     },
     environments: { projects: [] },
-    worktrees: { root: "", autoCleanup: true, retention: 15 },
+    worktrees: { root: "", autoFetch: false, autoCleanup: true, retention: 15 },
   };
 }
 

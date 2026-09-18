@@ -6,17 +6,32 @@
  *   the textarea grows with content up to a cap
  *   the send button becomes a stop button while a turn is running
  *
+ * Expand panels emit the Wails-era `.composer-menu*` / `.model-panel*` /
+ * `.project-menu*` class trees from home.css (via ComposerPopover). Generic
+ * ui-popover/ui-option Dropdown is not used for these pills.
+ *
  * Nothing is sent locally: the text goes straight to `send_message` (or
  * `new_session` first when no thread is open yet). Attachments come from the
  * native dialog and ride along on `send_message`.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { t } from "../../src/js/i18n.js";
-import { Dropdown } from "@/shell/Dropdown";
-import { pickAttachmentFiles, setActiveProject, useAppState } from "@/state/appStore";
-import { beginUserTurn, resetTurn } from "@/state/turnStore";
+import { useI18n } from "@/shell/useI18n";
+import { ComposerPopover, MenuCheck } from "@/shell/ComposerPopover";
+import { navigate } from "@/shell/useRoute";
+import {
+  openProjectPicker,
+  pickAttachmentFiles,
+  setActiveProject,
+  setActiveSession,
+  useAppState,
+} from "@/state/appStore";
+import { beginUserTurn, discardItem, finishTurn } from "@/state/turnStore";
+import { useTurnState } from "@/state/hooks";
+import { usePrefSection } from "@/state/preferencesStore";
+import { cancelMockTurn, playMockTurn } from "@/state/mockTurn";
 
 /** Composer growth cap, matching the vanilla shell. */
 const MAX_INPUT_HEIGHT = 200;
@@ -72,6 +87,516 @@ function toUserInput(path: string): Record<string, unknown> {
     : { type: "file", path };
 }
 
+/** CSS fill/thumb vars for the official segmented effort track (home.js). */
+function effortFillCss(idx: number): string {
+  const pct =
+    EFFORT_ORDER.length > 1 ? (idx / (EFFORT_ORDER.length - 1)) * 100 : 100;
+  return `calc(11px + (100% - 22px) * ${pct / 100})`;
+}
+
+type OpenMenu = "permission" | "model" | "project" | null;
+
+interface ProviderGroup {
+  id: string;
+  name: string;
+  models: string[];
+}
+
+/** Providers with at least one real model id — no empty placeholders. */
+function providersWithModels(
+  providers: Array<{ id: string; name: string; models: string[] }>,
+): ProviderGroup[] {
+  return providers
+    .map((p) => ({
+      id: p.id,
+      name: p.name || p.id,
+      models: (p.models || []).map((m) => String(m || "").trim()).filter(Boolean),
+    }))
+    .filter((p) => p.models.length > 0);
+}
+
+// ── menu contents (class trees from home.js open*Menu) ─────────────────
+
+type PermissionMode = "workspace" | "full-access" | "unrestricted";
+
+/** Hand mark for the ask-approval row (and its pill while active). */
+function HandIcon(): React.ReactElement {
+  return (
+    <svg
+      viewBox="0 0 18 18"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M7 11V3.5a1.5 1.5 0 0 1 3 0V11" />
+      <path d="M10 5.5a1.5 1.5 0 0 1 3 0V11" />
+      <path d="M13 7.5a1.5 1.5 0 0 1 3 0v3.5c0 3.3-2.2 5.5-5 5.5-2.8 0-5-2.2-5-5.5V8a1.5 1.5 0 0 1 3 0v3" />
+      <path d="M4 11a1.5 1.5 0 0 0-1.5 1.5v.5" />
+    </svg>
+  );
+}
+
+/** Shield mark for the help-approve row (and its pill while active). */
+function ShieldIcon(): React.ReactElement {
+  return (
+    <svg
+      viewBox="0 0 18 18"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M9 1.8 4 4.2v4.6c0 3.8 2.3 6.8 5 7.5 2.7-.7 5-3.7 5-7.5V4.2L9 1.8Z" />
+      <path d="M6.5 9.1 8.1 10.7l3.5-3.5" />
+    </svg>
+  );
+}
+
+/**
+ * Orange warning mark for the unrestricted row (and its pill when active).
+ * Self-contained strokes: the pill container provides no fill/stroke CSS, so
+ * a bare svg would fall back to a solid fill and render as a black disc.
+ * The dot uses an inline style because `.menu-icon svg { fill: none }` would
+ * otherwise override its presentation attribute and erase it.
+ */
+function WarningIcon(): React.ReactElement {
+  return (
+    <svg
+      viewBox="0 0 18 18"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.45"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="9" cy="9" r="6.75" />
+      <path d="M9 5.6v4.4" />
+      <circle cx="9" cy="12.4" r="0.9" style={{ fill: "currentColor", stroke: "none" }} />
+    </svg>
+  );
+}
+
+function PermissionMenuContent({
+  mode,
+  onSelect,
+  onLearnMore,
+}: {
+  mode: PermissionMode;
+  onSelect: (mode: PermissionMode) => void;
+  onLearnMore: () => void;
+}) {
+  return (
+    <>
+      <div className="composer-menu-label approval-head">
+        <span>{String(t("home.approvalTitle", "How should ChatGPT actions be approved?"))}</span>
+        <button type="button" className="approval-learn-more" onClick={onLearnMore}>
+          {String(t("home.learnMore", "Learn more"))}
+        </button>
+      </div>
+      <button
+        type="button"
+        className="composer-menu-item permission-item"
+        data-mode="workspace"
+        onClick={() => onSelect("workspace")}
+      >
+        <span className="menu-icon">
+          <HandIcon />
+        </span>
+        <span>
+          <strong>{String(t("home.askApproval", "Ask approval"))}</strong>
+          <small>
+            {String(
+              t("home.askApprovalDesc", "Always ask for external files and internet"),
+            )}
+          </small>
+        </span>
+        {mode === "workspace" ? <MenuCheck /> : null}
+      </button>
+      <button
+        type="button"
+        className="composer-menu-item permission-item"
+        data-mode="full-access"
+        onClick={() => onSelect("full-access")}
+      >
+        <span className="menu-icon">
+          <ShieldIcon />
+        </span>
+        <span>
+          <strong>{String(t("home.helpApproval", "Help me approve"))}</strong>
+          <small>
+            {String(t("home.helpApprovalDesc", "Only ask for risky actions"))}
+          </small>
+        </span>
+        {mode === "full-access" ? <MenuCheck /> : null}
+      </button>
+      <button
+        type="button"
+        className="composer-menu-item permission-item permission-full"
+        data-mode="unrestricted"
+        onClick={() => onSelect("unrestricted")}
+      >
+        <span className="menu-icon">
+          <WarningIcon />
+        </span>
+        <span>
+          <strong>{String(t("home.unrestrictedApproval", "Full access"))}</strong>
+          <small>
+            {String(
+              t(
+                "home.unrestrictedApprovalDesc",
+                "Access any file on your computer without restriction",
+              ),
+            )}
+          </small>
+        </span>
+        {mode === "unrestricted" ? <MenuCheck /> : null}
+      </button>
+    </>
+  );
+}
+
+function ModelMenuContent({
+  settings,
+  groups,
+  onSettingsChange,
+  onClose,
+}: {
+  settings: ComposerSettings;
+  groups: ProviderGroup[];
+  onSettingsChange: (patch: Partial<ComposerSettings>) => void;
+  onClose: () => void;
+}) {
+  const effort = effortKey(settings.modelReasoningEffort);
+  const activeModel = (settings.activeModel ?? "").trim();
+  const activeProviderId = settings.activeProviderId ?? "";
+  const panelModelName =
+    activeModel ||
+    groups[0]?.models?.[0] ||
+    String(t("home.modelUnconfigured", "Model not configured"));
+
+  const [showList, setShowList] = useState(false);
+  const [sliderIdx, setSliderIdx] = useState(() =>
+    Math.max(0, EFFORT_ORDER.indexOf(effort)),
+  );
+  const idxRef = useRef(sliderIdx);
+
+  const paintedKey: Effort = EFFORT_ORDER[sliderIdx] ?? "xhigh";
+  const effortLabel = String(t(`home.effort.${paintedKey}`, EFFORT_FALLBACK[paintedKey]));
+  const fill = effortFillCss(sliderIdx);
+
+  const paint = (idx: number): void => {
+    idxRef.current = idx;
+    setSliderIdx(idx);
+  };
+
+  const commit = (idx: number): void => {
+    const key = EFFORT_ORDER[idx] || "xhigh";
+    paint(idx);
+    if (key !== effort) onSettingsChange({ modelReasoningEffort: key });
+  };
+
+  return (
+    <>
+      <div className={`model-panel${showList ? " is-open" : ""}`}>
+        <div className="model-panel-head">
+          <button
+            type="button"
+            className="model-panel-effort"
+            data-open-models=""
+            onClick={() => setShowList((v) => !v)}
+          >
+            <span data-effort-name="">{effortLabel}</span>
+            <svg viewBox="0 0 18 18" aria-hidden="true">
+              <path
+                d="m7 5 4 4-4 4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="model-panel-reset"
+            data-reset-effort=""
+            aria-label={String(t("home.resetDefault", "Reset to default"))}
+            onClick={() => commit(Math.max(0, EFFORT_ORDER.indexOf("xhigh")))}
+          >
+            <svg viewBox="0 0 18 18" aria-hidden="true">
+              <path
+                d="M4.5 9a4.5 4.5 0 1 0 1.3-3.2M4.5 4.5v3h3"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+        <div className="model-panel-model" data-model-name="">
+          {panelModelName}
+        </div>
+        <div
+          className="model-panel-track"
+          data-intensity-root=""
+          style={{ ["--thumb" as string]: fill } as React.CSSProperties}
+        >
+          <input
+            type="range"
+            className="intensity-slider"
+            min={0}
+            max={EFFORT_ORDER.length - 1}
+            step={1}
+            value={sliderIdx}
+            aria-label={String(t("home.intensity", "Intensity"))}
+            aria-valuetext={effortLabel}
+            onChange={(e) => paint(Number(e.target.value) || 0)}
+            onPointerUp={() => commit(idxRef.current)}
+            onKeyUp={(e) => {
+              if (
+                e.key === "ArrowLeft" ||
+                e.key === "ArrowRight" ||
+                e.key === "ArrowUp" ||
+                e.key === "ArrowDown"
+              ) {
+                commit(idxRef.current);
+              }
+            }}
+          />
+          <div
+            className="model-panel-dots"
+            aria-hidden="true"
+            style={{ ["--fill" as string]: fill } as React.CSSProperties}
+          >
+            {EFFORT_ORDER.map((_, i) => (
+              <span key={EFFORT_ORDER[i]} className={`dot${i <= sliderIdx ? " is-on" : ""}`} />
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="model-list" hidden={!showList}>
+        {groups.length ? (
+          groups.map((provider) => (
+            <div key={provider.id}>
+              <div className="composer-menu-section">{provider.name}</div>
+              {provider.models.map((model) => {
+                const selected =
+                  provider.id === activeProviderId && model === activeModel;
+                return (
+                  <button
+                    key={`${provider.id}:${model}`}
+                    type="button"
+                    className="composer-menu-item model-item"
+                    data-provider={provider.id}
+                    data-model={model}
+                    onClick={() => {
+                      onClose();
+                      onSettingsChange({
+                        activeProviderId: provider.id,
+                        activeModel: model,
+                      });
+                    }}
+                  >
+                    <span className="menu-icon model-icon">
+                      <svg viewBox="0 0 18 18" aria-hidden="true">
+                        <circle cx="9" cy="9" r="5.7" />
+                        <path d="M9 6v3l2 1.2" />
+                      </svg>
+                    </span>
+                    <span>
+                      <strong>{model}</strong>
+                      <small>{provider.name}</small>
+                    </span>
+                    {selected ? <MenuCheck /> : null}
+                  </button>
+                );
+              })}
+            </div>
+          ))
+        ) : (
+          <>
+            <div className="composer-menu-empty">
+              {String(t("home.modelEmpty", "No models configured"))}
+            </div>
+            <button
+              type="button"
+              className="composer-menu-item"
+              data-open-providers=""
+              onClick={() => {
+                onClose();
+                navigate("settings", "account");
+              }}
+            >
+              <span className="menu-icon model-icon">
+                <svg viewBox="0 0 18 18" aria-hidden="true">
+                  <circle cx="9" cy="9" r="5.7" />
+                  <path d="M9 6v3l2 1.2" />
+                </svg>
+              </span>
+              <span>
+                <strong>{String(t("home.openProviders", "Open provider settings"))}</strong>
+                <small>
+                  {String(
+                    t(
+                      "home.modelEmptyHint",
+                      "Open Settings → Providers, add a custom endpoint, then discover models.",
+                    ),
+                  )}
+                </small>
+              </span>
+              <span className="menu-arrow">›</span>
+            </button>
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
+function ProjectMenuContent({
+  projects,
+  activeProjectId,
+  hasActiveSessionProject,
+  onSelectProject,
+  onNewProject,
+  onProjectless,
+  onClose,
+}: {
+  projects: Array<{ id: string; name: string; path: string }>;
+  activeProjectId: string | null;
+  hasActiveSessionProject: boolean;
+  onSelectProject: (id: string) => void;
+  onNewProject: () => void;
+  onProjectless: () => void;
+  onClose: () => void;
+}) {
+  const [filter, setFilter] = useState("");
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const hasProjects = projects.length > 0;
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const filtered = useMemo(() => {
+    const value = filter.trim().toLowerCase();
+    if (!value) return projects;
+    return projects.filter((p) =>
+      [p.name, p.path].some((text) =>
+        String(text || "").toLowerCase().includes(value),
+      ),
+    );
+  }, [projects, filter]);
+
+  return (
+    <>
+      {hasProjects ? (
+        <>
+          <label className="project-menu-search">
+            <svg viewBox="0 0 18 18" aria-hidden="true">
+              <circle cx="7.7" cy="7.7" r="4.4" />
+              <path d="m11 11 3.4 3.4" />
+            </svg>
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder={String(t("home.searchProjects", "Search projects"))}
+              aria-label={String(t("home.searchProjects", "Search projects"))}
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            />
+          </label>
+          <div className="project-menu-list">
+            {filtered.length ? (
+              filtered.map((project) => (
+                <button
+                  key={project.id}
+                  type="button"
+                  className="composer-menu-item compact"
+                  data-project-id={project.id}
+                  onClick={() => {
+                    onClose();
+                    onSelectProject(project.id);
+                  }}
+                >
+                  <span className="menu-icon">
+                    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                      <path
+                        d="M16.6 9.3H3.4v3.4c0 2.4.5 3.1 3.2 3.1h6.9c2.6 0 3.1-.7 3.1-3.1V9.3ZM3.4 8.1h13.2c0-1.8-.4-2.3-3.1-2.3h-2.3c-1 0-1.5-.2-2-.6l-.6-.6c-.3-.3-.7-.5-1.1-.5h-1c-2.6 0-3.1.6-3.1 3.2v.8Z"
+                        fill="currentColor"
+                      />
+                    </svg>
+                  </span>
+                  <span>
+                    <strong>{project.name || project.path}</strong>
+                    <small>{project.path}</small>
+                  </span>
+                  {project.id === activeProjectId ? <MenuCheck /> : null}
+                </button>
+              ))
+            ) : (
+              <div className="project-menu-empty">No projects found</div>
+            )}
+          </div>
+          <div className="composer-menu-separator" />
+        </>
+      ) : null}
+      <button
+        type="button"
+        className="composer-menu-item compact"
+        data-new-project=""
+        onClick={() => {
+          onClose();
+          onNewProject();
+        }}
+      >
+        <span className="menu-icon">
+          <svg viewBox="0 0 18 18" aria-hidden="true">
+            <path d="M9 3v12M3 9h12" />
+          </svg>
+        </span>
+        <span>
+          <strong>
+            {hasProjects
+              ? String(t("home.newProject", "New project"))
+              : String(t("home.addNewProject", "Add new project"))}
+          </strong>
+        </span>
+        <span className="menu-arrow">›</span>
+      </button>
+      {hasActiveSessionProject ? (
+        <button
+          type="button"
+          className="composer-menu-item compact"
+          data-projectless=""
+          onClick={() => {
+            onClose();
+            onProjectless();
+          }}
+        >
+          <span className="menu-icon">
+            <svg viewBox="0 0 18 18" aria-hidden="true">
+              <circle cx="9" cy="9" r="5.7" />
+              <path d="M6.5 9h5" />
+            </svg>
+          </span>
+          <span>
+            <strong>Don&apos;t work in a project</strong>
+          </span>
+        </button>
+      ) : null}
+    </>
+  );
+}
+
 export function Composer({
   running,
   activeSessionId,
@@ -80,11 +605,17 @@ export function Composer({
   onSessionCreated,
   onRefresh,
 }: ComposerProps) {
+  useI18n();
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [multiline, setMultiline] = useState(false);
   const [attachments, setAttachments] = useState<string[]>([]);
+  const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
+  const [mockMode, setMockMode] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const projectBtnRef = useRef<HTMLButtonElement | null>(null);
+  const permissionBtnRef = useRef<HTMLButtonElement | null>(null);
+  const modelBtnRef = useRef<HTMLButtonElement | null>(null);
 
   const { projects, providers, activeProjectId } = useAppState();
 
@@ -95,13 +626,38 @@ export function Composer({
 
   const provider = providers.find((p) => p.id === settings.activeProviderId);
   const models = provider?.models ?? [];
-  const activeModel = settings.activeModel ?? "";
+  const activeModel = (settings.activeModel ?? "").trim();
   const effort = effortKey(settings.modelReasoningEffort);
-  const modelLabel = activeModel
-    ? `${activeModel} · ${String(t(`home.effort.${effort}`, EFFORT_FALLBACK[effort]))}`
+  const modelConfigured = Boolean(provider && activeModel && models.includes(activeModel));
+  const modelLabel = modelConfigured
+    ? `${activeModel} ${String(t(`home.effort.${effort}`, EFFORT_FALLBACK[effort]))}`
     : String(t("home.modelUnconfigured", "Model not configured"));
 
-  const fullAccess = settings.fullAccess === true || settings.approvalPolicy === "never";
+  const permissionMode: PermissionMode =
+    settings.fullAccess === true || settings.approvalPolicy === "never"
+      ? settings.approvalPolicy === "ask"
+        ? "full-access"
+        : "unrestricted"
+      : "workspace";
+  const fullAccess = permissionMode !== "workspace";
+
+  const modelGroups = useMemo(() => providersWithModels(providers), [providers]);
+
+  const anchorFor = useCallback(
+    (menu: OpenMenu): HTMLElement | null => {
+      if (menu === "permission") return permissionBtnRef.current;
+      if (menu === "model") return modelBtnRef.current;
+      if (menu === "project") return projectBtnRef.current;
+      return null;
+    },
+    [],
+  );
+
+  const closeMenu = useCallback(() => setOpenMenu(null), []);
+
+  const toggleMenu = useCallback((menu: Exclude<OpenMenu, null>) => {
+    setOpenMenu((prev) => (prev === menu ? null : menu));
+  }, []);
 
   // Grow the textarea with its content.
   useEffect(() => {
@@ -126,6 +682,8 @@ export function Composer({
   }, []);
 
   const interrupt = useCallback(async () => {
+    // A playing mock is frontend-only; cancel it before touching the engine.
+    cancelMockTurn();
     if (!activeSessionId) return;
     try {
       await invoke("interrupt_session", { sessionId: activeSessionId });
@@ -160,9 +718,19 @@ export function Composer({
 
     setSending(true);
     let sessionId = activeSessionId;
+    let userItemId: string | null = null;
     const files = attachments.slice();
 
     try {
+      // Mock mode: play a canned turn through the real notification path.
+      if (mockMode) {
+        if (!sessionId) sessionId = "mock-session";
+        setText("");
+        setAttachments([]);
+        beginUserTurn(sessionId, value);
+        playMockTurn(sessionId, value);
+        return;
+      }
       // Open a thread first when the composer is used from the blank home guide.
       if (!sessionId) {
         const created = await invoke<{ id?: string }>("new_session", {
@@ -180,7 +748,7 @@ export function Composer({
 
       setText("");
       setAttachments([]);
-      beginUserTurn(sessionId, value);
+      userItemId = beginUserTurn(sessionId, value);
 
       const payload =
         files.length > 0
@@ -192,9 +760,12 @@ export function Composer({
           : { sessionId, message: value };
       await invoke("send_message", payload);
     } catch (err) {
-      // Never leave a phantom bubble behind on failure.
+      // Roll back only the optimistic bubble and close the turn as failed.
+      // A full resetTurn() here used to wipe the loaded conversation too —
+      // a send error must not destroy the thread history on screen.
       console.error("[composer] send failed", err);
-      resetTurn();
+      if (userItemId) discardItem(userItemId);
+      finishTurn("failed", Date.now(), err instanceof Error ? err.message : String(err));
       onRefresh();
     } finally {
       setSending(false);
@@ -208,35 +779,53 @@ export function Composer({
     activeSessionId,
     projectCwd,
     interrupt,
+    mockMode,
     onSessionCreated,
     onRefresh,
   ]);
 
+  // Official 发送快捷键 semantics: "enter" sends on Enter, "cmdenter" sends
+  // on Ctrl/Cmd+Enter; the opposite modifier always inserts a newline.
+  const general = usePrefSection<{ sendShortcut?: string; showContextUsage?: boolean }>("general");
+  const sendOnMod = general.sendShortcut === "cmdenter";
+  const turnForUsage = useTurnState();
+
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
     if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      void send();
+      const mod = e.ctrlKey || e.metaKey;
+      if (sendOnMod ? mod : !mod) {
+        e.preventDefault();
+        void send();
+      } else {
+        e.preventDefault();
+        const el = e.currentTarget;
+        const start = el.selectionStart ?? text.length;
+        const end = el.selectionEnd ?? text.length;
+        setText(text.slice(0, start) + "\n" + text.slice(end));
+        requestAnimationFrame(() => {
+          el.selectionStart = el.selectionEnd = start + 1;
+        });
+      }
     } else if (e.key === "Escape" && running) {
       e.preventDefault();
       void interrupt();
     }
   };
 
+  const ignoreRefs = [projectBtnRef, permissionBtnRef, modelBtnRef];
+  const openAnchor = openMenu ? anchorFor(openMenu) : null;
+
   return (
     <div className="composer" id="composer-wrap">
       <div className="composer-project-tray">
-        <Dropdown
+        <button
+          ref={projectBtnRef}
           className="composer-project"
-          ariaLabel={String(t("home.chooseProject", "Choose project"))}
-          value={selectedProject?.id ?? ""}
-          items={projects.map((p) => ({ value: p.id, label: p.name }))}
-          onChange={(value) => {
-            // Switch the active project; the next new_session uses its cwd.
-            setActiveProject(value);
-            onRefresh();
-          }}
-          disabled={projects.length === 0}
-          showDefaultLabel={false}
+          id="composer-project"
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={openMenu === "project"}
+          onClick={() => toggleMenu("project")}
         >
           <span className="proj-icon">
             <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
@@ -247,7 +836,7 @@ export function Composer({
             </svg>
           </span>
           <span className="proj-name">{projectLabel}</span>
-        </Dropdown>
+        </button>
       </div>
 
       {attachments.length > 0 ? (
@@ -296,68 +885,115 @@ export function Composer({
               </svg>
             </button>
 
-            <Dropdown
-              className={`composer-pill access ${fullAccess ? "permission-full" : "permission-workspace"}`}
-              ariaLabel={String(t("home.approvalTitle", "How should actions be approved?"))}
-              value={fullAccess ? "never" : "ask"}
-              items={[
-                { value: "ask", label: String(t("home.askApproval", "Ask for approval")) },
-                { value: "never", label: String(t("home.helpApproval", "Approve for me")) },
-              ]}
-              onChange={(value) =>
-                onSettingsChange({
-                  approvalPolicy: value === "never" ? "never" : "ask",
-                  fullAccess: value === "never",
-                })
-              }
-              showDefaultLabel={false}
+            <button
+              ref={permissionBtnRef}
+              className={`composer-pill access ${
+                permissionMode === "unrestricted"
+                  ? "permission-unrestricted"
+                  : fullAccess
+                    ? "permission-full"
+                    : "permission-workspace"
+              }`}
+              id="chip-full-access"
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded={openMenu === "permission"}
+              onClick={() => toggleMenu("permission")}
             >
               <span className="permission-hand">
-                <svg
-                  viewBox="0 0 18 18"
-                  aria-hidden="true"
+                {permissionMode === "unrestricted" ? (
+                  <WarningIcon />
+                ) : permissionMode === "full-access" ? (
+                  <ShieldIcon />
+                ) : (
+                  <HandIcon />
+                )}
+              </span>
+              <span>
+                {permissionMode === "unrestricted"
+                  ? String(t("home.fullAccess", "Full access"))
+                  : permissionMode === "full-access"
+                    ? String(t("home.helpApproval", "Help me approve"))
+                    : String(t("home.askApproval", "Ask approval"))}
+              </span>
+              <svg className="chevron" viewBox="0 0 16 16" aria-hidden="true">
+                <path
+                  d="m4 6 4 4 4-4"
                   fill="none"
                   stroke="currentColor"
-                  strokeWidth="1.3"
+                  strokeWidth="1.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                >
-                  <path d="M7 11V3.5a1.5 1.5 0 0 1 3 0V11" />
-                  <path d="M10 5.5a1.5 1.5 0 0 1 3 0V11" />
-                  <path d="M13 7.5a1.5 1.5 0 0 1 3 0v3.5c0 3.3-2.2 5.5-5 5.5-2.8 0-5-2.2-5-5.5V8a1.5 1.5 0 0 1 3 0v3" />
-                  <path d="M4 11a1.5 1.5 0 0 0-1.5 1.5v.5" />
-                </svg>
-              </span>
-              <span>{fullAccess ? String(t("home.helpApproval", "Approve for me")) : String(t("home.askApproval", "Ask for approval"))}</span>
-              <svg className="chevron" viewBox="0 0 16 16" aria-hidden="true">
-                <path d="m4 6 4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                />
               </svg>
-            </Dropdown>
+            </button>
           </div>
 
           <div className="composer-toolbar-right">
-            <Dropdown
-              className={`composer-pill model${activeModel ? "" : " is-unconfigured"}`}
-              ariaLabel={modelLabel}
-              value={activeModel}
-              items={
-                models.length
-                  ? models.map((m) => ({ value: m, label: m }))
-                  : [{ value: "", label: modelLabel }]
-              }
-              onChange={(value) => onSettingsChange({ activeModel: value })}
-              showDefaultLabel={false}
+            <button
+              ref={modelBtnRef}
+              className={`composer-pill model${modelConfigured ? "" : " is-unconfigured"}`}
+              id="chip-model"
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded={openMenu === "model"}
+              onClick={() => toggleMenu("model")}
             >
               <span>{modelLabel}</span>
               <svg className="chevron" viewBox="0 0 16 16" aria-hidden="true">
-                <path d="m4 6 4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path
+                  d="m4 6 4 4 4-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
-            </Dropdown>
+            </button>
 
+            {general.showContextUsage &&
+            turnForUsage.tokenUsage?.modelContextWindow != null &&
+            turnForUsage.tokenUsage.modelContextWindow > 0 &&
+            turnForUsage.tokenUsage.totalTokens != null ? (
+              <span
+                className="composer-context"
+                title={String(t("general.contextUsage", "Context window usage"))}
+              >
+                {Math.min(
+                  100,
+                  Math.round(
+                    (turnForUsage.tokenUsage.totalTokens /
+                      turnForUsage.tokenUsage.modelContextWindow) *
+                      100,
+                  ),
+                )}
+                %
+              </span>
+            ) : null}
+            <button
+              className={`composer-pill mock${mockMode ? " is-active" : ""}`}
+              id="chip-mock"
+              type="button"
+              aria-pressed={mockMode}
+              title={String(t("home.mockTurn", "Mock turn"))}
+              onClick={() => setMockMode((v) => !v)}
+            >
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path
+                  d="M8 2.5h4M9 2.5v5.2L4.2 16a1.2 1.2 0 0 0 1.1 1.7h9.4a1.2 1.2 0 0 0 1.1-1.7L11 7.7V2.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span>{String(t("home.mockTurn", "Mock turn"))}</span>
+            </button>
             <button
               className={`composer-send${running ? " composer-stop" : ""}`}
               id="btn-send"
-              type="button"
               aria-label={running ? String(t("home.stop", "Stop")) : String(t("home.send", "Send"))}
               disabled={!running && !text.trim()}
               onClick={() => void send()}
@@ -381,6 +1017,72 @@ export function Composer({
 
         <div className="composer-footer-tip">{String(t("home.disclaimer", ""))}</div>
       </div>
+
+      {openMenu && openAnchor ? (
+        <ComposerPopover
+          key={openMenu}
+          className={
+            openMenu === "permission"
+              ? "permission-menu"
+              : openMenu === "model"
+                ? "model-menu is-panel"
+                : "project-menu"
+          }
+          align={openMenu === "model" ? "end" : "start"}
+          prefer={openMenu === "model" ? "auto" : "below"}
+          anchorEl={openAnchor}
+          ignoreRefs={ignoreRefs}
+          onClose={closeMenu}
+        >
+          {openMenu === "permission" ? (
+            <PermissionMenuContent
+              mode={permissionMode}
+              onLearnMore={() => {
+                closeMenu();
+                navigate("settings", "configuration");
+              }}
+              onSelect={(mode) => {
+                closeMenu();
+                onSettingsChange(
+                  mode === "workspace"
+                    ? { approvalPolicy: "ask", fullAccess: false }
+                    : mode === "full-access"
+                      ? { approvalPolicy: "ask", fullAccess: true }
+                      : { approvalPolicy: "never", fullAccess: true },
+                );
+              }}
+            />
+          ) : null}
+          {openMenu === "model" ? (
+            <ModelMenuContent
+              settings={settings}
+              groups={modelGroups}
+              onSettingsChange={onSettingsChange}
+              onClose={closeMenu}
+            />
+          ) : null}
+          {openMenu === "project" ? (
+            <ProjectMenuContent
+              projects={projects}
+              activeProjectId={activeProjectId}
+              hasActiveSessionProject={Boolean(activeProjectId)}
+              onSelectProject={(id) => {
+                setActiveProject(id);
+                onRefresh();
+              }}
+              onNewProject={() => {
+                void openProjectPicker().then(() => onRefresh());
+              }}
+              onProjectless={() => {
+                setActiveSession(null);
+                setActiveProject(null);
+                onRefresh();
+              }}
+              onClose={closeMenu}
+            />
+          ) : null}
+        </ComposerPopover>
+      ) : null}
     </div>
   );
 }

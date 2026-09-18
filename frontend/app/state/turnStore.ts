@@ -27,6 +27,8 @@ export type { TurnItem, TurnState } from "./types";
 
 let state: TurnState = emptyTurn();
 const listeners = new Set<() => void>();
+/** Guards against `user-<ts>` id collisions for back-to-back sends. */
+let userSeq = 0;
 
 function commit(next: TurnState): void {
   state = next;
@@ -52,15 +54,39 @@ export function resetTurn(): void {
   commit(emptyTurn());
 }
 
-/** `turn/started` — a new turn began. */
+/**
+ * `turn/started` — a new turn began.
+ *
+ * Turn-level bookkeeping resets; the conversation itself must survive. This
+ * event arrives for *every* turn of a thread, including follow-up turns and
+ * the mock player, and the store also holds the loaded history plus the
+ * optimistic user bubble (`beginUserTurn`). Clearing items here is what made
+ * a just-sent message vanish seconds after submit and dropped the whole
+ * on-screen context. Items are only discarded when the server starts a turn
+ * for a *different* thread than the one bound to the store.
+ */
 export function beginTurn(params: { threadId?: string; turnId?: string }, at: number): void {
+  const threadId = typeof params.threadId === "string" ? params.threadId : null;
+  const switching =
+    threadId !== null && state.sessionId !== null && threadId !== state.sessionId;
   commit({
-    ...emptyTurn(),
-    sessionId: typeof params.threadId === "string" ? params.threadId : state.sessionId,
+    ...state,
+    ...(switching
+      ? { items: {}, order: [], tokenUsage: null, warnings: [], pendingRequests: [] }
+      : null),
+    sessionId: threadId ?? state.sessionId,
     turnId: typeof params.turnId === "string" ? params.turnId : null,
     active: true,
     phase: "commentary",
     startedAt: at,
+    turnStatus: null,
+    completedAt: null,
+    durationMs: null,
+    error: null,
+    plan: null,
+    // A frozen reconnect residue is an official quirk we must preserve.
+    reconnectFrozen: state.reconnectAttempt > 0 || state.reconnectFrozen,
+    reconnectAttempt: 0,
   });
 }
 
@@ -69,11 +95,12 @@ export function beginTurn(params: { threadId?: string; turnId?: string }, at: nu
  *
  * This is the one place the UI shows something before the server confirms it.
  * The alternative — waiting for `turn/started` — leaves the composer feeling
- * dead for the round-trip. If the send fails the caller must call resetTurn(),
- * so a failed send never leaves a phantom bubble behind.
+ * dead for the round-trip. Returns the bubble's item id so a failed send can
+ * roll the bubble back with `discardItem` — without wiping the loaded
+ * conversation the way a full `resetTurn` would.
  */
-export function beginUserTurn(sessionId: string, text: string): void {
-  const id = `user-${Date.now()}`;
+export function beginUserTurn(sessionId: string, text: string): string {
+  const id = `user-${Date.now()}-${++userSeq}`;
   commit({
     ...state,
     sessionId,
@@ -86,6 +113,15 @@ export function beginUserTurn(sessionId: string, text: string): void {
     },
     order: [...state.order, id],
   });
+  return id;
+}
+
+/** Remove an item entirely — used to roll back the optimistic user bubble. */
+export function discardItem(id: string): void {
+  if (!state.items[id]) return;
+  const items = { ...state.items };
+  delete items[id];
+  commit({ ...state, items, order: state.order.filter((x) => x !== id) });
 }
 
 /** Insert or update an item, preserving arrival order. */

@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { TitleBar } from "./TitleBar";
 import { Sidebar } from "./Sidebar";
 import { navigate, useRoute } from "./useRoute";
@@ -158,6 +159,22 @@ export function AppShell() {
     [toggleSidebar],
   );
   ctxRef.current = ctx;
+
+  // Listen to native menu actions emitted from Rust menu::on_menu_event
+  useEffect(() => {
+    let unlisten: (() => void) | null = null;
+    void listen<string>("menu", (event) => {
+      const action = event.payload;
+      if (typeof action === "string" && action && ctxRef.current) {
+        dispatchAction(action, ctxRef.current);
+      }
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, []);
 
   // Global shortcuts → real dispatchAction (same code path as the titlebar menus).
   useShortcutDispatcher(

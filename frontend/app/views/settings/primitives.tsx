@@ -11,16 +11,19 @@ import type { ReactNode } from "react";
 export function PageHead({
   title,
   desc = "",
+  descNode,
   compact = false,
 }: {
   title: string;
   desc?: string;
+  /** Rich description (inline links etc.); wins over plain `desc`. */
+  descNode?: ReactNode;
   compact?: boolean;
 }) {
   return (
     <div className={`settings-page-head${compact ? " compact" : ""}`}>
       <h1>{title}</h1>
-      {desc ? <p>{desc}</p> : null}
+      {descNode ?? (desc ? <p>{desc}</p> : null)}
     </div>
   );
 }
@@ -73,11 +76,14 @@ export function BlockCustom({
 export function Row({
   label,
   desc,
+  descNode,
   control,
   className = "",
 }: {
   label: string;
   desc?: string;
+  /** Rich description (inline links etc.); wins over plain `desc`. */
+  descNode?: ReactNode;
   control: ReactNode;
   className?: string;
 }) {
@@ -85,7 +91,7 @@ export function Row({
     <div className={`settings-row ${className}`.trim()}>
       <div className="settings-row-copy">
         <div className="settings-row-title">{label}</div>
-        {desc ? <div className="settings-row-description">{desc}</div> : null}
+        {descNode ?? (desc ? <div className="settings-row-description">{desc}</div> : null)}
       </div>
       <div className="settings-row-control">{control}</div>
     </div>
@@ -124,10 +130,13 @@ export function Switch({
   checked,
   onChange,
   disabled = false,
+  ariaLabel,
 }: {
   checked: boolean;
   onChange: (checked: boolean) => void;
   disabled?: boolean;
+  /** Accessible name (official toggles expose one, e.g. 播放 Appshot 音效). */
+  ariaLabel?: string;
 }) {
   return (
     <label className="settings-switch">
@@ -135,6 +144,7 @@ export function Switch({
         type="checkbox"
         checked={checked}
         disabled={disabled}
+        aria-label={ariaLabel}
         onChange={(e) => onChange(e.target.checked)}
       />
       <span />

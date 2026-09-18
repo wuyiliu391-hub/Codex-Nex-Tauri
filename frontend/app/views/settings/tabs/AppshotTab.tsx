@@ -27,7 +27,7 @@ export function AppshotTab() {
       <PageHead title={label("appshot.title")} desc={label("appshot.desc")} />
       <p className="settings-page-sub">{label("appshot.lede")}</p>
 
-      <Block>
+      <Block title={label("appshot.shortcuts")}>
         <Row
           label={label("appshot.shortcut")}
           desc={label("appshot.shortcutDesc")}
@@ -55,6 +55,7 @@ export function AppshotTab() {
           control={
             <Switch
               checked={prefs.appshotSound !== false}
+              ariaLabel={label("appshot.soundAria", "播放 Appshot 音效")}
               onChange={(v) => void saveSection("appshot", { appshotSound: v })}
             />
           }

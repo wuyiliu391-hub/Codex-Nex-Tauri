@@ -1,15 +1,16 @@
 /**
- * Worktrees tab — root picker, refresh and the worktree list.
+ * Worktrees tab — root, fetch/cleanup preferences and the worktree list.
  *
- * Ports renderWorktrees() from settings.js. The root is a shell preference;
- * the list comes from the engine (RefreshWorktrees).
+ * Ports renderWorktrees() from settings.js to the official v26.911 layout.
+ * The root is a shell preference (text input + the real directory picker);
+ * the list comes from the engine (worktree/list rpc).
  */
 
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { t } from "../../../../src/js/i18n.js";
 import { saveSection, usePrefSection } from "@/state/preferencesStore";
-import { Block, PageHead, SettingsButton } from "../primitives";
+import { Block, PageHead, Row, SettingsButton, Switch, TextInput } from "../primitives";
 
 function label(key: string, fallback = ""): string {
   return String(t(key, fallback));
@@ -17,6 +18,9 @@ function label(key: string, fallback = ""): string {
 
 interface WorktreesPrefs {
   root?: string;
+  autoFetch?: boolean;
+  autoCleanup?: boolean;
+  retention?: number;
 }
 
 interface WorktreeEntry {
@@ -80,15 +84,65 @@ export function WorktreesTab() {
     <>
       <PageHead title={label("worktrees.title")} />
 
-      <Block title={label("worktrees.root")}>
-        <div className="worktree-root">{prefs.root || label("worktrees.notSet")}</div>
-        <SettingsButton label={label("worktrees.pickRoot")} onClick={() => void pickRoot()} />
-        <SettingsButton label={label("worktrees.refresh")} onClick={() => void refresh()} />
+      <Block>
+        <Row
+          label={label("worktrees.root")}
+          desc={label("worktrees.rootDesc")}
+          control={
+            <>
+              <TextInput
+                name="worktreesRoot"
+                value={prefs.root ?? ""}
+                onChange={(v) => void saveSection("worktrees", { root: v })}
+              />
+              <SettingsButton label={label("worktrees.change", "Change")} onClick={() => void pickRoot()} />
+            </>
+          }
+        />
+        <Row
+          label={label("worktrees.fetchBeforeCreate")}
+          desc={label("worktrees.fetchBeforeCreateDesc")}
+          control={
+            <Switch
+              checked={prefs.autoFetch === true}
+              onChange={(v) => void saveSection("worktrees", { autoFetch: v })}
+            />
+          }
+        />
+        <Row
+          label={label("worktrees.autoDelete")}
+          desc={label("worktrees.autoDeleteDesc")}
+          control={
+            <Switch
+              checked={prefs.autoCleanup !== false}
+              onChange={(v) => void saveSection("worktrees", { autoCleanup: v })}
+            />
+          }
+        />
+        <Row
+          label={label("worktrees.limit")}
+          desc={label("worktrees.limitDesc")}
+          control={
+            <TextInput
+              name="worktreesRetention"
+              type="number"
+              value={String(prefs.retention ?? 15)}
+              onChange={(v) => {
+                const n = Number.parseInt(v, 10);
+                if (Number.isFinite(n)) void saveSection("worktrees", { retention: n });
+              }}
+            />
+          }
+        />
       </Block>
 
-      <Block title={label("worktrees.list")}>
+      <Block>
         {worktrees.length === 0 ? (
-          <div className="settings-card site-empty">{label("worktrees.empty")}</div>
+          <div className="site-empty">
+            <div>{label("worktrees.emptyTitle", "No worktrees yet")}</div>
+            <SettingsButton label={label("worktrees.refresh")} onClick={() => void refresh()} />
+            <div>{label("worktrees.emptyHint", "")}</div>
+          </div>
         ) : (
           <div className="worktree-list">
             {worktrees.map((w, i) => (

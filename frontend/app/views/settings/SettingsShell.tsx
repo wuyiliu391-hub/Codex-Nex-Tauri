@@ -20,86 +20,52 @@
 import { useMemo, useState } from "react";
 import { t } from "../../../src/js/i18n.js";
 import { navigate, useRoute } from "@/shell/useRoute";
+import { useI18n } from "@/shell/useI18n";
 import { SETTINGS_GROUPS, findTab } from "./sections";
 import { SettingsIcon } from "./SettingsIcon";
-import { GeneralTab } from "./tabs/GeneralTab";
-import { ImportTab } from "./tabs/ImportTab";
-import { AppearanceTab } from "./tabs/AppearanceTab";
-import { VoiceTab } from "./tabs/VoiceTab";
-import { ConfigurationTab } from "./tabs/ConfigurationTab";
-import { PersonalizationTab } from "./tabs/PersonalizationTab";
-import { PetsTab } from "./tabs/PetsTab";
-import { ShortcutsTab } from "./tabs/ShortcutsTab";
 import { AccountTab } from "./tabs/AccountTab";
-import { ComputerUseTab } from "./tabs/ComputerUseTab";
-import { AppshotTab } from "./tabs/AppshotTab";
-import { PluginsTab } from "./tabs/PluginsTab";
-import { BrowserTab } from "./tabs/BrowserTab";
-import { HooksTab } from "./tabs/HooksTab";
-import { ConnectionsTab } from "./tabs/ConnectionsTab";
-import { GitTab } from "./tabs/GitTab";
-import { EnvironmentsTab } from "./tabs/EnvironmentsTab";
-import { WorktreesTab } from "./tabs/WorktreesTab";
-import { ArchivedTab } from "./tabs/ArchivedTab";
 
 function label(key: string, fallback: string): string {
   return String(t(key, fallback));
 }
 
-function TabContent({ id }: { id: string }) {
-  switch (id) {
-    case "general":
-      return <GeneralTab />;
-    case "import":
-      return <ImportTab />;
-    case "appearance":
-      return <AppearanceTab />;
-    case "voice":
-      return <VoiceTab />;
-    case "configuration":
-      return <ConfigurationTab />;
-    case "personalization":
-      return <PersonalizationTab />;
-    case "pets":
-      return <PetsTab />;
-    case "shortcuts":
-      return <ShortcutsTab />;
-    case "account":
-      return <AccountTab />;
-    case "computer-use":
-      return <ComputerUseTab />;
-    case "appshot":
-      return <AppshotTab />;
-    case "plugins":
-      return <PluginsTab />;
-    case "browser":
-      return <BrowserTab />;
-    case "hooks":
-      return <HooksTab />;
-    case "connections":
-      return <ConnectionsTab />;
-    case "git":
-      return <GitTab />;
-    case "environments":
-      return <EnvironmentsTab />;
-    case "worktrees":
-      return <WorktreesTab />;
-    case "archived-tasks":
-      return <ArchivedTab />;
-    default:
-      break;
-  }
-
+function TabPlaceholder({ id }: { id: string }) {
   const tab = findTab(id);
+  const title = tab ? label(tab.labelKey, id) : id;
   return (
-    <div className="settings-page-head">
-      <h1>{tab ? label(tab.labelKey, id) : id}</h1>
+    <div className="settings-placeholder-box">
+      <div className="settings-page-head">
+        <h1>{title}</h1>
+        <p>此模块暂未启用（已留空占位）。当前优先聚焦【自定义供应商】协议转换层与模型连通。</p>
+      </div>
+      <div className="settings-card site-empty" style={{ marginTop: "24px", padding: "32px 20px" }}>
+        <p style={{ margin: "0 0 16px", color: "var(--fg-secondary)" }}>
+          您可以在【自定义供应商】中配置 OpenAI Chat、Anthropic、Ollama 协议网关，自动适配转发至 Codex Responses 接口。
+        </p>
+        <button
+          type="button"
+          className="settings-button primary"
+          onClick={() => navigate("settings", "account")}
+        >
+          前往配置自定义供应商
+        </button>
+      </div>
     </div>
   );
 }
 
+function TabContent({ id }: { id: string }) {
+  switch (id) {
+    case "account":
+      return <AccountTab />;
+    default:
+      return <TabPlaceholder id={id} />;
+  }
+}
+
 export function SettingsShell() {
   const route = useRoute();
+  useI18n();
   const activeId = route.sub ?? "general";
   const [query, setQuery] = useState("");
 

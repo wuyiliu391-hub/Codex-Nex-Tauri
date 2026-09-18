@@ -92,7 +92,14 @@ export function ConnectionsTab() {
         {conns === null ? (
           <div className="site-empty">{label("discovery.loading", "Loading…")}</div>
         ) : conns.length === 0 ? (
-          <div className="settings-card site-empty">{label("connections.empty")}</div>
+          <div className="site-empty">
+            <div>{label("connections.empty")}</div>
+            <SettingsButton
+              label={label("connections.add")}
+              kind="primary"
+              onClick={() => void addConnector()}
+            />
+          </div>
         ) : (
           <div className="connections-list">
             {conns.map((c) => (
@@ -116,13 +123,6 @@ export function ConnectionsTab() {
             ))}
           </div>
         )}
-        <div className="connections-foot">
-          <SettingsButton
-            label={label("connections.add")}
-            kind="primary"
-            onClick={() => void addConnector()}
-          />
-        </div>
         {testResult ? <div className="plugin-desc site-empty">{testResult}</div> : null}
       </Block>
     </>

@@ -14,7 +14,7 @@
  * strings are written as React conditionals, not post-mount classList writes.
  */
 
-import { useState, type ComponentType, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
 import type { TurnItem } from "@/state/turnStore";
 import type { BlockType } from "@protocol/blocks";
 import { t as tRaw } from "../../src/js/i18n.js";
@@ -26,6 +26,8 @@ function t(key: string, fallback = "", vars?: Record<string, string | number>): 
 
 export interface BlockProps {
   item: TurnItem;
+  /** True on the final agent answer of a completed turn (summary block). */
+  summary?: boolean;
 }
 
 // ── helpers (ported from render.js) ───────────────────────────────────
@@ -125,11 +127,11 @@ function toolLabel(item: TurnItem): string {
 // ── prose ─────────────────────────────────────────────────────────────
 
 /** Streamed assistant / user prose as .message-row > .message-body > .part-text. */
-function ProseBlock({ item, isUser = false }: BlockProps & { isUser?: boolean }) {
+function ProseBlock({ item, isUser = false, summary = false }: BlockProps & { isUser?: boolean }) {
   const text = item.text ?? "";
   return (
     <div
-      className={`message-row${isUser ? " user" : ""}`}
+      className={`message-row${isUser ? " user" : ""}${summary && !isUser ? " is-summary" : ""}`}
       data-message-id={item.id}
       data-block-type={item.type}
     >
@@ -155,17 +157,9 @@ function UserProseBlock({ item }: BlockProps) {
   return <ProseBlock item={item} isUser />;
 }
 
-/** Reasoning streams — official client shows them collapsed inside the body. */
-function ReasoningBlock({ item }: BlockProps) {
-  return (
-    <div className="message-row" data-block-type="reasoning" data-message-id={item.id}>
-      <div className="message-body">
-        <div className="message-part part-text" style={{ color: "var(--fg-muted, var(--fg-description))" }}>
-          {item.text ?? ""}
-        </div>
-      </div>
-    </div>
-  );
+/** Reasoning streams — the official client hides them in the thread. */
+function ReasoningBlock() {
+  return null;
 }
 
 // ── tools ─────────────────────────────────────────────────────────────
@@ -188,6 +182,13 @@ function ProcLine({
   const startsOpen =
     forceOpen || status === "is-waiting_approval" || status === "is-error" || status === "is-denied";
   const [open, setOpen] = useState(startsOpen);
+  // Official auto-fold: when the tool finishes, collapse back to one row.
+  // Fires only on the running→done transition, so a manual re-expand after
+  // completion sticks.
+  const finished = status !== "is-running" && status !== "is-waiting_approval";
+  useEffect(() => {
+    if (finished) setOpen(false);
+  }, [finished]);
 
   const label = toolLabel(item);
   const path = item.path ? String(item.path).replace(/\\/g, "/") : "";
@@ -232,8 +233,279 @@ function ProcLine({
 }
 
 function ToolBlock({ item }: BlockProps) {
+  if (item.type === "commandExecution" || item.type === "exec") {
+    return <ShellCard item={item} />;
+  }
   const kind = classifyTool(item.tool ?? item.command ?? item.type);
   return <ProcLine item={item} kind={kind} />;
+}
+
+// ── file operation markers ───────────────────────────────────────────
+
+/** Compact official-style file row: blue action label + path + ± stats. */
+type FileAction = "created" | "modified" | "deleted" | "read" | "viewed" | "searched";
+
+const FILE_ACTION_LABEL: Record<FileAction, [string, string]> = {
+  created: ["fileAction.created", "Added"],
+  modified: ["fileAction.modified", "Modified"],
+  deleted: ["fileAction.deleted", "Deleted"],
+  read: ["fileAction.read", "Read"],
+  viewed: ["fileAction.viewed", "Viewed"],
+  searched: ["fileAction.searched", "Searched"],
+};
+
+/** Item types that render as file-op marker rows (also used by ProcGroup). */
+export const FILE_OP_TYPES = new Set<string>(["fileChange", "patch", "read", "list_files", "search"]);
+
+function fileOpInfo(item: TurnItem): { action: FileAction; added: number; removed: number } {
+  if (item.type === "search") return { action: "searched", added: 0, removed: 0 };
+  if (item.type === "read") return { action: "read", added: 0, removed: 0 };
+  if (item.type === "list_files") return { action: "viewed", added: 0, removed: 0 };
+  const diff = String(item.diff ?? item.output ?? "");
+  let added = 0;
+  let removed = 0;
+  let created = false;
+  let deleted = false;
+  for (const line of diff.split("\n")) {
+    if (line.startsWith("--- /dev/null")) created = true;
+    else if (line.startsWith("+++ /dev/null")) deleted = true;
+    else if (line.startsWith("+") && !line.startsWith("+++")) added += 1;
+    else if (line.startsWith("-") && !line.startsWith("---")) removed += 1;
+  }
+  const action: FileAction = deleted ? "deleted" : created ? "created" : "modified";
+  return { action, added, removed };
+}
+
+function FileOpIcon({ action }: { action: FileAction }) {
+  if (action === "searched") {
+    return (
+      <svg viewBox="0 0 14 14" aria-hidden="true">
+        <circle cx="6" cy="6" r="4.2" />
+        <path d="m9.2 9.2 3 3" />
+      </svg>
+    );
+  }
+  if (action === "read" || action === "viewed") {
+    return (
+      <svg viewBox="0 0 14 14" aria-hidden="true">
+        <path d="M1 7s2.2-3.6 6-3.6S13 7 13 7s-2.2 3.6-6 3.6S1 7 1 7Z" />
+        <circle cx="7" cy="7" r="1.6" />
+      </svg>
+    );
+  }
+  // pencil — created / modified / deleted
+  return (
+    <svg viewBox="0 0 14 14" aria-hidden="true">
+      <path d="M9.6 1.9 12.1 4.4 4.8 11.7l-3.2.6.6-3.2Z" />
+      <path d="m8.2 3.3 2.5 2.5" />
+    </svg>
+  );
+}
+
+function FileOpBlock({ item }: BlockProps) {
+  const { action, added, removed } = fileOpInfo(item);
+  const [labelKey, labelFallback] = FILE_ACTION_LABEL[action];
+  const diff = String(item.diff ?? "");
+  const [open, setOpen] = useState(false);
+  const running =
+    item.status === "running" || item.status === "in_progress" || item.status === "inProgress";
+  // Same auto-fold contract as the shell card: finished = collapsed row.
+  useEffect(() => {
+    if (!running) setOpen(false);
+  }, [running]);
+  const path = item.path ? String(item.path).replace(/\\/g, "/") : "";
+  const base = path ? path.slice(path.lastIndexOf("/") + 1) : "";
+
+  // Official panel rows: diff headers are replaced by the file bar; each
+  // remaining line gets a line number (old-file position for deletions,
+  // new-file position otherwise) and the +/- meaning is carried by the
+  // row background — no literal +/- prefix in the code text.
+  const rows: { no: number; kind: "add" | "del" | "ctx"; text: string }[] = [];
+  if (open) {
+    let oldNo = 0;
+    let newNo = 0;
+    for (const line of diff.split("\n")) {
+      if (line.startsWith("--- ") || line.startsWith("+++ ") || line.startsWith("@@")) continue;
+      if (line.startsWith("+")) {
+        newNo += 1;
+        rows.push({ no: newNo, kind: "add", text: line.slice(1) });
+      } else if (line.startsWith("-")) {
+        oldNo += 1;
+        rows.push({ no: oldNo, kind: "del", text: line.slice(1) });
+      } else {
+        oldNo += 1;
+        newNo += 1;
+        rows.push({ no: newNo, kind: "ctx", text: line.startsWith(" ") ? line.slice(1) : line });
+      }
+    }
+  }
+
+  const copyDiff = (): void => {
+    try {
+      void navigator.clipboard?.writeText(diff).catch(() => {
+        /* clipboard unavailable — silent is honest here */
+      });
+    } catch {
+      /* no clipboard surface in this webview */
+    }
+  };
+
+  return (
+    <div className="message-row" data-block-type={item.type} data-message-id={item.id}>
+      <button
+        type="button"
+        className={`file-op${diff ? " is-clickable" : ""}`}
+        disabled={!diff}
+        aria-expanded={open}
+        onClick={() => diff && setOpen((v) => !v)}
+      >
+        <FileOpIcon action={action} />
+        <span className="file-op-action">{t(labelKey, labelFallback)}</span>
+        {!open && base ? <span className="file-op-path">{base}</span> : null}
+        {!open && diff ? (
+          <span className="file-op-stats">
+            <span className="file-op-stat is-add">+{added}</span>
+            <span className="file-op-stat is-del">-{removed}</span>
+          </span>
+        ) : null}
+        {diff ? (
+          <svg className={`cmd-chev${open ? "" : " closed"}`} viewBox="0 0 10 6" aria-hidden="true">
+            <path d="M1 1l4 4 4-4" />
+          </svg>
+        ) : null}
+      </button>
+      {open ? (
+        <div className="file-diff">
+          <div className="file-diff-head">
+            <span className="file-diff-name">{base || item.id}</span>
+            <span className="file-diff-stats">
+              <span className="is-add">+{added}</span>
+              <span className="is-del">-{removed}</span>
+            </span>
+            <button type="button" className="file-diff-copy" aria-label="Copy diff" onClick={copyDiff}>
+              <svg viewBox="0 0 14 14" aria-hidden="true">
+                <rect x="4.5" y="4.5" width="8" height="8" rx="1.5" />
+                <path d="M9.5 2.5h-6a1.5 1.5 0 0 0-1.5 1.5v6" />
+              </svg>
+            </button>
+          </div>
+          <div className="file-diff-body">
+            {rows.map((r, i) => (
+              <div className={`fdiff-line is-${r.kind}`} key={i}>
+                <span className="fdiff-no">{r.no}</span>
+                <span className="fdiff-text">{r.text === "" ? "\u00A0" : r.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Shell command card — official turn lifecycle:
+ *   running  → head 「正在运行 <cmd>」 with the terminal glyph, panel open so
+ *              output streams in line-by-line, view pinned to the newest line
+ *   finished → head 「已运行 <cmd>」, panel collapsed by default; the chevron
+ *              toggles the Shell execution panel
+ *   failed / denied stay expanded — an error must never hide behind a fold.
+ * A manual toggle wins over the automatic policy for the rest of the item's
+ * lifetime (user intent beats lifecycle defaults).
+ */
+function ShellCard({ item }: BlockProps) {
+  const cmd = item.command ?? item.tool ?? "";
+  const output = item.output ?? "";
+  const st = String(item.status);
+  const running = st === "running" || st === "in_progress" || st === "inProgress";
+  const failed = st === "failed" || st === "error";
+  const denied = st === "denied";
+  const [manual, setManual] = useState<boolean | null>(null);
+  const open = manual ?? (running || failed || denied);
+  // Official auto-fold at turn end: exiting the running state drops any
+  // mid-run manual choice, so the card collapses to its single-line row.
+  // A fresh click afterwards is a new manual choice and sticks.
+  useEffect(() => {
+    if (!running) setManual(null);
+  }, [running]);
+
+  const linesRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // Pin the streaming panel to the tail while the command is running.
+    if (running && open && linesRef.current) {
+      linesRef.current.scrollTop = linesRef.current.scrollHeight;
+    }
+  }, [output, running, open]);
+
+  const head = running
+    ? String(t("process.runningCmd", "Running {name}", { name: cmd }))
+    : failed
+      ? `${String(t("process.failedPrefix", "Failed"))} ${cmd}`
+      : denied
+        ? `${String(t("process.deniedPrefix", "Denied"))} ${cmd}`
+        : String(t("process.ranCmd", "Ran {name}", { name: cmd }));
+
+  // One DOM row per log line; cap the tree with a tail window so long runs
+  // (builds, dir listings) cannot blow up the thread.
+  const lines = output ? output.replace(/\r\n?/g, "\n").replace(/\n$/, "").split("\n") : [];
+  const MAX_LINES = 400;
+  const hiddenCount = Math.max(0, lines.length - MAX_LINES);
+  const shown = hiddenCount > 0 ? lines.slice(hiddenCount) : lines;
+
+  return (
+    <div className="message-row" data-block-type="commandExecution" data-message-id={item.id}>
+      <div
+        className={`cmd-card${failed ? " is-error" : ""}${denied ? " is-denied" : ""}${running ? " is-running" : ""}`}
+      >
+        <button type="button" className="cmd-head" aria-expanded={open} onClick={() => setManual(!open)}>
+          <svg className="cmd-term" viewBox="0 0 14 14" aria-hidden="true">
+            <rect x="1" y="1.5" width="12" height="11" rx="2.5" />
+            <path d="M3.8 5 6 7 3.8 9" />
+            <path d="M7 9.3h3.4" />
+          </svg>
+          <span className="cmd-title">{head}</span>
+          <svg className={`cmd-chev${open ? "" : " closed"}`} viewBox="0 0 10 6" aria-hidden="true">
+            <path d="M1 1l4 4 4-4" />
+          </svg>
+        </button>
+        {open ? (
+          <div className="cmd-body">
+            <div className="cmd-kind">{String(t("process.shell", "Shell"))}</div>
+            <div className="cmd-lines" ref={linesRef}>
+              <div className="cmd-line is-cmd">
+                <span className="cmd-prompt">$ </span>
+                {cmd}
+              </div>
+              {hiddenCount > 0 ? (
+                <div className="cmd-line cmd-more">
+                  {String(t("process.moreLines", "… {n} earlier lines hidden", { n: hiddenCount }))}
+                </div>
+              ) : null}
+              {shown.map((l, i) => (
+                <div className="cmd-line" key={i}>
+                  {l === "" ? "\u00A0" : l}
+                </div>
+              ))}
+              {running && shown.length === 0 ? (
+                <div className="cmd-line cmd-wait">
+                  {String(t("process.waitingOutput", "waiting for output…"))}
+                </div>
+              ) : null}
+            </div>
+            {!running ? (
+              <div className="cmd-status">
+                {failed || denied ? (
+                  <span className="cmd-fail">✕ {String(t("process.failedPrefix", "Failed"))}</span>
+                ) : (
+                  <span className="cmd-ok">✓ {String(t("process.success", "Success"))}</span>
+                )}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
 }
 
 function McpBlock({ item }: BlockProps) {
@@ -348,9 +620,15 @@ export function ProcGroup({ kind, items }: { kind: string; items: TurnItem[] }) 
         <span className={`proc-chevron${open ? " open" : ""}`}>▾</span>
       </button>
       <div className="proc-body" hidden={!open}>
-        {items.map((item) => (
-          <ProcLine key={item.id} item={item} kind={classifyTool(item.tool ?? item.command ?? item.type)} className="proc-sub" />
-        ))}
+        {items.map((item) =>
+          item.type === "commandExecution" || item.type === "exec" ? (
+            <ShellCard key={item.id} item={item} />
+          ) : FILE_OP_TYPES.has(item.type) ? (
+            <FileOpBlock key={item.id} item={item} />
+          ) : (
+            <ProcLine key={item.id} item={item} kind={classifyTool(item.tool ?? item.command ?? item.type)} className="proc-sub" />
+          ),
+        )}
       </div>
     </div>
   );
@@ -489,9 +767,9 @@ export const BLOCK_RENDERERS: Record<BlockType, ComponentType<BlockProps>> = {
   mcpToolCall: McpBlock,
   "dynamic-tool-call": McpBlock,
   dynamicToolCall: McpBlock,
-  search: ToolBlock,
-  read: ToolBlock,
-  list_files: ToolBlock,
+  search: FileOpBlock,
+  read: FileOpBlock,
+  list_files: FileOpBlock,
   install: ToolBlock,
   plugin: ToolBlock,
   update: ToolBlock,
@@ -499,8 +777,8 @@ export const BLOCK_RENDERERS: Record<BlockType, ComponentType<BlockProps>> = {
   add: ToolBlock,
 
   // diffs
-  patch: DiffBlock,
-  fileChange: DiffBlock,
+  patch: FileOpBlock,
+  fileChange: FileOpBlock,
   file: DiffBlock,
   code: DiffBlock,
   codespan: DiffBlock,
@@ -533,9 +811,10 @@ export const BLOCK_RENDERERS: Record<BlockType, ComponentType<BlockProps>> = {
 };
 
 /** Render one item using its registered renderer. */
-export function Block({ item }: BlockProps) {
+/** Render one item using its registered renderer. */
+export function Block({ item, summary }: BlockProps) {
   const Renderer = BLOCK_RENDERERS[item.type as BlockType] ?? UnknownBlock;
-  return <Renderer item={item} />;
+  return <Renderer item={item} summary={summary} />;
 }
 
 /** Re-exported for callers that only need the attachment chip shell. */

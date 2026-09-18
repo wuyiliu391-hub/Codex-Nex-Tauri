@@ -12,12 +12,11 @@ import { invoke } from "@tauri-apps/api/core";
 import { t } from "../../../../src/js/i18n.js";
 import {
   OFFICIAL_PETS,
-  PET_ACTION_NAMES,
   PET_COLUMNS,
   petSheetUrl,
   spriteRowCount,
 } from "../../../../src/js/pets-data.js";
-import { Block, BlockCustom, PageHead, SettingsButton } from "../primitives";
+import { BlockCustom, SettingsButton } from "../primitives";
 import { PetOverlay } from "@/pet/PetOverlay";
 
 interface PetPreferences {
@@ -101,7 +100,6 @@ function mergeCatalog(backend: BackendPet[]): CatalogPet[] {
 
 export function PetsTab() {
   const [prefs, setPrefs] = useState<PetPreferences>({});
-  const [previewAction, setPreviewAction] = useState<string | null>(null);
   const [backendPets, setBackendPets] = useState<BackendPet[]>([]);
   const [busy, setBusy] = useState(false);
 
@@ -144,6 +142,14 @@ export function PetsTab() {
 
   const selectedId = prefs.active ?? prefs.selected ?? OFFICIAL_PETS[0]?.id ?? "";
   const catalog = mergeCatalog(backendPets);
+  const selectedPet = catalog.find((p) => p.id === selectedId);
+  const petName = selectedPet?.displayName ?? label("pets.custom", "Custom");
+  // Official header: the selected pet's name is the page title and the desc
+  // names it twice (Alt+Win+P hint).
+  const headerDesc = label(
+    "pets.dynamicDesc",
+    "{name} gives you quick access to ChatGPT. Press Alt+Win+P to focus or hide {name}.",
+  ).replaceAll("{name}", petName);
 
   async function wakeSelected(id: string): Promise<void> {
     setBusy(true);
@@ -154,21 +160,6 @@ export function PetsTab() {
       } catch (err) {
         // Official catalog pets may not exist in the shell store yet.
         console.warn("[pets] wake_pet failed (pet not in store?)", err);
-      }
-      await refreshPets();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function tuckSelected(): Promise<void> {
-    setBusy(true);
-    try {
-      await save({ asleep: true });
-      try {
-        await invoke("tuck_pet", { id: selectedId });
-      } catch (err) {
-        console.warn("[pets] tuck_pet failed", err);
       }
       await refreshPets();
     } finally {
@@ -197,26 +188,30 @@ export function PetsTab() {
 
   return (
     <>
-      <PageHead
-        title={label("pets.title", "Pets")}
-        desc={label("pets.desc", "Virtual pets give you quick access to ChatGPT.")}
-      />
+      {/* Official header: pet name + dynamic desc, 显示 <name> at top right. */}
+      <div className="pet-head">
+        <div className="settings-page-head">
+          <h1>{petName}</h1>
+          <p>{headerDesc}</p>
+        </div>
+        <button
+          type="button"
+          className="pet-show-btn"
+          disabled={busy}
+          onClick={() => void wakeSelected(selectedId)}
+        >
+          {label("pets.showPrefix", "Show")} {petName}
+        </button>
+      </div>
 
+      {/* Preview card — the live overlay stands in for the official sprite
+          card. Official also offers a 自定义 dropdown here; omitted until an
+          L3 pet-customization command exists (no fake menus). */}
       <BlockCustom title="">
-        <div className="pet-top-row">
-          <SettingsButton
-            label={label("pets.show", "Show virtual pet")}
-            kind="primary"
-            action="show-pet"
-            disabled={busy}
-            onClick={() => void wakeSelected(selectedId)}
-          />
-          <SettingsButton
-            label={label("pets.tuck", "Tuck away")}
-            action="tuck-pet"
-            disabled={busy}
-            onClick={() => void tuckSelected()}
-          />
+        <div className="pet-preview-card">
+          {!prefs.asleep && selectedId ? (
+            <PetOverlay preferences={{ ...prefs, active: selectedId }} />
+          ) : null}
         </div>
       </BlockCustom>
 
@@ -273,28 +268,6 @@ export function PetsTab() {
           })}
         </div>
       </BlockCustom>
-
-      <Block title={label("pets.actions", "Actions & expressions")}>
-        <div className="pet-action-grid">
-          {PET_ACTION_NAMES.map((name) => (
-            <button
-              type="button"
-              className="pet-action-btn"
-              key={name}
-              data-pet-action={name}
-              onClick={() => setPreviewAction(name)}
-            >
-              {label(`pets.action.${name}`, name)}
-            </button>
-          ))}
-        </div>
-      </Block>
-
-      {/* Live preview of the selected pet, driven by the same component the
-          shell uses so the preview cannot drift from the real overlay. */}
-      {!prefs.asleep && selectedId ? (
-        <PetOverlay preferences={{ ...prefs, active: selectedId }} action={previewAction} />
-      ) : null}
     </>
   );
 }

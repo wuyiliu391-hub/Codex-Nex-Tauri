@@ -3,6 +3,11 @@
    Hex is allowed ONLY for --official-* definitions in this file.
    Semantic aliases below must be var() references. */
 
+/* Canonical OpenAI Sans @font-face — SINGLE owner of family faces.
+   Official only ships Regular 400 + Medium 500. Map 600/700 to Medium so
+   --font-weight-semibold/bold resolve to a real face (shell.css has
+   font-synthesis: none; no synthetic bold). Use the on-disk OpenAISans-*.woff2
+   names that vite emits. tokens.css must NOT redeclare this family. */
 @font-face {
   font-family: "OpenAI Sans";
   src: url("../assets/fonts/OpenAISans-Regular.woff2") format("woff2");
@@ -13,7 +18,21 @@
 @font-face {
   font-family: "OpenAI Sans";
   src: url("../assets/fonts/OpenAISans-Medium.woff2") format("woff2");
-  font-weight: 500 600;
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "OpenAI Sans";
+  src: url("../assets/fonts/OpenAISans-Medium.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "OpenAI Sans";
+  src: url("../assets/fonts/OpenAISans-Medium.woff2") format("woff2");
+  font-weight: 700;
   font-style: normal;
   font-display: swap;
 }
@@ -55,9 +74,11 @@ html.theme-light {
   --radius-token-composer-single-line: 22px;
   --radius-lg: 12.5px;
   --radius-md: 10px;
-  --font-openai-sans: "OpenAI Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-ui-family: var(--font-openai-sans);
-  --font-sans: var(--font-ui-family, var(--font-openai-sans));
+  /* Font stacks owned by tokens.css: --font-ui-family is the CJK-safe
+     OpenAI Sans + Segoe/PingFang/YaHei composition; --font-sans aliases it.
+     Do NOT redefine --font-sans / --font-ui-family / --font-openai-sans here —
+     import order is tokens.css then official-tokens.css, so a redeclare
+     would clobber CJK fallbacks. */
 
   --bg-canvas: var(--official-surface);
   --bg-sidebar: var(--official-sidebar);

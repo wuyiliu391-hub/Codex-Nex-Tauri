@@ -3,12 +3,14 @@
  *
  * Ports renderHooks() from settings.js. The official app-server exposes
  * `hooks/list`; if it is unavailable the page shows an honest empty state.
+ * 重新加载钩子 re-invokes the same rpc.
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { t } from "../../../../src/js/i18n.js";
-import { Block, PageHead } from "../primitives";
+import { openExternal } from "@/shell/actions";
+import { Block, PageHead, SettingsButton } from "../primitives";
 
 function label(key: string, fallback = ""): string {
   return String(t(key, fallback));
@@ -40,20 +42,47 @@ function asHooks(raw: unknown): HookEntry[] {
 export function HooksTab() {
   const [hooks, setHooks] = useState<HookEntry[] | null>(null);
 
-  useEffect(() => {
-    void invoke<unknown>("rpc_raw", { method: "hooks/list", params: {} })
+  const refresh = useCallback((): Promise<void> => {
+    return invoke<unknown>("rpc_raw", { method: "hooks/list", params: {} })
       .then((raw) => setHooks(asHooks(raw)))
       .catch(() => setHooks([]));
   }, []);
 
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const headDesc = (
+    <p>
+      {label("hooks.desc")}
+      {" "}
+      <button
+        type="button"
+        className="settings-inline-link"
+        onClick={() => void openExternal("https://developers.openai.com/codex/hooks")}
+      >
+        {label("general.learnMore", "Learn more")}
+      </button>
+    </p>
+  );
+
   return (
     <>
-      <PageHead title={label("hooks.title")} />
-      <Block title={label("hooks.list")}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+        <PageHead title={label("hooks.title")} descNode={headDesc} />
+        <div style={{ display: "flex", alignItems: "center", gap: 8, paddingTop: 6 }}>
+          <SettingsButton label={label("hooks.reload")} onClick={() => void refresh()} />
+        </div>
+      </div>
+
+      <Block>
         {hooks === null ? (
           <div className="site-empty">{label("discovery.loading", "Loading…")}</div>
         ) : hooks.length === 0 ? (
-          <div className="settings-card site-empty">{label("hooks.empty")}</div>
+          <div className="site-empty">
+            <div>{label("hooks.emptyTitle", "No hooks found")}</div>
+            <div>{label("hooks.emptyDesc", "")}</div>
+          </div>
         ) : (
           <div className="hooks-list">
             {hooks.map((hook, i) => (

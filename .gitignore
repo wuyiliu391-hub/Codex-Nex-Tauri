@@ -21,6 +21,9 @@ node_modules/
 frontend/node_modules/
 frontend/dist/
 
+# Staged product installers (flat NSIS/MSI; see scripts/stage-dist.ps1)
+dist/
+
 # Logs / OS
 *.log
 .DS_Store

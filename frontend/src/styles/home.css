@@ -132,6 +132,11 @@
   color: var(--fg-primary);
   opacity: 0.4;
 }
+.home-center .home-hero svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
 .home-title {
   /* official .heading-xl: font-size var(--text-xl), font-weight medium, line-height 1.2 */
   font-size: var(--text-xl, 28px);
@@ -501,6 +506,14 @@
 }
 .composer-pill.access .chevron { width: 12px; height: 12px; opacity: .6; }
 
+/* Mock-turn toggle: same pill shape, highlighted only while armed. */
+.composer-pill.mock svg { width: 14px; height: 14px; }
+.composer-pill.mock.is-active {
+  background: var(--bg-hover);
+  color: var(--fg-primary);
+  box-shadow: 0 0 0 1px var(--border-default);
+}
+
 .composer-menu {
   position: fixed;
   z-index: 90;
@@ -545,6 +558,28 @@
 .menu-check { color: var(--fg-primary); }
 .permission-item.permission-workspace .menu-icon { color: var(--accent-ring, var(--official-ring)); }
 .permission-item.permission-full .menu-icon { color: var(--orange-500); }
+/* Unrestricted row renders as a warning: title, desc and check follow the icon. */
+.permission-item.permission-full strong { color: var(--orange-500); }
+.permission-item.permission-full small {
+  color: color-mix(in srgb, var(--orange-500) 72%, transparent);
+}
+.permission-item.permission-full .menu-check { color: var(--orange-500); }
+/* Approval popup head: title left, learn-more link right. */
+.composer-menu-label.approval-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.approval-learn-more {
+  border: 0; background: transparent; padding: 0;
+  color: var(--fg-secondary);
+  font-size: 11px; font-weight: var(--font-weight-normal, 400);
+  text-decoration: underline; text-underline-offset: 2px;
+  cursor: pointer; flex: 0 0 auto;
+}
+.approval-learn-more:hover { color: var(--fg-primary); }
+/* Pill mirrors the warning state while unrestricted is active. */
+.composer-pill.access.permission-unrestricted { color: var(--orange-500); }
+.composer-pill.access.permission-unrestricted .permission-hand { color: var(--orange-500); }
+.composer-pill.access.permission-unrestricted .permission-hand svg { width: 14px; height: 14px; }
 .menu-arrow { color: var(--fg-description); font-size: 18px; text-align: center; }
 .composer-menu-empty { padding: 14px 10px; color: var(--fg-primary); font-size: var(--text-sm); }
 .composer-menu-empty span { color: var(--fg-description); font-size: 11px; line-height: 1.45; }
@@ -884,6 +919,120 @@ html.theme-dark .composer-project-tray { background: #2a2a2a; }
 .message-body > .proc-line + .part-text {
   margin-top: 6px;
 }
+
+/* Turn-level elapsed header — official "用时 27秒 ⌄" + divider. */
+.turn-elapsed-row { padding-bottom: 0; }
+.turn-elapsed-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--border-light, var(--border-subtle));
+  font-size: 12px;
+  color: var(--fg-description);
+  cursor: pointer;
+  text-align: left;
+}
+.turn-elapsed-head svg {
+  width: 10px;
+  height: 8px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 120ms ease;
+}
+.turn-elapsed-head svg.closed { transform: rotate(180deg); }
+
+/* Shell command card — official head + bordered body. */
+.cmd-card { margin: 6px 0; }
+.cmd-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 2px 0;
+  background: transparent;
+  border: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm-ui, 13px);
+  color: var(--fg-process, var(--fg-secondary));
+  text-align: left;
+  cursor: pointer;
+}
+.cmd-check {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+.cmd-check rect {
+  fill: currentColor;
+  stroke: none;
+}
+.cmd-check .cmd-tick {
+  fill: none;
+  stroke: var(--bg-canvas);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.cmd-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cmd-chev {
+  width: 10px;
+  height: 8px;
+  flex: none;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 120ms ease;
+}
+.cmd-chev.closed { transform: rotate(180deg); }
+.cmd-body {
+  margin: 6px 0 8px;
+  border: 1px solid var(--border-light, var(--border-subtle));
+  border-radius: 10px;
+  background: var(--bg-canvas);
+  padding: 12px 14px;
+  overflow: hidden;
+}
+.cmd-kind {
+  font-size: 12px;
+  color: var(--fg-primary);
+  margin-bottom: 8px;
+}
+.cmd-pre {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-code);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--fg-secondary);
+  max-height: 220px;
+  overflow: auto;
+}
+.cmd-prompt { color: var(--fg-description); }
+.cmd-status {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+  font-size: 12px;
+}
+.cmd-ok { color: var(--fg-description); }
+.cmd-card.is-error .cmd-ok,
+.cmd-fail { color: var(--danger, #c93a3a); }
 .proc-line .proc-head {
   display: flex; align-items: center; gap: 8px;
   width: 100%;

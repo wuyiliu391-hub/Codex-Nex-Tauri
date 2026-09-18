@@ -35,3 +35,8 @@ export function useTurnItems(): TurnItem[] {
 export function useTurnActive(): boolean {
   return useTurnState().active;
 }
+
+/** Pending approval requests awaiting user decision. */
+export function usePendingRequests() {
+  return useTurnState().pendingRequests;
+}

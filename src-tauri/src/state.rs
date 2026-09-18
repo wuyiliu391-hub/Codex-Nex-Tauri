@@ -167,6 +167,10 @@ pub struct InnerState {
     /// providerId -> API key. Injected into the sidecar environment as the
     /// provider's `env_key` at spawn time (see [`provider_env_key`]).
     pub provider_secrets: HashMap<String, String>,
+    /// providerId -> protocol (e.g. "openai_chat", "anthropic", "ollama", "openai_responses").
+    pub provider_protocols: HashMap<String, String>,
+    /// providerId -> real upstream base_url when routed through adapter.
+    pub provider_endpoints: HashMap<String, String>,
 }
 
 impl AppState {
@@ -251,6 +255,10 @@ struct ShellStateFile {
     pull_requests: Vec<serde_json::Value>,
     #[serde(default)]
     provider_secrets: HashMap<String, String>,
+    #[serde(default)]
+    provider_protocols: HashMap<String, String>,
+    #[serde(default)]
+    provider_endpoints: HashMap<String, String>,
 }
 
 impl ShellStateFile {
@@ -267,6 +275,8 @@ impl ShellStateFile {
             scheduled_tasks: inner.scheduled_tasks.clone(),
             pull_requests: inner.pull_requests.clone(),
             provider_secrets: inner.provider_secrets.clone(),
+            provider_protocols: inner.provider_protocols.clone(),
+            provider_endpoints: inner.provider_endpoints.clone(),
         }
     }
 
@@ -283,6 +293,8 @@ impl ShellStateFile {
             scheduled_tasks: self.scheduled_tasks,
             pull_requests: self.pull_requests,
             provider_secrets: self.provider_secrets,
+            provider_protocols: self.provider_protocols,
+            provider_endpoints: self.provider_endpoints,
         }
     }
 }

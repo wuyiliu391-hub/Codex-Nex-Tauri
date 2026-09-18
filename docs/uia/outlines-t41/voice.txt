@@ -1,0 +1,105 @@
+Document 'ChatGPT' #RootWebArea val="app://-/index.html"
+  Group
+    Group #root
+      StatusBar OFF
+      Group
+        Button '隐藏侧边栏' exp=Expanded
+          Image
+      Group
+        Button '返回'
+          Image
+      Group
+        Button '前进' DIS
+          Image
+      MenuBar '应用程序菜单'
+        MenuItem '文件' #application-menu-trigger-file-menu exp=Collapsed
+        MenuItem '编辑' #application-menu-trigger-edit-menu exp=Collapsed
+        MenuItem '视图' #application-menu-trigger-view-menu exp=Collapsed
+        MenuItem '帮助' #application-menu-trigger-help-menu exp=Collapsed
+      Group
+        Group '设置'
+          Hyperlink '返回应用'
+          Image
+          Text '搜索设置'
+          Edit '搜索设置' #settings-search
+          Text '个人'
+          Button '常规'
+            Image
+          Button '导入'
+            Image
+          Button '外观'
+            Image
+          Button '语音'
+            Image
+          Button '配置'
+            Image
+          Button '个性化'
+            Image
+          Button '宠物'
+            Image
+          Button '键盘快捷键'
+            Image
+          Group
+            Button '账户'
+              Image
+          Text '集成'
+          Button '电脑操控'
+            Image
+          Button '应用快照'
+            Image
+          Button '插件'
+            Image
+          Button '浏览器'
+            Image
+          Text '编码' OFF
+          Button '钩子' OFF
+            Image OFF
+          Button '连接' OFF
+            Image OFF
+          Button 'Git' OFF
+            Image OFF
+          Button '环境' OFF
+            Image OFF
+          Button 'Worktrees' OFF
+            Image OFF
+          Text '已归档' OFF
+          Button '已归档的聊天' OFF
+            Image OFF
+        Separator
+      Group
+        Group
+          Group
+        Group
+          Text '语音'
+        Text '常规'
+        Text '麦克风'
+        Text '用于语音聊天和听写'
+        Button '系统默认' #radix-_r_cb_ exp=Collapsed
+        Text '语言'
+        Button 'Retry'
+        Text '语音聊天'
+        Text '语音聊天不可用'
+        Text '你的账户或工作空间无法使用语音聊天'
+        Text '听写'
+        Text '按住听写快捷键' OFF
+        Text '在桌面任意位置按住，即可在光标处听写' OFF
+        Text '关闭' OFF
+        Group OFF
+          Button '为 按住听写快捷键 设置快捷键' OFF
+            Image OFF
+        Text '切换听写快捷键' OFF
+        Text '在桌面任意位置按一次开始听写，再按一次停止' OFF
+        Text '关闭' OFF
+        Group OFF
+          Button '为 切换听写快捷键 设置快捷键' OFF
+            Image OFF
+        Text '听写词典' OFF
+        Text '听写应能识别的单词或短语' OFF
+        Button '添加条目' OFF
+          Image OFF
+        Edit '词典条目 1' OFF
+        Button '移除词典条目 1' DIS OFF
+          Image OFF
+        Text '最近录音' OFF
+        Text '你最近的 20 段录音会保存在此设备上' OFF
+        StatusBar #DndLiveRegion-3 OFF

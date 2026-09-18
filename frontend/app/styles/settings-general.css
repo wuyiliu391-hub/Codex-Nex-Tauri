@@ -1,0 +1,76 @@
+/**
+ * Styles for the official 常规 settings page — ONLY the new classes the
+ * rebuilt GeneralTab introduces (control groups, path text, inline link,
+ * pop-out trigger, licenses body, composer context chip). Row/card/switch
+ * chrome stays on the existing settings.css contract untouched.
+ */
+
+/* Path + button / mode + button pairs on the right of a row. */
+.general-control-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.settings-path {
+  color: var(--fg-description);
+  font-size: var(--text-sm-ui, 13px);
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 「了解更多」 inline link inside a row description. */
+.settings-inline-link {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font: inherit;
+  color: var(--accent);
+  cursor: pointer;
+}
+.settings-inline-link:hover { text-decoration: underline; }
+
+/* Pop-out shortcut trigger: current value + pencil affordance. */
+.popout-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm-ui, 13px);
+  color: var(--fg-secondary);
+}
+.popout-trigger svg {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  fill: none;
+  stroke: var(--fg-description);
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Licenses modal body. */
+.settings-licenses {
+  margin: 0;
+  max-height: 55vh;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--fg-secondary);
+}
+
+/* Composer context-usage chip (显示上下文窗口使用情况 = on). */
+.composer-context {
+  align-self: center;
+  flex: none;
+  font-size: 12px;
+  color: var(--fg-description);
+  margin-right: 6px;
+  font-variant-numeric: tabular-nums;
+}

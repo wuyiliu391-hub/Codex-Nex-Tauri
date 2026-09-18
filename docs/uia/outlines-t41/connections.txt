@@ -1,0 +1,78 @@
+Document 'ChatGPT' #RootWebArea val="app://-/index.html"
+  Group
+    Group #root
+      StatusBar OFF
+      Group
+        Button '隐藏侧边栏' exp=Expanded
+          Image
+      Group
+        Button '返回'
+          Image
+      Group
+        Button '前进' DIS
+          Image
+      MenuBar '应用程序菜单'
+        MenuItem '文件' #application-menu-trigger-file-menu exp=Collapsed
+        MenuItem '编辑' #application-menu-trigger-edit-menu exp=Collapsed
+        MenuItem '视图' #application-menu-trigger-view-menu exp=Collapsed
+        MenuItem '帮助' #application-menu-trigger-help-menu exp=Collapsed
+      Group
+        Group '设置'
+          Hyperlink '返回应用'
+          Image
+          Text '搜索设置'
+          Edit '搜索设置' #settings-search
+          Text '个人' OFF
+          Button '常规' OFF
+            Image OFF
+          Button '导入' OFF
+            Image OFF
+          Button '外观' OFF
+            Image OFF
+          Button '语音' OFF
+            Image OFF
+          Button '配置' OFF
+            Image OFF
+          Button '个性化' OFF
+            Image OFF
+          Button '宠物' OFF
+            Image OFF
+          Button '键盘快捷键'
+            Image OFF
+          Group
+            Button '账户'
+              Image
+          Text '集成'
+          Button '电脑操控'
+            Image
+          Button '应用快照'
+            Image
+          Button '插件'
+            Image
+          Button '浏览器'
+            Image
+          Text '编码'
+          Button '钩子'
+            Image
+          Button '连接'
+            Image
+          Button 'Git'
+            Image
+          Button '环境'
+            Image
+          Button 'Worktrees'
+            Image
+          Text '已归档'
+          Button '已归档的聊天'
+            Image
+        Separator
+      Group
+        Group
+          Group
+        Group
+          Text '连接'
+        Text '来自此电脑的 SSH 连接'
+        Image
+        Text '通过 SSH 连接到远程设备'
+        Button '添加'
+        StatusBar #DndLiveRegion-3 OFF

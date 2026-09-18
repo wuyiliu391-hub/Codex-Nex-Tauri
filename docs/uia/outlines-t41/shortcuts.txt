@@ -1,0 +1,1391 @@
+Document 'ChatGPT' #RootWebArea val="app://-/index.html"
+  Group
+    Group #root
+      StatusBar OFF
+      Group
+        Button '隐藏侧边栏' exp=Expanded
+          Image
+      Group
+        Button '返回'
+          Image
+      Group
+        Button '前进' DIS
+          Image
+      MenuBar '应用程序菜单'
+        MenuItem '文件' #application-menu-trigger-file-menu exp=Collapsed
+        MenuItem '编辑' #application-menu-trigger-edit-menu exp=Collapsed
+        MenuItem '视图' #application-menu-trigger-view-menu exp=Collapsed
+        MenuItem '帮助' #application-menu-trigger-help-menu exp=Collapsed
+      Group
+        Group '设置'
+          Hyperlink '返回应用'
+          Image
+          Text '搜索设置'
+          Edit '搜索设置' #settings-search
+          Text '个人'
+          Button '常规'
+            Image
+          Button '导入'
+            Image
+          Button '外观'
+            Image
+          Button '语音'
+            Image
+          Button '配置'
+            Image
+          Button '个性化'
+            Image
+          Button '宠物'
+            Image
+          Button '键盘快捷键'
+            Image
+          Group
+            Button '账户'
+              Image
+          Text '集成'
+          Button '电脑操控'
+            Image
+          Button '应用快照'
+            Image
+          Button '插件'
+            Image
+          Button '浏览器'
+            Image
+          Text '编码' OFF
+          Button '钩子' OFF
+            Image OFF
+          Button '连接' OFF
+            Image OFF
+          Button 'Git' OFF
+            Image OFF
+          Button '环境' OFF
+            Image OFF
+          Button 'Worktrees' OFF
+            Image OFF
+          Text '已归档' OFF
+          Button '已归档的聊天' OFF
+            Image OFF
+        Separator
+      Group
+        Group
+          Group
+        Group
+          Text '键盘快捷键'
+        Image
+        Text '搜索键盘快捷键'
+        Edit '搜索键盘快捷键' #_r_en_
+        Group
+          Button '使用快捷键搜索' tog=Off
+            Image
+        Text '新聊天'
+        Text '开始新聊天'
+        Group '新聊天'
+          Group 'Ctrl+N'
+            Text 'Ctrl+N'
+            Group
+              Button '更改 新聊天 的快捷键'
+                Image
+            Group
+              Button '清除 新聊天 的快捷键'
+                Image
+          Group 'Ctrl+Shift+O'
+            Text 'Ctrl+Shift+O'
+            Group
+              Button '更改 新聊天 的快捷键'
+                Image
+            Group
+              Button '清除 新聊天 的快捷键'
+                Image
+        Text '新建临时聊天'
+        Text '开始聊天，此聊天不会显示在历史记录中'
+        Group '新建临时聊天'
+          Group 'Ctrl+Shift+N'
+            Text 'Ctrl+Shift+N'
+            Group
+              Button '更改 新建临时聊天 的快捷键'
+                Image
+            Group
+              Button '清除 新建临时聊天 的快捷键'
+                Image
+        Text '快速聊天'
+        Text '在快速编辑器中开始轻量聊天'
+        Group '快速聊天'
+          Group 'Ctrl+Alt+N'
+            Text 'Ctrl+Alt+N'
+            Group
+              Button '更改 快速聊天 的快捷键'
+                Image
+            Group
+              Button '清除 快速聊天 的快捷键'
+                Image
+        Text '归档聊天'
+        Text '归档当前聊天'
+        Group '归档聊天'
+          Group 'Ctrl+Shift+A'
+            Text 'Ctrl+Shift+A'
+            Group
+              Button '更改 归档聊天 的快捷键'
+                Image
+            Group
+              Button '清除 归档聊天 的快捷键'
+                Image
+        Text '新建独立聊天'
+        Text '在项目外开始新聊天'
+        Group '新建独立聊天'
+          Group 'Ctrl+Alt+O'
+            Text 'Ctrl+Alt+O'
+            Group
+              Button '更改 新建独立聊天 的快捷键'
+                Image
+            Group
+              Button '清除 新建独立聊天 的快捷键'
+                Image
+        Text '打开侧边聊天' OFF
+        Text '在侧边聊天中打开当前聊天' OFF
+        Group '打开侧边聊天' OFF
+          Group 'Ctrl+Alt+S' OFF
+            Text 'Ctrl+Alt+S' OFF
+            Group OFF
+              Button '更改 打开侧边聊天 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 打开侧边聊天 的快捷键' OFF
+                Image OFF
+        Text '标记为未读' OFF
+        Text '将当前聊天标记为未读' OFF
+        Group '标记为未读' OFF
+          Group 'Ctrl+Shift+U' OFF
+            Text 'Ctrl+Shift+U' OFF
+            Group OFF
+              Button '更改 标记为未读 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 标记为未读 的快捷键' OFF
+                Image OFF
+        Text '在新窗口中打开' OFF
+        Text '在新窗口中打开当前聊天' OFF
+        Group '在新窗口中打开' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 在新窗口中打开 设置快捷键' OFF
+                Image OFF
+        Text '切换置顶状态' OFF
+        Text '置顶或取消置顶当前聊天' OFF
+        Group '切换置顶状态' OFF
+          Group 'Ctrl+Alt+P' OFF
+            Text 'Ctrl+Alt+P' OFF
+            Group OFF
+              Button '更改 切换置顶状态 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 切换置顶状态 的快捷键' OFF
+                Image OFF
+        Text '聚焦浏览器地址栏' OFF
+        Text '聚焦应用内浏览器地址栏' OFF
+        Group '聚焦浏览器地址栏' OFF
+          Group 'Ctrl+L' OFF
+            Text 'Ctrl+L' OFF
+            Group OFF
+              Button '更改 聚焦浏览器地址栏 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 聚焦浏览器地址栏 的快捷键' OFF
+                Image OFF
+        Text '聚焦主聊天输入框' OFF
+        Text '将键盘焦点移至主聊天输入框' OFF
+        Group '聚焦主聊天输入框' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 聚焦主聊天输入框 设置快捷键' OFF
+                Image OFF
+        Text '聚焦侧边聊天' OFF
+        Text '将键盘焦点移至已打开的侧边聊天输入框' OFF
+        Group '聚焦侧边聊天' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 聚焦侧边聊天 设置快捷键' OFF
+                Image OFF
+        Text '转到行' OFF
+        Text '转到当前文件中的某一行' OFF
+        Group '转到行' OFF
+          Group 'Ctrl+L' OFF
+            Text 'Ctrl+L' OFF
+            Group OFF
+              Button '更改 转到行 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 转到行 的快捷键' OFF
+                Image OFF
+        Text '返回' OFF
+        Text '在导航历史记录中返回' OFF
+        Group '返回' OFF
+          Group 'Ctrl+[' OFF
+            Text 'Ctrl+[' OFF
+            Group OFF
+              Button '更改 返回 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 返回 的快捷键' OFF
+                Image OFF
+          Group 'Mouse Back' OFF
+            Text 'Mouse Back' OFF
+            Group OFF
+              Button '更改 返回 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 返回 的快捷键' OFF
+                Image OFF
+        Text '前进' OFF
+        Text '在导航历史记录中前进' OFF
+        Group '前进' OFF
+          Group 'Ctrl+]' OFF
+            Text 'Ctrl+]' OFF
+            Group OFF
+              Button '更改 前进 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 前进 的快捷键' OFF
+                Image OFF
+          Group 'Mouse Forward' OFF
+            Text 'Mouse Forward' OFF
+            Group OFF
+              Button '更改 前进 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 前进 的快捷键' OFF
+                Image OFF
+        Text '下一个最近查看的聊天' OFF
+        Text '切换到下一个最近已查看的聊天' OFF
+        Group '下一个最近查看的聊天' OFF
+          Group 'Ctrl+Tab' OFF
+            Text 'Ctrl+Tab' OFF
+            Group OFF
+              Button '更改 下一个最近查看的聊天 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 下一个最近查看的聊天 的快捷键' OFF
+                Image OFF
+        Text '下一个标签页' OFF
+        Text '切换到下一个标签页' OFF
+        Group '下一个标签页' OFF
+          Group 'Ctrl+Tab' OFF
+            Text 'Ctrl+Tab' OFF
+            Group OFF
+              Button '更改 下一个标签页 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 下一个标签页 的快捷键' OFF
+                Image OFF
+          Group 'Ctrl+Shift+]' OFF
+            Text 'Ctrl+Shift+]' OFF
+            Group OFF
+              Button '更改 下一个标签页 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 下一个标签页 的快捷键' OFF
+                Image OFF
+          Group 'Ctrl+PageDown' OFF
+            Text 'Ctrl+PageDown' OFF
+            Group OFF
+              Button '更改 下一个标签页 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 下一个标签页 的快捷键' OFF
+                Image OFF
+        Text '下一个聊天' OFF
+        Text '切换到下一个聊天' OFF
+        Group '下一个聊天' OFF
+          Group 'Ctrl+Shift+]' OFF
+            Text 'Ctrl+Shift+]' OFF
+            Group OFF
+              Button '更改 下一个聊天 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 下一个聊天 的快捷键' OFF
+                Image OFF
+          Group 'Ctrl+PageDown' OFF
+            Text 'Ctrl+PageDown' OFF
+            Group OFF
+              Button '更改 下一个聊天 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 下一个聊天 的快捷键' OFF
+                Image OFF
+        Text '下一个需关注的聊天' OFF
+        Text '切换到下一个等待输入或有未读活动的聊天' OFF
+        Group '下一个需关注的聊天' OFF
+          Group 'Ctrl+Alt+A' OFF
+            Text 'Ctrl+Alt+A' OFF
+            Group OFF
+              Button '更改 下一个需关注的聊天 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 下一个需关注的聊天 的快捷键' OFF
+                Image OFF
+        Text '上一个最近查看的聊天' OFF
+        Text '切换到上一个最近已查看的聊天' OFF
+        Group '上一个最近查看的聊天' OFF
+          Group 'Ctrl+Shift+Tab' OFF
+            Text 'Ctrl+Shift+Tab' OFF
+            Group OFF
+              Button '更改 上一个最近查看的聊天 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 上一个最近查看的聊天 的快捷键' OFF
+                Image OFF
+        Text '上一个标签页' OFF
+        Text '切换到上一个标签页' OFF
+        Group '上一个标签页' OFF
+          Group 'Ctrl+Shift+Tab' OFF
+            Text 'Ctrl+Shift+Tab' OFF
+            Group OFF
+              Button '更改 上一个标签页 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 上一个标签页 的快捷键' OFF
+                Image OFF
+          Group 'Ctrl+Shift+[' OFF
+            Text 'Ctrl+Shift+[' OFF
+            Group OFF
+              Button '更改 上一个标签页 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 上一个标签页 的快捷键' OFF
+                Image OFF
+          Group 'Ctrl+PageUp' OFF
+            Text 'Ctrl+PageUp' OFF
+            Group OFF
+              Button '更改 上一个标签页 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 上一个标签页 的快捷键' OFF
+                Image OFF
+        Text '上一个聊天' OFF
+        Text '切换到上一个聊天' OFF
+        Group '上一个聊天' OFF
+          Group 'Ctrl+Shift+[' OFF
+            Text 'Ctrl+Shift+[' OFF
+            Group OFF
+              Button '更改 上一个聊天 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 上一个聊天 的快捷键' OFF
+                Image OFF
+          Group 'Ctrl+PageUp' OFF
+            Text 'Ctrl+PageUp' OFF
+            Group OFF
+              Button '更改 上一个聊天 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 上一个聊天 的快捷键' OFF
+                Image OFF
+        Text '转到最近聊天 1' OFF
+        Text '打开此快捷槽位中最近更新的聊天' OFF
+        Group '转到最近聊天 1' OFF
+          Group 'Ctrl+Alt+1' OFF
+            Text 'Ctrl+Alt+1' OFF
+            Group OFF
+              Button '更改 转到最近聊天 1 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 转到最近聊天 1 的快捷键' OFF
+                Image OFF
+        Text '转到最近聊天 2' OFF
+        Text '打开此快捷槽位中最近更新的聊天' OFF
+        Group '转到最近聊天 2' OFF
+          Group 'Ctrl+Alt+2' OFF
+            Text 'Ctrl+Alt+2' OFF
+            Group OFF
+              Button '更改 转到最近聊天 2 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 转到最近聊天 2 的快捷键' OFF
+                Image OFF
+        Text '转到最近聊天 3' OFF
+        Text '打开此快捷槽位中最近更新的聊天' OFF
+        Group '转到最近聊天 3' OFF
+          Group 'Ctrl+Alt+3' OFF
+            Text 'Ctrl+Alt+3' OFF
+            Group OFF
+              Button '更改 转到最近聊天 3 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 转到最近聊天 3 的快捷键' OFF
+                Image OFF
+        Text '转到最近聊天 4' OFF
+        Text '打开此快捷槽位中最近更新的聊天' OFF
+        Group '转到最近聊天 4' OFF
+          Group 'Ctrl+Alt+4' OFF
+            Text 'Ctrl+Alt+4' OFF
+            Group OFF
+              Button '更改 转到最近聊天 4 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 转到最近聊天 4 的快捷键' OFF
+                Image OFF
+        Text '转到最近聊天 5' OFF
+        Text '打开此快捷槽位中最近更新的聊天' OFF
+        Group '转到最近聊天 5' OFF
+          Group 'Ctrl+Alt+5' OFF
+            Text 'Ctrl+Alt+5' OFF
+            Group OFF
+              Button '更改 转到最近聊天 5 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 转到最近聊天 5 的快捷键' OFF
+                Image OFF
+        Text '转到最近聊天 6' OFF
+        Text '打开此快捷槽位中最近更新的聊天' OFF
+        Group '转到最近聊天 6' OFF
+          Group 'Ctrl+Alt+6' OFF
+            Text 'Ctrl+Alt+6' OFF
+            Group OFF
+              Button '更改 转到最近聊天 6 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 转到最近聊天 6 的快捷键' OFF
+                Image OFF
+        Text '切换聊天…' OFF
+        Text '搜索并切换到聊天' OFF
+        Group '切换聊天…' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 切换聊天… 设置快捷键' OFF
+                Image OFF
+        Text '切换到工作' OFF
+        Text '切换到工作' OFF
+        Group '切换到工作' OFF
+          Group 'Alt+2' OFF
+            Text 'Alt+2' OFF
+            Group OFF
+              Button '更改 切换到工作 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 切换到工作 的快捷键' OFF
+                Image OFF
+        Text '切换到 Codex' OFF
+        Text '切换到 Codex' OFF
+        Group '切换到 Codex' OFF
+          Group 'Alt+3' OFF
+            Text 'Alt+3' OFF
+            Group OFF
+              Button '更改 切换到 Codex 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 切换到 Codex 的快捷键' OFF
+                Image OFF
+        Text '切换活动视图' OFF
+        Text '开启或关闭侧边栏活动视图' OFF
+        Group '切换活动视图' OFF
+          Group 'Ctrl+Alt+U' OFF
+            Text 'Ctrl+Alt+U' OFF
+            Group OFF
+              Button '更改 切换活动视图 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 切换活动视图 的快捷键' OFF
+                Image OFF
+        Text '打开浏览器标签页' OFF
+        Text '打开新浏览器标签页' OFF
+        Group '打开浏览器标签页' OFF
+          Group 'Ctrl+T' OFF
+            Text 'Ctrl+T' OFF
+            Group OFF
+              Button '更改 打开浏览器标签页 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 打开浏览器标签页 的快捷键' OFF
+                Image OFF
+        Text '在默认浏览器中打开网页链接' OFF
+        Text '按住指定按键并点击网页链接，即可在系统默认浏览器中打开该链接' OFF
+        Button '在默认浏览器中打开网页链接 未分配' #radix-_r_m6_ exp=Collapsed OFF
+          Text '未分配' OFF
+        Text '打开审查选项卡' OFF
+        Text '打开“审阅”选项卡' OFF
+        Group '打开审查选项卡' OFF
+          Group 'Ctrl+Shift+G' OFF
+            Text 'Ctrl+Shift+G' OFF
+            Group OFF
+              Button '更改 打开审查选项卡 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 打开审查选项卡 的快捷键' OFF
+                Image OFF
+        Text '重新打开已关闭的标签页' OFF
+        Text '重新打开最近关闭的标签页' OFF
+        Group '重新打开已关闭的标签页' OFF
+          Group 'Ctrl+Shift+T' OFF
+            Text 'Ctrl+Shift+T' OFF
+            Group OFF
+              Button '更改 重新打开已关闭的标签页 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 重新打开已关闭的标签页 的快捷键' OFF
+                Image OFF
+        Text '显示/隐藏浏览器面板' OFF
+        Text '显示或隐藏浏览器面板' OFF
+        Group '显示/隐藏浏览器面板' OFF
+          Group 'Ctrl+Shift+B' OFF
+            Text 'Ctrl+Shift+B' OFF
+            Group OFF
+              Button '更改 显示/隐藏浏览器面板 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 显示/隐藏浏览器面板 的快捷键' OFF
+                Image OFF
+        Text '切换底部面板' OFF
+        Text '显示或隐藏底部面板' OFF
+        Group '切换底部面板' OFF
+          Group 'Ctrl+J' OFF
+            Text 'Ctrl+J' OFF
+            Group OFF
+              Button '更改 切换底部面板 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 切换底部面板 的快捷键' OFF
+                Image OFF
+        Text '切换置顶摘要' OFF
+        Text '显示或隐藏已固定的摘要' OFF
+        Group '切换置顶摘要' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 切换置顶摘要 设置快捷键' OFF
+                Image OFF
+        Text '切换审阅' OFF
+        Text '显示或隐藏当前 Git 支持的聊天中的“审阅”' OFF
+        Group '切换审阅' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 切换审阅 设置快捷键' OFF
+                Image OFF
+        Text '切换侧边栏' OFF
+        Text '显示或隐藏侧边栏' OFF
+        Group '切换侧边栏' OFF
+          Group 'Ctrl+B' OFF
+            Text 'Ctrl+B' OFF
+            Group OFF
+              Button '更改 切换侧边栏 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 切换侧边栏 的快捷键' OFF
+                Image OFF
+        Text '切换审阅面板' OFF
+        Text '显示或隐藏当前聊天的审阅' OFF
+        Group '切换审阅面板' OFF
+          Group 'Ctrl+Alt+B' OFF
+            Text 'Ctrl+Alt+B' OFF
+            Group OFF
+              Button '更改 切换审阅面板 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 切换审阅面板 的快捷键' OFF
+                Image OFF
+        Text '打开终端' OFF
+        Text '打开终端面板' OFF
+        Group '打开终端' OFF
+          Group 'Ctrl+`' OFF
+            Text 'Ctrl+`' OFF
+            Group OFF
+              Button '更改 打开终端 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 打开终端 的快捷键' OFF
+                Image OFF
+        Text '环境操作 1' OFF
+        Text '执行此快捷槽位中的环境操作' OFF
+        Group '环境操作 1' OFF
+          Group 'Shift+Win+D' OFF
+            Text 'Shift+Win+D' OFF
+            Group OFF
+              Button '更改 环境操作 1 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 环境操作 1 的快捷键' OFF
+                Image OFF
+        Text '环境操作 2' OFF
+        Text '执行此快捷槽位中的环境操作' OFF
+        Group '环境操作 2' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 环境操作 2 设置快捷键' OFF
+                Image OFF
+        Text '环境操作 3' OFF
+        Text '执行此快捷槽位中的环境操作' OFF
+        Group '环境操作 3' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 环境操作 3 设置快捷键' OFF
+                Image OFF
+        Text '环境操作 4' OFF
+        Text '执行此快捷槽位中的环境操作' OFF
+        Group '环境操作 4' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 环境操作 4 设置快捷键' OFF
+                Image OFF
+        Text '环境操作 5' OFF
+        Text '执行此快捷槽位中的环境操作' OFF
+        Group '环境操作 5' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 环境操作 5 设置快捷键' OFF
+                Image OFF
+        Text '环境操作 6' OFF
+        Text '执行此快捷槽位中的环境操作' OFF
+        Group '环境操作 6' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 环境操作 6 设置快捷键' OFF
+                Image OFF
+        Text '环境操作 7' OFF
+        Text '执行此快捷槽位中的环境操作' OFF
+        Group '环境操作 7' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 环境操作 7 设置快捷键' OFF
+                Image OFF
+        Text '环境操作 8' OFF
+        Text '执行此快捷槽位中的环境操作' OFF
+        Group '环境操作 8' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 环境操作 8 设置快捷键' OFF
+                Image OFF
+        Text '环境操作 9' OFF
+        Text '执行此快捷槽位中的环境操作' OFF
+        Group '环境操作 9' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 环境操作 9 设置快捷键' OFF
+                Image OFF
+        Text '提交或推送' OFF
+        Text '打开提交或推送选项' OFF
+        Group '提交或推送' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 提交或推送 设置快捷键' OFF
+                Image OFF
+        Text '创建分支' OFF
+        Text '打开分支创建选项' OFF
+        Group '创建分支' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 创建分支 设置快捷键' OFF
+                Image OFF
+        Text '创建草稿 PR' OFF
+        Text '打开草稿 Pull Request 创建选项' OFF
+        Group '创建草稿 PR' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 创建草稿 PR 设置快捷键' OFF
+                Image OFF
+        Text '创建 PR' OFF
+        Text '打开 Pull Request 创建选项' OFF
+        Group '创建 PR' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 创建 PR 设置快捷键' OFF
+                Image OFF
+        Text '合并 PR' OFF
+        Text '打开 Pull Request 合并选项' OFF
+        Group '合并 PR' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 合并 PR 设置快捷键' OFF
+                Image OFF
+        Text '在 GitHub 上打开 PR' OFF
+        Text '打开与当前聊天关联的 Pull Request' OFF
+        Group '在 GitHub 上打开 PR' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 在 GitHub 上打开 PR 设置快捷键' OFF
+                Image OFF
+        Text '打开文件夹' OFF
+        Text '将本地项目添加到 ChatGPT' OFF
+        Group '打开文件夹' OFF
+          Group 'Ctrl+O' OFF
+            Text 'Ctrl+O' OFF
+            Group OFF
+              Button '更改 打开文件夹 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 打开文件夹 的快捷键' OFF
+                Image OFF
+        Text '强制重新加载技能' OFF
+        Text '刷新当前上下文的技能目录' OFF
+        Group '强制重新加载技能' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 强制重新加载技能 设置快捷键' OFF
+                Image OFF
+        Text '前往技能' OFF
+        Text '浏览已安装和推荐的技能' OFF
+        Group '前往技能' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 前往技能 设置快捷键' OFF
+                Image OFF
+        Text '从其他 AI 应用导入' OFF
+        Text '从其他 AI 应用导入' OFF
+        Group '从其他 AI 应用导入' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 从其他 AI 应用导入 设置快捷键' OFF
+                Image OFF
+        Text '键盘快捷方式' OFF
+        Text '自定义键盘快捷键' OFF
+        Group '键盘快捷方式' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 键盘快捷方式 设置快捷键' OFF
+                Image OFF
+        Text 'MCP' OFF
+        Text '配置 MCP 服务器' OFF
+        Group 'MCP' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 MCP 设置快捷键' OFF
+                Image OFF
+        Text '全部标为已读' OFF
+        Text '将所有聊天和已安排任务更新标记为已读' OFF
+        Group '全部标为已读' OFF
+          Group 'Shift+Esc' OFF
+            Text 'Shift+Esc' OFF
+            Group OFF
+              Button '更改 全部标为已读 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 全部标为已读 的快捷键' OFF
+                Image OFF
+        Text '反馈' OFF
+        Text '向 ChatGPT 团队发送产品反馈' OFF
+        Group '反馈' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 反馈 设置快捷键' OFF
+                Image OFF
+        Text '注销' OFF
+        Text '退出登录 ChatGPT' OFF
+        Group '注销' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 注销 设置快捷键' OFF
+                Image OFF
+        Text '管理已安排任务' OFF
+        Text '从当前页面创建或管理已安排任务' OFF
+        Group '管理已安排任务' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 管理已安排任务 设置快捷键' OFF
+                Image OFF
+        Text '显示或隐藏 Mini' OFF
+        Text '随时随地切换虚拟宠物的显示状态' OFF
+        Group '显示或隐藏 Mini' OFF
+          Group 'Alt+Win+P' OFF
+            Text 'Alt+Win+P' OFF
+            Group OFF
+              Button '更改 显示或隐藏 Mini 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 显示或隐藏 Mini 的快捷键' OFF
+                Image OFF
+        Text '打开控制窗口' OFF
+        Text '打开语音聊天控制窗口' OFF
+        Group '打开控制窗口' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 打开控制窗口 设置快捷键' OFF
+                Image OFF
+        Text '重做上一步操作' OFF
+        Text '重做最近撤销的应用操作' OFF
+        Group '重做上一步操作' OFF
+          Group 'Ctrl+Y' OFF
+            Text 'Ctrl+Y' OFF
+            Group OFF
+              Button '更改 重做上一步操作 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 重做上一步操作 的快捷键' OFF
+                Image OFF
+          Group 'Ctrl+Shift+Z' OFF
+            Text 'Ctrl+Shift+Z' OFF
+            Group OFF
+              Button '更改 重做上一步操作 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 重做上一步操作 的快捷键' OFF
+                Image OFF
+        Text '设置' OFF
+        Text '打开 ChatGPT 设置' OFF
+        Group '设置' OFF
+          Group 'Ctrl+,' OFF
+            Text 'Ctrl+,' OFF
+            Group OFF
+              Button '更改 设置 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 设置 的快捷键' OFF
+                Image OFF
+        Text '撤销上一步操作' OFF
+        Text '撤销最近的应用操作' OFF
+        Group '撤销上一步操作' OFF
+          Group 'Ctrl+Z' OFF
+            Text 'Ctrl+Z' OFF
+            Group OFF
+              Button '更改 撤销上一步操作 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 撤销上一步操作 的快捷键' OFF
+                Image OFF
+        Text '批准请求' OFF
+        Text '批准已开启的请求' OFF
+        Group '批准请求' OFF
+          Group '⏎' OFF
+            Text '⏎' OFF
+            Group OFF
+              Button '更改 批准请求 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 批准请求 的快捷键' OFF
+                Image OFF
+        Text '拒绝请求' OFF
+        Text '拒绝当前请求' OFF
+        Group '拒绝请求' OFF
+          Group 'Esc' OFF
+            Text 'Esc' OFF
+            Group OFF
+              Button '更改 拒绝请求 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 拒绝请求 的快捷键' OFF
+                Image OFF
+        Text '关闭其他标签页' OFF
+        Text '关闭除当前标签页外的所有标签页' OFF
+        Group '关闭其他标签页' OFF
+          Group 'Ctrl+Alt+W' OFF
+            Text 'Ctrl+Alt+W' OFF
+            Group OFF
+              Button '更改 关闭其他标签页 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 关闭其他标签页 的快捷键' OFF
+                Image OFF
+        Text '关闭标签页' OFF
+        Text '关闭当前标签页' OFF
+        Group '关闭标签页' OFF
+          Group 'Ctrl+W' OFF
+            Text 'Ctrl+W' OFF
+            Group OFF
+              Button '更改 关闭标签页 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 关闭标签页 的快捷键' OFF
+                Image OFF
+          Group 'Ctrl+F4' OFF
+            Text 'Ctrl+F4' OFF
+            Group OFF
+              Button '更改 关闭标签页 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 关闭标签页 的快捷键' OFF
+                Image OFF
+        Text '关闭' OFF
+        Text '关闭活动窗口' OFF
+        Group '关闭' OFF
+          Group 'Ctrl+W' OFF
+            Text 'Ctrl+W' OFF
+            Group OFF
+              Button '更改 关闭 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 关闭 的快捷键' OFF
+                Image OFF
+          Group 'Ctrl+F4' OFF
+            Text 'Ctrl+F4' OFF
+            Group OFF
+              Button '更改 关闭 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 关闭 的快捷键' OFF
+                Image OFF
+        Text '附加文件和文件夹' OFF
+        Text '将文件和文件夹附加到当前编辑器' OFF
+        Group '附加文件和文件夹' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 附加文件和文件夹 设置快捷键' OFF
+                Image OFF
+        Text '添加照片' OFF
+        Text '将照片添加到当前编辑器' OFF
+        Group '添加照片' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 添加照片 设置快捷键' OFF
+                Image OFF
+        Text '清除提示' OFF
+        Text '清除当前编辑器中的提示' OFF
+        Group '清除提示' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 清除提示 设置快捷键' OFF
+                Image OFF
+        Text 'Cycle host' OFF
+        Text 'Cycle the new task between this computer and available remote machines' OFF
+        Group 'Cycle host' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 Cycle host 设置快捷键' OFF
+                Image OFF
+        Text '循环切换推理强度' OFF
+        Text '循环切换编辑器推理强度选项' OFF
+        Group '循环切换推理强度' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 循环切换推理强度 设置快捷键' OFF
+                Image OFF
+        Text '降低推理强度' OFF
+        Text '降低当前编辑器推理强度' OFF
+        Group '降低推理强度' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 降低推理强度 设置快捷键' OFF
+                Image OFF
+        Text '提高推理强度' OFF
+        Text '提高当前编辑器推理强度' OFF
+        Group '提高推理强度' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 提高推理强度 设置快捷键' OFF
+                Image OFF
+        Text '打开模型选择器' OFF
+        Text '打开编辑器模型选择器' OFF
+        Group '打开模型选择器' OFF
+          Group 'Ctrl+Shift+M' OFF
+            Text 'Ctrl+Shift+M' OFF
+            Group OFF
+              Button '更改 打开模型选择器 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 打开模型选择器 的快捷键' OFF
+                Image OFF
+        Text '打开项目选择器' OFF
+        Text '打开编辑器项目选择器' OFF
+        Group '打开项目选择器' OFF
+          Group 'Ctrl+Alt+Shift+O' OFF
+            Text 'Ctrl+Alt+Shift+O' OFF
+            Group OFF
+              Button '更改 打开项目选择器 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 打开项目选择器 的快捷键' OFF
+                Image OFF
+        Text '将提示加入队列' OFF
+        Text '将当前编辑器提示作为排队消息提交' OFF
+        Group '将提示加入队列' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 将提示加入队列 设置快捷键' OFF
+                Image OFF
+        Text '调整提示方向' OFF
+        Text '将当前编辑器提示作为引导消息提交' OFF
+        Group '调整提示方向' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 调整提示方向 设置快捷键' OFF
+                Image OFF
+        Text '发送消息' OFF
+        Text '发送当前编辑器中的消息' OFF
+        Group '发送消息' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 发送消息 设置快捷键' OFF
+                Image OFF
+        Text '在后台发送消息' OFF
+        Text '无需打开聊天即可发送当前编辑器中的消息' OFF
+        Group '在后台发送消息' OFF
+          Group 'Ctrl+⏎' OFF
+            Text 'Ctrl+⏎' OFF
+            Group OFF
+              Button '更改 在后台发送消息 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 在后台发送消息 的快捷键' OFF
+                Image OFF
+        Text '切换快速模式' OFF
+        Text '在当前编辑器中开启或关闭快速模式' OFF
+        Group '切换快速模式' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 切换快速模式 设置快捷键' OFF
+                Image OFF
+        Text '切换规划模式' OFF
+        Text '在当前编辑器中开启或关闭方案模式' OFF
+        Group '切换规划模式' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 切换规划模式 设置快捷键' OFF
+                Image OFF
+        Text '切换云端/本地' OFF
+        Text '切换 ChatGPT Work 的云端和本地执行' OFF
+        Group '切换云端/本地' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 切换云端/本地 设置快捷键' OFF
+                Image OFF
+        Text '切换本地/工作树' OFF
+        Text '在本地与新工作树之间切换当前编辑器' OFF
+        Group '切换本地/工作树' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 切换本地/工作树 设置快捷键' OFF
+                Image OFF
+        Text '复制为 Markdown' OFF
+        Text '将当前聊天复制为 Markdown' OFF
+        Group '复制为 Markdown' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 复制为 Markdown 设置快捷键' OFF
+                Image OFF
+        Text '复制对话路径' OFF
+        Text '复制当前聊天路径' OFF
+        Group '复制对话路径' OFF
+          Group 'Ctrl+Alt+Shift+C' OFF
+            Text 'Ctrl+Alt+Shift+C' OFF
+            Group OFF
+              Button '更改 复制对话路径 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 复制对话路径 的快捷键' OFF
+                Image OFF
+        Text '复制深层链接' OFF
+        Text '复制当前聊天的深度链接' OFF
+        Group '复制深层链接' OFF
+          Group 'Ctrl+Alt+L' OFF
+            Text 'Ctrl+Alt+L' OFF
+            Group OFF
+              Button '更改 复制深层链接 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 复制深层链接 的快捷键' OFF
+                Image OFF
+        Text '复制工作目录' OFF
+        Text '复制当前聊天的工作目录' OFF
+        Group '复制工作目录' OFF
+          Group 'Ctrl+Shift+C' OFF
+            Text 'Ctrl+Shift+C' OFF
+            Group OFF
+              Button '更改 复制工作目录 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 复制工作目录 的快捷键' OFF
+                Image OFF
+        Text '分叉聊天' OFF
+        Text '为当前聊天创建分支' OFF
+        Group '分叉聊天' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 分叉聊天 设置快捷键' OFF
+                Image OFF
+        Text '按住听写快捷键' OFF
+        Text '在桌面任意位置按住，即可在光标位置听写' OFF
+        Group '按住听写快捷键' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 按住听写快捷键 设置快捷键' OFF
+                Image OFF
+        Text '切换听写快捷键' OFF
+        Text '在桌面任意位置按一次开始听写，再次按下停止' OFF
+        Group '切换听写快捷键' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 切换听写快捷键 设置快捷键' OFF
+                Image OFF
+        Text '强制重新加载浏览器页面' OFF
+        Text '强制重新加载当前浏览器页面' OFF
+        Group '强制重新加载浏览器页面' OFF
+          Group 'Ctrl+Shift+R' OFF
+            Text 'Ctrl+Shift+R' OFF
+            Group OFF
+              Button '更改 强制重新加载浏览器页面 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 强制重新加载浏览器页面 的快捷键' OFF
+                Image OFF
+        Text '弹出窗口快捷键' OFF
+        Text '在桌面任意位置显示或隐藏弹出窗口' OFF
+        Group '弹出窗口快捷键' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 弹出窗口快捷键 设置快捷键' OFF
+                Image OFF
+        Text '浏览器返回' OFF
+        Text '在浏览器历史记录中返回上一页' OFF
+        Group '浏览器返回' OFF
+          Group 'Alt+Left' OFF
+            Text 'Alt+Left' OFF
+            Group OFF
+              Button '更改 浏览器返回 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 浏览器返回 的快捷键' OFF
+                Image OFF
+        Text '浏览器前进' OFF
+        Text '在浏览器历史记录中前进' OFF
+        Group '浏览器前进' OFF
+          Group 'Alt+Right' OFF
+            Text 'Alt+Right' OFF
+            Group OFF
+              Button '更改 浏览器前进 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 浏览器前进 的快捷键' OFF
+                Image OFF
+        Text '新窗口' OFF
+        Text '打开新窗口' OFF
+        Group '新窗口' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 新窗口 设置快捷键' OFF
+                Image OFF
+        Text '打开命令菜单' OFF
+        Text '打开命令菜单' OFF
+        Group '打开命令菜单' OFF
+          Group 'Ctrl+K' OFF
+            Text 'Ctrl+K' OFF
+            Group OFF
+              Button '更改 打开命令菜单 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 打开命令菜单 的快捷键' OFF
+                Image OFF
+          Group 'Ctrl+Shift+P' OFF
+            Text 'Ctrl+Shift+P' OFF
+            Group OFF
+              Button '更改 打开命令菜单 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 打开命令菜单 的快捷键' OFF
+                Image OFF
+        Text '重新加载浏览器页面' OFF
+        Text '重新加载当前浏览器页面' OFF
+        Group '重新加载浏览器页面' OFF
+          Group 'Ctrl+R' OFF
+            Text 'Ctrl+R' OFF
+            Group OFF
+              Button '更改 重新加载浏览器页面 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 重新加载浏览器页面 的快捷键' OFF
+                Image OFF
+        Text '重命名聊天' OFF
+        Text '重命名当前聊天' OFF
+        Group '重命名聊天' OFF
+          Group 'Ctrl+Alt+R' OFF
+            Text 'Ctrl+Alt+R' OFF
+            Group OFF
+              Button '更改 重命名聊天 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 重命名聊天 的快捷键' OFF
+                Image OFF
+        Text '搜索文件…' OFF
+        Text '搜索文件' OFF
+        Group '搜索文件…' OFF
+          Group 'Ctrl+P' OFF
+            Text 'Ctrl+P' OFF
+            Group OFF
+              Button '更改 搜索文件… 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 搜索文件… 的快捷键' OFF
+                Image OFF
+        Text '显示键盘快捷键' OFF
+        Text '显示当前可用的快捷键' OFF
+        Group '显示键盘快捷键' OFF
+          Group 'Ctrl+/' OFF
+            Text 'Ctrl+/' OFF
+            Group OFF
+              Button '更改 显示键盘快捷键 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 显示键盘快捷键 的快捷键' OFF
+                Image OFF
+        Text '转到聊天 1' OFF
+        Text '打开此快捷槽位中可见的聊天' OFF
+        Group '转到聊天 1' OFF
+          Group 'Ctrl+1' OFF
+            Text 'Ctrl+1' OFF
+            Group OFF
+              Button '更改 转到聊天 1 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 转到聊天 1 的快捷键' OFF
+                Image OFF
+        Text '转到聊天 2' OFF
+        Text '打开此快捷槽位中可见的聊天' OFF
+        Group '转到聊天 2' OFF
+          Group 'Ctrl+2' OFF
+            Text 'Ctrl+2' OFF
+            Group OFF
+              Button '更改 转到聊天 2 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 转到聊天 2 的快捷键' OFF
+                Image OFF
+        Text '转到聊天 3' OFF
+        Text '打开此快捷槽位中可见的聊天' OFF
+        Group '转到聊天 3' OFF
+          Group 'Ctrl+3' OFF
+            Text 'Ctrl+3' OFF
+            Group OFF
+              Button '更改 转到聊天 3 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 转到聊天 3 的快捷键' OFF
+                Image OFF
+        Text '转到聊天 4' OFF
+        Text '打开此快捷槽位中可见的聊天' OFF
+        Group '转到聊天 4' OFF
+          Group 'Ctrl+4' OFF
+            Text 'Ctrl+4' OFF
+            Group OFF
+              Button '更改 转到聊天 4 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 转到聊天 4 的快捷键' OFF
+                Image OFF
+        Text '转到聊天 5' OFF
+        Text '打开此快捷槽位中可见的聊天' OFF
+        Group '转到聊天 5' OFF
+          Group 'Ctrl+5' OFF
+            Text 'Ctrl+5' OFF
+            Group OFF
+              Button '更改 转到聊天 5 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 转到聊天 5 的快捷键' OFF
+                Image OFF
+        Text '转到聊天 6' OFF
+        Text '打开此快捷槽位中可见的聊天' OFF
+        Group '转到聊天 6' OFF
+          Group 'Ctrl+6' OFF
+            Text 'Ctrl+6' OFF
+            Group OFF
+              Button '更改 转到聊天 6 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 转到聊天 6 的快捷键' OFF
+                Image OFF
+        Text '转到聊天 7' OFF
+        Text '打开此快捷槽位中可见的聊天' OFF
+        Group '转到聊天 7' OFF
+          Group 'Ctrl+7' OFF
+            Text 'Ctrl+7' OFF
+            Group OFF
+              Button '更改 转到聊天 7 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 转到聊天 7 的快捷键' OFF
+                Image OFF
+        Text '转到聊天 8' OFF
+        Text '打开此快捷槽位中可见的聊天' OFF
+        Group '转到聊天 8' OFF
+          Group 'Ctrl+8' OFF
+            Text 'Ctrl+8' OFF
+            Group OFF
+              Button '更改 转到聊天 8 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 转到聊天 8 的快捷键' OFF
+                Image OFF
+        Text '转到聊天 9' OFF
+        Text '打开此快捷槽位中可见的聊天' OFF
+        Group '转到聊天 9' OFF
+          Group 'Ctrl+9' OFF
+            Text 'Ctrl+9' OFF
+            Group OFF
+              Button '更改 转到聊天 9 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 转到聊天 9 的快捷键' OFF
+                Image OFF
+        Text '显示/隐藏文件树' OFF
+        Text '显示/隐藏文件树面板' OFF
+        Group '显示/隐藏文件树' OFF
+          Group 'Ctrl+Shift+E' OFF
+            Text 'Ctrl+Shift+E' OFF
+            Group OFF
+              Button '更改 显示/隐藏文件树 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 显示/隐藏文件树 的快捷键' OFF
+                Image OFF
+        Text '最大化/还原侧边面板' OFF
+        Text '展开或还原侧边面板' OFF
+        Group '最大化/还原侧边面板' OFF
+          Group '未分配' OFF
+            Text '未分配' OFF
+            Group OFF
+              Button '为 最大化/还原侧边面板 设置快捷键' OFF
+                Image OFF
+        Text '开始跟踪记录' OFF
+        Text '开始或停止轨迹录制' OFF
+        Group '开始跟踪记录' OFF
+          Group 'Ctrl+Shift+S' OFF
+            Text 'Ctrl+Shift+S' OFF
+            Group OFF
+              Button '更改 开始跟踪记录 的快捷键' OFF
+                Image OFF
+            Group OFF
+              Button '清除 开始跟踪记录 的快捷键' OFF
+                Image OFF
+        StatusBar #DndLiveRegion-3 OFF

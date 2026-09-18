@@ -16,7 +16,18 @@ pub fn get_settings(state: State<'_, AppState>) -> Result<Settings, String> {
 }
 
 #[tauri::command]
-pub fn save_settings(state: State<'_, AppState>, settings: Settings) -> Result<(), String> {
+pub fn save_settings(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    settings: Settings,
+) -> Result<(), String> {
+    use tauri::Manager as _;
+    let active_id = settings.active_provider_id.clone();
+    if !active_id.is_empty() {
+        if let Some(adapter_state) = app.try_state::<crate::codex::AdapterState>() {
+            adapter_state.set_active(&active_id);
+        }
+    }
     state.inner.lock().map_err(|e| e.to_string())?.settings = settings;
     save_ok(&state)
 }

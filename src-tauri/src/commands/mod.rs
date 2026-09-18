@@ -4,6 +4,7 @@ pub mod cinema;
 pub mod connectors;
 pub mod engine;
 pub mod fs;
+pub mod market;
 pub mod pets;
 pub mod scheduled;
 pub mod settings;

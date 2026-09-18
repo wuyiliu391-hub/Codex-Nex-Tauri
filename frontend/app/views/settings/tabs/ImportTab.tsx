@@ -21,6 +21,8 @@ function label(key: string, fallback = ""): string {
 interface ImportPrefs {
   importKeepSync?: boolean;
   importContent?: string;
+  /** Mirrors official semantics: content selection unlocks after first import. */
+  importDone?: boolean;
 }
 
 interface ConfigEdit {
@@ -134,6 +136,7 @@ export function ImportTab() {
         method: "config/batchWrite",
         params: { edits, reloadUserConfig: true },
       });
+      await saveSection("import", { importDone: true });
       setStatus({
         kind: "ok",
         text: `${label("toast.imported", "Settings imported.")} (${edits.length})`,
@@ -167,10 +170,12 @@ export function ImportTab() {
           label={label("import.content")}
           desc={label("import.contentDesc")}
           control={
+            // Official: 自定义 dropdown is disabled until the first import.
             <Dropdown
               value={prefs.importContent ?? "custom"}
               items={[{ value: "custom", label: label("import.custom") }]}
               onChange={(v) => void saveSection("import", { importContent: v })}
+              disabled={prefs.importDone !== true}
             />
           }
         />

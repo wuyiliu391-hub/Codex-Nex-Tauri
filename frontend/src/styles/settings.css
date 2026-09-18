@@ -271,7 +271,7 @@
 .segmented button,
 .settings-segmented button { height: 25px; padding: 0 9px; border: 0; border-radius: 8px; background: transparent; color: var(--fg-secondary); font-family: var(--font-sans); font-size: 12px; }
 .segmented button.is-active,
-.settings-segmented button.is-active { background: var(--bg-canvas); color: var(--fg-primary); box-shadow: 0 0 0 1px rgba(13,13,13,.06); }
+.settings-segmented button.is-active { background: var(--bg-canvas); color: var(--fg-primary); box-shadow: 0 0 0 1px var(--border-light); }
 .settings-banner { display: flex; align-items: center; gap: 8px; min-height: 38px; margin-bottom: 9px; padding: 8px 12px; border: 1px solid color-mix(in srgb, var(--orange-500) 25%, transparent); border-radius: 14px; background: color-mix(in srgb, var(--orange-500) 6%, var(--bg-canvas)); color: var(--fg-primary); font-size: 11px; }
 .settings-banner .warn { color: var(--orange-500); font-size: 16px; }
 
