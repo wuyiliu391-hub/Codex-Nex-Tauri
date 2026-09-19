@@ -150,18 +150,30 @@ pub struct Thread {
     pub id: String,
     pub name: Option<String>,
     pub archived: bool,
+    /// Working directory this thread was opened in.
+    ///
+    /// This is the identity of a "project" in the sidebar: `appStore.ts:216-225`
+    /// builds the project list from the distinct `cwd` values of the threads it
+    /// loads, and `sessionsForProject` filters by it. The field did not exist,
+    /// so `new_session`'s `projectPath` was dropped on the floor and the project
+    /// list stayed permanently empty — every thread arrived with `cwd: ""`.
+    ///
+    /// Empty means "no project chosen"; the UI treats that as project-less.
+    #[serde(default)]
+    pub cwd: String,
     pub turns: Vec<Turn>,
     pub created_at: u64,
     pub updated_at: u64,
 }
 
 impl Thread {
-    fn new(id: String) -> Self {
+    fn new(id: String, cwd: String) -> Self {
         let now = now_ms();
         Self {
             id,
             name: None,
             archived: false,
+            cwd,
             turns: Vec::new(),
             created_at: now,
             updated_at: now,
@@ -241,8 +253,16 @@ impl SessionManager {
 
     /// Create a thread and emit `thread/started`.
     pub fn create_thread(&self) -> Result<Thread, SessionError> {
+        self.create_thread_in("")
+    }
+
+    /// Create a thread bound to a working directory.
+    ///
+    /// `cwd` is what makes a thread belong to a project; an empty string is a
+    /// project-less thread, which is the correct state for the blank home guide.
+    pub fn create_thread_in(&self, cwd: &str) -> Result<Thread, SessionError> {
         let id = self.ids.thread();
-        let thread = Thread::new(id.clone());
+        let thread = Thread::new(id.clone(), cwd.trim().to_string());
         {
             let mut threads = self.threads.write().map_err(|_| SessionError::LockPoisoned)?;
             threads.insert(id.clone(), thread.clone());
@@ -456,8 +476,26 @@ mod tests {
         let m = SessionManager::new();
         let t = m.create_thread().expect("create");
         assert_eq!(t.display_title(), "New task");
+        assert_eq!(t.cwd, "", "a thread created without a project has no cwd");
         m.begin_turn(&t.id, input("  Fix the parser  ")).expect("turn");
         assert_eq!(m.get_thread(&t.id).expect("get").display_title(), "Fix the parser");
+    }
+
+    #[test]
+    fn create_thread_in_records_the_project_cwd() {
+        // The sidebar's project list is derived from distinct thread cwds, so a
+        // dropped cwd means the project never appears.
+        let m = SessionManager::new();
+        let t = m.create_thread_in("C:/work/app").expect("create");
+        assert_eq!(t.cwd, "C:/work/app");
+        assert_eq!(m.get_thread(&t.id).expect("get").cwd, "C:/work/app");
+    }
+
+    #[test]
+    fn create_thread_in_trims_and_tolerates_a_blank_cwd() {
+        let m = SessionManager::new();
+        assert_eq!(m.create_thread_in("  C:/x  ").expect("create").cwd, "C:/x");
+        assert_eq!(m.create_thread_in("   ").expect("create").cwd, "");
     }
 
     #[test]

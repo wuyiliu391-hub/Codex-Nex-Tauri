@@ -52,6 +52,8 @@ interface StubThread {
   id: string;
   title: string;
   archived: boolean;
+  /** Project cwd; the sidebar derives its project list from this. */
+  cwd: string;
   createdAt: number;
   updatedAt: number;
   turns: StubTurn[];
@@ -72,6 +74,9 @@ const now = (): number => Date.now();
 const threadSummary = (t: StubThread): Json => ({
   id: t.id,
   title: t.title,
+  // Mirrors the Rust `list_sessions`/`get_session` payload, which carries cwd
+  // so `deriveProjects` can build the sidebar's project list.
+  cwd: t.cwd,
   archived: t.archived,
   createdAt: t.createdAt,
   updatedAt: t.updatedAt,
@@ -228,13 +233,14 @@ async function dispatch(method: string, params: Json): Promise<unknown> {
         id,
         title: "New task",
         archived: false,
+        cwd: typeof params["cwd"] === "string" ? params["cwd"] : "",
         createdAt: now(),
         updatedAt: now(),
         turns: [],
       };
       threads.set(id, t);
       emitNotification("thread/started", { threadId: id, title: t.title });
-      return { thread: { id } };
+      return { thread: { id, cwd: t.cwd } };
     }
 
     case "thread/list": {

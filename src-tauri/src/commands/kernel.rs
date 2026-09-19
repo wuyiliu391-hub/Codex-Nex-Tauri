@@ -52,14 +52,36 @@ fn emitter(app: &AppHandle) -> impl Fn(KernelEvent) + Send + Sync + 'static {
 /// the exe could not be resolved), this kernel has no external process to find,
 /// so `connected` is always true. `placeholder` discloses whether real model
 /// calls are happening — the UI must not imply a real answer when they are not.
+///
+/// The `initialize` block is a **compatibility contract** with three call sites:
+/// `HomeView.tsx:169-174` stores it wholesale, `GeneralTab.tsx:104-105` reads
+/// `initialize.codexHome` for the "default task folder" row, and
+/// `ConfigurationTab.tsx:93-94` reads `initialize.version` for 当前版本. The
+/// desktop command returned none of it, so that row showed 「—」 and the task
+/// folder fell back to its stored override. `codexHome` is the shell's real
+/// data directory — the place `shell-state.json` actually lives — not a path we
+/// merely claim exists.
 #[tauri::command]
-pub fn engine_status(state: State<'_, Arc<KernelState>>) -> Value {
+pub fn engine_status(
+    state: State<'_, Arc<KernelState>>,
+    store: State<'_, crate::state::AppState>,
+) -> Value {
     let c = state.counters();
     json!({
         "connected": true,
         "version": env!("CARGO_PKG_VERSION"),
         "provider": state.provider_name(),
         "placeholder": state.provider_is_placeholder(),
+        "initialize": {
+            "name": "codex-desktop-tauri",
+            "title": "Codex Desktop (Tauri) — in-process kernel",
+            "version": env!("CARGO_PKG_VERSION"),
+            "codexHome": store.data_dir.to_string_lossy(),
+            // This kernel speaks the same notification protocol but is not the
+            // official app-server; the UI must not present it as such.
+            "stub": false,
+            "inProcess": true,
+        },
         "counters": {
             "turnsStarted": c.turns_started,
             "turnsCompleted": c.turns_completed,
@@ -75,17 +97,26 @@ pub fn engine_status(state: State<'_, Arc<KernelState>>) -> Value {
 ///
 /// Returns a **flat** `{ id, ... }` because `Composer.tsx:739` reads
 /// `created?.id`. A nested `{ session: { id } }` would silently break sending.
+///
+/// `projectPath` is a **compatibility contract** with `Composer.tsx:736-738`,
+/// which sends the selected project's cwd (`projectCwd`) or `null`. The command
+/// used to ignore it entirely, so every thread was project-less: the sidebar's
+/// project list is derived from distinct thread `cwd` values
+/// (`appStore.ts:216-225`) and therefore stayed permanently empty.
 #[tauri::command]
 pub fn new_session(
     app: AppHandle,
     state: State<'_, Arc<KernelState>>,
+    project_path: Option<String>,
 ) -> Result<Value, String> {
-    let thread = state.sessions.create_thread().map_err(err)?;
+    let cwd = project_path.unwrap_or_default();
+    let thread = state.sessions.create_thread_in(&cwd).map_err(err)?;
     let title = thread.display_title();
     events::thread_started(&thread.id, &title).emit(&app);
     Ok(json!({
         "id": thread.id,
         "title": title,
+        "cwd": thread.cwd,
         "archived": thread.archived,
         "createdAt": thread.created_at,
         "updatedAt": thread.updated_at,
@@ -93,6 +124,10 @@ pub fn new_session(
 }
 
 /// `list_sessions` — threads for the sidebar. The frontend reads `.data`.
+///
+/// `cwd` is a **compatibility contract** with `normaliseSessions`
+/// (`appStore.ts:180-186`), which reads `cwd` and derives `projectId` from it.
+/// Omitting it made `deriveProjects` return nothing for every thread.
 #[tauri::command]
 pub fn list_sessions(
     state: State<'_, Arc<KernelState>>,
@@ -105,6 +140,7 @@ pub fn list_sessions(
             json!({
                 "id": t.id,
                 "title": t.display_title(),
+                "cwd": t.cwd,
                 "archived": t.archived,
                 "createdAt": t.created_at,
                 "updatedAt": t.updated_at,
@@ -119,7 +155,8 @@ pub fn list_sessions(
 ///
 /// `turnStore.ts:342` reads `preview` / `title` / `name` and then `messages`.
 /// We supply `title` (metadata) and `messages` (the flattened transcript) so
-/// the history loader has both.
+/// the history loader has both. `cwd` is included for the same reason as in
+/// `list_sessions`.
 #[tauri::command]
 pub fn get_session(
     state: State<'_, Arc<KernelState>>,
@@ -131,6 +168,7 @@ pub fn get_session(
         "id": thread.id,
         "title": thread.display_title(),
         "preview": thread.display_title(),
+        "cwd": thread.cwd,
         "archived": thread.archived,
         "createdAt": thread.created_at,
         "updatedAt": thread.updated_at,

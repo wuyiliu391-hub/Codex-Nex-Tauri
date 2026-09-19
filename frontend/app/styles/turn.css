@@ -52,6 +52,51 @@
   }
 }
 
+/* ── terminal failure: header + detail ─────────────────────────────────────
+   A failed or interrupted turn previously rendered identically to a successful
+   one — same 「用时 X 秒」 header, no trace of `turn.error`. These rules make the
+   terminal state visible: the row takes the danger colour, a glyph marks it,
+   and the provider's own message is shown underneath. */
+.turn-elapsed-head.is-failed,
+.turn-elapsed-head.is-failed .turn-elapsed-text {
+  color: var(--danger, #9f1239);
+}
+.turn-elapsed-head.is-failed {
+  border-bottom-color: color-mix(in srgb, var(--danger, #9f1239) 40%, transparent);
+}
+
+/* Circular "!" badge — sized to the spinner it replaces so the row does not
+   shift between a running turn and a failed one. */
+.turn-fail-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--danger, #9f1239);
+  color: var(--bg-canvas, #ffffff);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.turn-fail-detail {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border-left: 3px solid var(--danger, #9f1239);
+  background: color-mix(in srgb, var(--danger, #9f1239) 7%, transparent);
+  color: var(--danger, #9f1239);
+  font-size: 12px;
+  line-height: 1.5;
+  /* Provider errors are single-line and can be long (a URL plus a status);
+     wrap rather than widen the thread. */
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
 /* 「正在思考」 spinner — sits inline before the label. */
 .turn-spinner {
   width: 10px;

@@ -124,13 +124,25 @@ export function TurnStream() {
     : doneElapsed
       ? "done"
       : null;
+
+  // A failed or interrupted turn used to render exactly like a successful one:
+  // `turn.error` and `turn.turnStatus` were written by the reducer but read by
+  // no component, and the header fell through to 「用时 X 秒」 for every
+  // terminal state. The user saw a normal-looking answer with no indication the
+  // model call had died. Surface it in the header label and as a detail row.
+  const failed = !turn.active && (turn.turnStatus === "failed" || turn.turnStatus === "interrupted");
+  const failureLabel = turn.turnStatus === "interrupted"
+    ? t("process.cancelled", "Cancelled")
+    : t("process.failedShort", "Failed");
   const headerText =
     state === "thinking"
       ? t("process.thinking", "Thinking…")
       : state === "live"
         ? t("process.elapsed", "Processed {time}", { time: formatSeconds(liveSec ?? 0) })
         : state === "done"
-          ? t("process.usedTime", "Took {time}", { time: doneElapsed })
+          ? failed
+            ? `${failureLabel}${doneElapsed ? ` · ${t("process.usedTime", "Took {time}", { time: doneElapsed })}` : ""}`
+            : t("process.usedTime", "Took {time}", { time: doneElapsed })
           : "";
 
   const visible = (idx: number): boolean => {
@@ -156,7 +168,7 @@ export function TurnStream() {
         type="button"
         className={`turn-elapsed-head${state === "done" ? "" : " is-live"}${
           state === "live" ? " is-ticking" : ""
-        }`}
+        }${failed ? " is-failed" : ""}`}
         aria-expanded={state === "done" ? !collapsed : undefined}
         aria-disabled={state === "done" ? undefined : true}
         // Not focusable until the turn ends: the live row is remounted every
@@ -168,6 +180,7 @@ export function TurnStream() {
         }}
       >
         {state === "thinking" ? <span className="turn-spinner" aria-hidden="true" /> : null}
+        {failed ? <span className="turn-fail-glyph" aria-hidden="true">!</span> : null}
         <span className="turn-elapsed-text">{headerText}</span>
         {state === "done" ? (
           <svg className={collapsed ? "closed" : undefined} viewBox="0 0 10 6" aria-hidden="true">
@@ -175,6 +188,16 @@ export function TurnStream() {
           </svg>
         ) : null}
       </button>
+      {/* The message itself, not just the status word: "Failed" alone leaves
+          the user with no idea whether the key was rejected, the endpoint was
+          unreachable, or the stream died mid-answer. */}
+      {failed && turn.error ? (
+        <div className="message-body">
+          <div className="part-text turn-fail-detail" role="alert">
+            {turn.error}
+          </div>
+        </div>
+      ) : null}
     </div>
   ) : null;
 

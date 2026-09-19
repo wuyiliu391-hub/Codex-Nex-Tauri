@@ -23,13 +23,32 @@ pub fn get_settings(state: State<'_, AppState>) -> Result<Settings, String> {
 /// two places a provider change can originate (the other is `save_provider`).
 /// Rebuilding here is what makes picking a different model take effect on the
 /// next turn without restarting the app.
+///
+/// The write **merges** rather than replaces. The frontend owns the UI-facing
+/// settings, but `theme` and `terminal_shell` are written by nothing in the
+/// current UI, so a wholesale replace would blank them on the first save of any
+/// unrelated toggle. Merging those two forward keeps a value the user set by
+/// hand in `shell-state.json` from being silently erased.
 #[tauri::command]
 pub fn save_settings(
     state: State<'_, AppState>,
     kernel: State<'_, Arc<KernelState>>,
-    settings: Settings,
+    mut settings: Settings,
 ) -> Result<(), String> {
-    state.inner.lock().map_err(|e| e.to_string())?.settings = settings;
+    // The frontend sends a dual-shape payload; collapse the duplicate spellings
+    // before persisting so the file does not grow on every save.
+    settings.normalise_keys();
+
+    {
+        let mut inner = state.inner.lock().map_err(|e| e.to_string())?;
+        if settings.theme.is_empty() {
+            settings.theme = inner.settings.theme.clone();
+        }
+        if settings.terminal_shell.is_empty() {
+            settings.terminal_shell = inner.settings.terminal_shell.clone();
+        }
+        inner.settings = settings;
+    }
     save_ok(&state)?;
 
     // Rebuild the provider from the freshly saved store contents.

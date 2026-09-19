@@ -35,14 +35,22 @@ interface Dependency {
   message: string;
 }
 
+/**
+ * `check_dependencies` returns `DependencyStatus` from `app_state.rs`, whose
+ * human-readable field is `detail`. This reader looked only for `message`, so
+ * every row in the diagnostics list rendered with a blank description. The
+ * browser-dev stub also sends `detail`; `message` is kept as a fallback for
+ * any older shape.
+ */
 function asDeps(raw: unknown): Dependency[] {
   if (!Array.isArray(raw)) return [];
   return raw.map((entry) => {
     const rec = (entry && typeof entry === "object" ? entry : {}) as Record<string, unknown>;
+    const detail = rec["detail"] ?? rec["message"];
     return {
       name: typeof rec["name"] === "string" ? rec["name"] : String(rec["id"] ?? ""),
       ok: rec["ok"] === true,
-      message: typeof rec["message"] === "string" ? rec["message"] : "",
+      message: typeof detail === "string" ? detail : "",
     };
   });
 }

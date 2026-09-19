@@ -532,9 +532,25 @@ fn decode_event(v: &Value, decoder: Decoder) -> Vec<ProviderChunk> {
                     }
                 }
             }
-            // `usage` arrives on the final chunk when requested.
+            // `usage` arrives on the final chunk when requested. Cached prompt
+            // tokens ride along under `prompt_tokens_details`; reasoning tokens
+            // under `completion_tokens_details`. Some gateways also state the
+            // model's context window on the same envelope.
             if let Some(usage) = v.get("usage").filter(|u| !u.is_null()) {
-                if let Some(c) = usage_chunk(usage, "prompt_tokens", "completion_tokens") {
+                if let Some(mut c) = usage_chunk(
+                    usage,
+                    "prompt_tokens",
+                    "completion_tokens",
+                    Some("cached_tokens"),
+                    Some("reasoning_tokens"),
+                ) {
+                    if let ProviderChunk::Usage {
+                        model_context_window,
+                        ..
+                    } = &mut c
+                    {
+                        *model_context_window = context_window_of(v);
+                    }
                     out.push(c);
                 }
             }
@@ -557,7 +573,23 @@ fn decode_event(v: &Value, decoder: Decoder) -> Vec<ProviderChunk> {
                 }
                 "response.completed" => {
                     if let Some(usage) = v.pointer("/response/usage") {
-                        if let Some(c) = usage_chunk(usage, "input_tokens", "output_tokens") {
+                        if let Some(mut c) = usage_chunk(
+                            usage,
+                            "input_tokens",
+                            "output_tokens",
+                            Some("cached_tokens"),
+                            Some("reasoning_tokens"),
+                        ) {
+                            // The Responses API states the window on the
+                            // response object, not in `usage`.
+                            if let ProviderChunk::Usage {
+                                model_context_window, ..
+                            } = &mut c
+                            {
+                                *model_context_window = v
+                                    .pointer("/response/model_context_window")
+                                    .and_then(Value::as_u64);
+                            }
                             out.push(c);
                         }
                     }
@@ -588,8 +620,16 @@ fn decode_event(v: &Value, decoder: Decoder) -> Vec<ProviderChunk> {
                     }
                 }
                 "message_delta" => {
+                    // Anthropic reports cache reads as `cache_read_input_tokens`
+                    // and thinking tokens as `output_tokens_details.thinking_tokens`.
                     if let Some(usage) = v.get("usage") {
-                        if let Some(c) = usage_chunk(usage, "input_tokens", "output_tokens") {
+                        if let Some(c) = usage_chunk(
+                            usage,
+                            "input_tokens",
+                            "output_tokens",
+                            Some("cache_read_input_tokens"),
+                            Some("thinking_tokens"),
+                        ) {
                             out.push(c);
                         }
                     }
@@ -605,7 +645,19 @@ fn decode_event(v: &Value, decoder: Decoder) -> Vec<ProviderChunk> {
 ///
 /// Returns `None` when neither token field is present, so a `usage: null` or an
 /// empty object does not emit a misleading all-zero row.
-fn usage_chunk(usage: &Value, input_key: &str, output_key: &str) -> Option<ProviderChunk> {
+///
+/// `cache_key` and `reasoning_key` name the API's own optional counters
+/// (`prompt_tokens_details.cached_tokens`, `completion_tokens_details.
+/// reasoning_tokens`, Anthropic's `cache_read_input_tokens`, …). They are looked
+/// up both nested under the detail objects and at the top level, because
+/// gateways differ on where they put them.
+fn usage_chunk(
+    usage: &Value,
+    input_key: &str,
+    output_key: &str,
+    cache_key: Option<&str>,
+    reasoning_key: Option<&str>,
+) -> Option<ProviderChunk> {
     let input = usage.get(input_key).and_then(Value::as_u64);
     let output = usage.get(output_key).and_then(Value::as_u64);
     if input.is_none() && output.is_none() {
@@ -613,14 +665,62 @@ fn usage_chunk(usage: &Value, input_key: &str, output_key: &str) -> Option<Provi
     }
     let input_tokens = input.unwrap_or(0);
     let output_tokens = output.unwrap_or(0);
+
+    // Optional counters: a nested `*_details` object wins over a top-level key,
+    // because the two APIs disagree on where they put them.
+    fn lookup(usage: &Value, key: &str) -> Option<u64> {
+        for parent in [
+            "/prompt_tokens_details",
+            "/completion_tokens_details",
+            "/input_tokens_details",
+            "/output_tokens_details",
+        ] {
+            if let Some(v) = usage
+                .pointer(parent)
+                .and_then(|d| d.get(key))
+                .and_then(Value::as_u64)
+            {
+                return Some(v);
+            }
+        }
+        usage.get(key).and_then(Value::as_u64)
+    }
+
     Some(ProviderChunk::Usage {
         input_tokens,
         output_tokens,
         total_tokens: input_tokens + output_tokens,
+        cached_input_tokens: cache_key.and_then(|k| lookup(usage, k)),
+        reasoning_output_tokens: reasoning_key.and_then(|k| lookup(usage, k)),
+        // Not part of any usage object; only `model_context_window` on the
+        // response envelope carries it (see `context_window_of`).
+        model_context_window: None,
     })
 }
 
+/// The model's context window, when the gateway states it.
+///
+/// Checked on the response envelope (`/model_context_window`, some OpenAI-
+/// compatible gateways) and inside the model object. Absent for the official
+/// OpenAI and Anthropic APIs, which is why the context badge is opt-in and
+/// hidden by default — a window we guessed would produce a wrong percentage.
+fn context_window_of(v: &Value) -> Option<u64> {
+    for pointer in [
+        "/model_context_window",
+        "/response/model_context_window",
+        "/model/context_window",
+        "/model/context_length",
+    ] {
+        if let Some(n) = v.pointer(pointer).and_then(Value::as_u64) {
+            return Some(n);
+        }
+    }
+    None
+}
+
 /// Ollama reports usage as `prompt_eval_count` / `eval_count` on the final line.
+///
+/// It states no cache or reasoning breakdown; `None` keeps those unknown.
 fn emit_ollama_usage(v: &Value, on_chunk: &mut (dyn FnMut(ProviderChunk) + Send)) {
     let input = v.get("prompt_eval_count").and_then(Value::as_u64);
     let output = v.get("eval_count").and_then(Value::as_u64);
@@ -633,6 +733,9 @@ fn emit_ollama_usage(v: &Value, on_chunk: &mut (dyn FnMut(ProviderChunk) + Send)
         input_tokens,
         output_tokens,
         total_tokens: input_tokens + output_tokens,
+        cached_input_tokens: None,
+        reasoning_output_tokens: None,
+        model_context_window: None,
     });
 }
 
@@ -831,16 +934,86 @@ mod tests {
             vec![ProviderChunk::Usage {
                 input_tokens: 10,
                 output_tokens: 4,
-                total_tokens: 14
+                total_tokens: 14,
+                cached_input_tokens: None,
+                reasoning_output_tokens: None,
+                model_context_window: None,
             }]
         );
+    }
+
+    #[test]
+    fn responses_completed_reports_the_model_context_window() {
+        // Some OpenAI-compatible gateways state the window on the response.
+        let v: Value = serde_json::from_str(
+            r#"{"type":"response.completed","response":{"usage":{"input_tokens":10,"output_tokens":4},"model_context_window":128000}}"#,
+        )
+        .unwrap();
+        match decode_event(&v, Decoder::OpenAiResponses).as_slice() {
+            [ProviderChunk::Usage { model_context_window, .. }] => {
+                assert_eq!(*model_context_window, Some(128_000));
+            }
+            other => panic!("expected one usage chunk, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn openai_chat_reports_cached_and_reasoning_tokens() {
+        // These ride under the `*_details` objects on the final chunk.
+        let v: Value = serde_json::from_str(
+            r#"{"choices":[{"delta":{}}],"usage":{"prompt_tokens":100,"completion_tokens":40,
+                "prompt_tokens_details":{"cached_tokens":64},
+                "completion_tokens_details":{"reasoning_tokens":12}}}"#,
+        )
+        .unwrap();
+        match decode_event(&v, Decoder::OpenAiChat).as_slice() {
+            [ProviderChunk::Usage { cached_input_tokens, reasoning_output_tokens, .. }] => {
+                assert_eq!(*cached_input_tokens, Some(64));
+                assert_eq!(*reasoning_output_tokens, Some(12));
+            }
+            other => panic!("expected one usage chunk, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn anthropic_reports_cache_reads_and_thinking_tokens() {
+        let v: Value = serde_json::from_str(
+            r#"{"type":"message_delta","usage":{"input_tokens":100,"output_tokens":40,
+                "cache_read_input_tokens":32,"output_tokens_details":{"thinking_tokens":7}}}"#,
+        )
+        .unwrap();
+        match decode_event(&v, Decoder::Anthropic).as_slice() {
+            [ProviderChunk::Usage { cached_input_tokens, reasoning_output_tokens, .. }] => {
+                assert_eq!(*cached_input_tokens, Some(32));
+                assert_eq!(*reasoning_output_tokens, Some(7));
+            }
+            other => panic!("expected one usage chunk, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn absent_optional_counters_stay_unknown_rather_than_zero() {
+        // A provider that reports only the two required counters must not have
+        // its cache/reasoning/window fields invented as 0.
+        let v: Value = serde_json::from_str(
+            r#"{"choices":[{"delta":{}}],"usage":{"prompt_tokens":7,"completion_tokens":3}}"#,
+        )
+        .unwrap();
+        match decode_event(&v, Decoder::OpenAiChat).as_slice() {
+            [ProviderChunk::Usage { cached_input_tokens, reasoning_output_tokens, model_context_window, .. }] => {
+                assert_eq!(*cached_input_tokens, None);
+                assert_eq!(*reasoning_output_tokens, None);
+                assert_eq!(*model_context_window, None);
+            }
+            other => panic!("expected one usage chunk, got {other:?}"),
+        }
     }
 
     #[test]
     fn usage_chunk_is_omitted_when_fields_are_absent() {
         // Guards against emitting a misleading all-zero usage row.
         let usage = serde_json::json!({});
-        assert!(usage_chunk(&usage, "input_tokens", "output_tokens").is_none());
+        assert!(usage_chunk(&usage, "input_tokens", "output_tokens", None, None).is_none());
     }
 
     #[test]

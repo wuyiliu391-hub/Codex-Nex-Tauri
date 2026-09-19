@@ -31,6 +31,21 @@ use super::session::{SessionError, SessionManager, TurnInput, TurnStatus};
 /// expects from `phaseOf()`.
 const FINAL_ANSWER_ITEM_MARKER: &str = "final_answer";
 
+/// The usage counters gathered from a provider stream.
+///
+/// The three `Option` fields stay `None` unless the provider stated them, so
+/// the event carries "unknown" rather than a fabricated zero — the frontend
+/// hides the context-usage badge when `model_context_window` is absent.
+#[derive(Debug, Clone, Copy, Default)]
+struct UsageTotals {
+    input_tokens: u64,
+    output_tokens: u64,
+    total_tokens: u64,
+    cached_input_tokens: Option<u64>,
+    reasoning_output_tokens: Option<u64>,
+    model_context_window: Option<u64>,
+}
+
 /// Everything the kernel owns at runtime.
 pub struct KernelState {
     pub sessions: Arc<SessionManager>,
@@ -232,7 +247,7 @@ impl KernelState {
         let item_cb = agent_item_id.clone();
         let mut accumulated = String::new();
         let mut cancelled = false;
-        let mut usage: Option<(u64, u64, u64)> = None;
+        let mut usage: Option<UsageTotals> = None;
         let mut provider_error: Option<String> = None;
 
         {
@@ -262,8 +277,18 @@ impl KernelState {
                         input_tokens,
                         output_tokens,
                         total_tokens,
+                        cached_input_tokens,
+                        reasoning_output_tokens,
+                        model_context_window,
                     } => {
-                        usage = Some((input_tokens, output_tokens, total_tokens));
+                        usage = Some(UsageTotals {
+                            input_tokens,
+                            output_tokens,
+                            total_tokens,
+                            cached_input_tokens,
+                            reasoning_output_tokens,
+                            model_context_window,
+                        });
                     }
                     ProviderChunk::Error { message, .. } => {
                         provider_error = Some(message);
@@ -339,13 +364,16 @@ impl KernelState {
             &accumulated,
         ));
 
-        if let Some((input_tokens, output_tokens, total_tokens)) = usage {
+        if let Some(u) = usage {
             emit(events::token_usage_updated(
                 &thread_id,
                 &turn_id,
-                input_tokens,
-                output_tokens,
-                total_tokens,
+                u.input_tokens,
+                u.output_tokens,
+                u.total_tokens,
+                u.cached_input_tokens,
+                u.reasoning_output_tokens,
+                u.model_context_window,
             ));
         }
 

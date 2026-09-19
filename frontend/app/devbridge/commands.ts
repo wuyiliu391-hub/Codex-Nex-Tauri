@@ -530,8 +530,16 @@ const storeCommands: Record<string, (a: Args) => Promise<unknown>> = {
     const s = loadShellState();
     const c = s.connectors.find((x) => x["id"] === a["id"]);
     if (!c) throw new Error("connector not found");
-    // Same stub contract as the Rust command (connectors.rs).
-    return { ok: true, id: c["id"], kind: c["kind"], detail: "stub probe" };
+    // Same honest contract as the Rust command (connectors.rs): the browser
+    // stub has no SSH/SFTP transport either, so reporting `ok: true` would make
+    // the UI show a probe result that never happened.
+    return {
+      ok: false,
+      id: c["id"],
+      kind: c["kind"],
+      status: "not-wired",
+      detail: "the browser-dev stub has no SSH/SFTP transport, so this connector cannot be probed",
+    };
   },
 
   list_files: async (a) => {

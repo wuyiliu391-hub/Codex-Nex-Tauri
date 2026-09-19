@@ -75,6 +75,14 @@ fn refresh_kernel_provider(
 /// `kernelProvider` / `placeholder` describe what the kernel is *actually*
 /// using right now, which may differ from what is stored if the stored config
 /// is incomplete.
+///
+/// Field names are a compatibility contract with `normaliseProviders`
+/// (`appStore.ts:195-213`), which reads `id`, `name`, `models`, `hasApiKey`,
+/// `protocol` and `realBaseUrl`. Emitting only `baseUrl`/`hasKey` left every
+/// provider in the settings list without a key badge and with no base URL —
+/// `AccountTab` shows `{name}{hasApiKey ? " · key saved" : ""}` and seeds its
+/// edit form from `baseUrl`. Both spellings are emitted so the camelCase
+/// reader and any snake_case consumer keep working.
 #[tauri::command]
 pub fn list_providers(
     state: State<'_, AppState>,
@@ -86,12 +94,28 @@ pub fn list_providers(
         .provider_endpoints
         .iter()
         .map(|(id, base_url)| {
+            let protocol = inner
+                .provider_protocols
+                .get(id)
+                .cloned()
+                .unwrap_or_else(|| "openai_chat".into());
+            // Never echo the secret itself — only whether one is stored.
+            let has_key = inner
+                .provider_secrets
+                .get(id)
+                .is_some_and(|k| !k.is_empty());
             json!({
                 "id": id,
+                // The store has no separate display name; the id is the label.
+                "name": id,
                 "baseUrl": base_url,
-                "protocol": inner.provider_protocols.get(id).cloned().unwrap_or_else(|| "openai_chat".into()),
-                // Never echo the secret itself — only whether one is stored.
-                "hasKey": inner.provider_secrets.get(id).is_some_and(|k| !k.is_empty()),
+                "realBaseUrl": base_url,
+                "protocol": protocol,
+                "hasApiKey": has_key,
+                "hasKey": has_key,
+                // Populated only by `probe_provider`, which the UI calls
+                // separately; an empty list is honest rather than a guess.
+                "models": [],
             })
         })
         .collect();
@@ -430,6 +454,12 @@ fn extract_model_ids(body: &str) -> Vec<String> {
 // ── MCP servers ─────────────────────────────────────────────────────────────
 
 /// `list_mcp_servers` — MCP entries from the shell store.
+///
+/// Field names are a **compatibility contract** with `asServers`
+/// (`PluginsTab.tsx:49-60`), which reads `name`, `transport`, `command`,
+/// `enabled` and `status`. Returning only `name`/`enabled`/`kind` meant a server
+/// the user had just added came back with a blank transport and command — the
+/// row looked like the details had not been saved.
 #[tauri::command]
 pub fn list_mcp_servers(state: State<'_, AppState>) -> Result<Value, String> {
     let inner = state.inner.lock().map_err(|e| e.to_string())?;
@@ -438,10 +468,24 @@ pub fn list_mcp_servers(state: State<'_, AppState>) -> Result<Value, String> {
         .iter()
         .filter(|c| c.kind == "mcp")
         .map(|c| {
+            let text = |key: &str| {
+                c.config
+                    .get(key)
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string()
+            };
             json!({
+                "id": c.id,
                 "name": c.name,
+                "transport": text("transport"),
+                "command": text("command"),
                 "enabled": c.config.get("enabled").and_then(Value::as_bool).unwrap_or(true),
                 "kind": c.kind,
+                // Never "connected": nothing launches these yet. The UI reads
+                // `status` into its probe line, so an empty string is safer than
+                // a word that implies a live session.
+                "status": "",
             })
         })
         .collect();
@@ -454,20 +498,38 @@ pub fn list_mcp_servers(state: State<'_, AppState>) -> Result<Value, String> {
 }
 
 /// `save_mcp_server` — persist an MCP server entry.
+///
+/// Payload shape is a **compatibility contract** taken from the call site
+/// (`PluginsTab.tsx:100-102`), which sends a nested object:
+///
+/// ```json
+/// { "server": { "name", "transport", "command", "enabled" } }
+/// ```
+///
+/// Reading only a top-level `name` made adding a server impossible: the command
+/// returned `missing name` and the row never appeared. Flat fields are still
+/// accepted so tests and future callers keep working.
 #[tauri::command]
 pub fn save_mcp_server(state: State<'_, AppState>, payload: Value) -> Result<Value, String> {
-    let name = payload
+    // Accept `{ server: {...} }` (the frontend) or a flat object.
+    let server = payload.get("server").unwrap_or(&payload);
+
+    let name = server
         .get("name")
-        .or_else(|| payload.get("id"))
+        .or_else(|| server.get("id"))
         .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
         .map(str::to_string)
         .ok_or_else(|| "save_mcp_server: missing name".to_string())?;
 
     {
         let mut inner = state.inner.lock().map_err(|e| e.to_string())?;
         // The connector `config` blob carries the MCP details plus the enabled
-        // flag, so one entry holds everything the UI set.
-        let mut config = payload.clone();
+        // flag, so one entry holds everything the UI set. Store the *unwrapped*
+        // server object, not the envelope, so the read side sees `transport`
+        // and `command` at the top level of `config`.
+        let mut config = server.clone();
         if !config.is_object() {
             config = json!({});
         }
@@ -519,12 +581,19 @@ pub fn set_mcp_server_enabled(
 }
 
 /// `test_mcp_connection` — not implemented, and says so.
+///
+/// The name is read from the nested `server` object the UI sends
+/// (`PluginsTab.tsx:121-128`). Calling `as_str()` on that object always failed,
+/// so every probe reported `<unknown>` instead of the server the user clicked.
 #[tauri::command]
 pub fn test_mcp_connection(payload: Value) -> Value {
     let name = payload
-        .get("name")
-        .or_else(|| payload.get("server"))
+        .get("server")
+        .and_then(|s| s.get("name").or_else(|| s.get("id")))
+        .or_else(|| payload.get("name"))
+        .or_else(|| payload.get("id"))
         .and_then(Value::as_str)
+        .filter(|s| !s.is_empty())
         .unwrap_or("<unknown>");
     not_wired(
         "test_mcp_connection",
@@ -546,62 +615,47 @@ pub fn reload_skills() -> Value {
     not_wired("reload_skills", "no skill loader is implemented yet")
 }
 
-/// `list_plugins` — plugin entries recorded in the shell store.
+/// `list_plugins` — the plugins actually installed on disk.
+///
+/// This used to read `AppState.connectors` (entries with `kind == "plugin"`)
+/// while `plugin_installed` read `{data_dir}/plugins/installed.json`. Nothing
+/// ever wrote plugin connectors, so the settings tab always showed an empty
+/// list no matter how many plugins the user had installed from 发现. Both
+/// commands now read the same record set via
+/// `market::installed_plugins`.
 #[tauri::command]
 pub fn list_plugins(state: State<'_, AppState>) -> Result<Value, String> {
-    let inner = state.inner.lock().map_err(|e| e.to_string())?;
-    let plugins: Vec<Value> = inner
-        .connectors
-        .iter()
-        .filter(|c| c.kind == "plugin")
-        .map(|c| {
-            json!({
-                "id": c.id,
-                "name": c.name,
-                "enabled": c.config.get("enabled").and_then(Value::as_bool).unwrap_or(true),
-            })
-        })
-        .collect();
+    let plugins = super::market::installed_plugins(&state);
+    let count = plugins.len();
     Ok(json!({
         "plugins": plugins,
         "status": NOT_WIRED,
-        "detail": "plugins are recorded but the kernel does not load them yet",
+        "detail": if count == 0 {
+            "no plugins are installed; install one from 发现 to see it here".to_string()
+        } else {
+            // The kernel records and toggles them but does not load plugin code
+            // into a turn yet — say so rather than implying they are active.
+            format!("{count} plugin(s) installed; the kernel does not load plugin code into a turn yet")
+        },
     }))
 }
 
-/// `set_plugin_enabled` — record the flag without pretending to load anything.
+/// `set_plugin_enabled` — flip the flag on the real install record.
 ///
 /// Deliberately does NOT mirror the old engine behaviour, where disabling a
 /// plugin performed an *uninstall* (see the audit finding at `engine.rs:683-693`).
 /// Toggling a flag must never delete data.
+///
+/// Writes through `market::set_installed_enabled`, the same function
+/// `plugin_set_enabled` uses, so the settings tab and the discovery view can no
+/// longer disagree about whether a plugin is on.
 #[tauri::command]
 pub fn set_plugin_enabled(
     state: State<'_, AppState>,
     id: String,
     enabled: bool,
 ) -> Result<Value, String> {
-    {
-        let mut inner = state.inner.lock().map_err(|e| e.to_string())?;
-        match inner
-            .connectors
-            .iter_mut()
-            .find(|c| c.id == id && c.kind == "plugin")
-        {
-            Some(entry) => {
-                if !entry.config.is_object() {
-                    entry.config = json!({});
-                }
-                entry.config["enabled"] = json!(enabled);
-            }
-            None => inner.connectors.push(crate::state::Connector {
-                id: id.clone(),
-                name: id.clone(),
-                kind: "plugin".into(),
-                config: json!({ "enabled": enabled }),
-            }),
-        }
-    }
-    state.save().map_err(|e| e.to_string())?;
+    super::market::set_installed_enabled(&state, &id, enabled)?;
     Ok(json!({ "id": id, "enabled": enabled }))
 }
 

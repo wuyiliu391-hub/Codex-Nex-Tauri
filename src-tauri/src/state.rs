@@ -47,6 +47,52 @@ pub struct Settings {
     pub approval_policy: String,
     #[serde(default)]
     pub sandbox: String,
+    /// Every other settings key the UI writes.
+    ///
+    /// `flatten` is load-bearing, exactly as in [`Preferences`]: the frontend
+    /// sends one flat object carrying both the fields above (in snake_case) and
+    /// the UI-only ones (`sidebarCollapsed`, `activeProjectPath`, `fullAccess`,
+    /// `webSearch`, `outputVerbosity`, `reasoningSummary`,
+    /// `modelReasoningEffort`, …). Without this, serde ignores unknown keys and
+    /// `save_settings` replaces the whole struct — so every one of those
+    /// settings was silently dropped on every save, and `get_settings` handed
+    /// the UI back an object missing them.
+    ///
+    /// Snake_case stays canonical for the named fields so existing
+    /// `shell-state.json` files keep loading; `#[serde(alias)]` is deliberately
+    /// *not* used, because `save_settings` sends both spellings of the same key
+    /// and serde rejects a duplicate field when an alias is present.
+    /// [`Settings::normalise_keys`] drops the redundant camelCase copies.
+    #[serde(flatten)]
+    pub extra: serde_json::Map<String, serde_json::Value>,
+}
+
+impl Settings {
+    /// Drop the camelCase aliases `save_settings` sends alongside the
+    /// snake_case fields, and collapse the two spellings of the project path.
+    ///
+    /// `appStore.saveSettings` builds `{ ...camelCaseState, active_model, … }`
+    /// so that a frontend reader and the Rust struct each find their own
+    /// spelling. The snake_case copies land in the named fields and the
+    /// camelCase ones in `extra`; keeping both would grow the file on every
+    /// save and leave two sources of truth for the same setting.
+    pub fn normalise_keys(&mut self) {
+        for alias in [
+            "activeModel",
+            "activeProviderId",
+            "approvalPolicy",
+            "terminalShell",
+        ] {
+            self.extra.remove(alias);
+        }
+        // The project path is UI state with no named field, so it lives in
+        // `extra`; the frontend reads camelCase first, so keep that spelling.
+        if let Some(value) = self.extra.remove("active_project_path") {
+            self.extra
+                .entry("activeProjectPath".to_string())
+                .or_insert(value);
+        }
+    }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]

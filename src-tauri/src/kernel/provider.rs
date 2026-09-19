@@ -32,10 +32,24 @@ pub enum ProviderChunk {
     /// A piece of reasoning/thinking output, rendered as its own block.
     Reasoning { delta: String },
     /// Token accounting, emitted once near the end of a turn.
+    ///
+    /// `cached_input_tokens` / `reasoning_output_tokens` / `model_context_window`
+    /// are optional because no wire protocol reports all three: OpenAI-style
+    /// usage carries cached prompt tokens, Anthropic reports cache reads, and
+    /// the context window is a property of the *model*, which only some gateways
+    /// echo back. Each stays `None` when the provider did not state it, so the
+    /// UI can tell "zero" from "unknown" — the context-usage badge renders only
+    /// when `model_context_window` is present and positive.
     Usage {
         input_tokens: u64,
         output_tokens: u64,
         total_tokens: u64,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cached_input_tokens: Option<u64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        reasoning_output_tokens: Option<u64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        model_context_window: Option<u64>,
     },
     /// The provider failed mid-stream. `retryable` lets the kernel decide
     /// whether to surface it as a warning or fail the turn outright.
@@ -215,6 +229,12 @@ impl ModelProvider for EchoProvider {
             input_tokens: approx_tokens(last_user),
             output_tokens: approx_tokens(last_user),
             total_tokens: approx_tokens(last_user) * 2,
+            // The echo provider has no model behind it, so it cannot know any of
+            // these. Reporting `None` keeps the context badge hidden instead of
+            // showing a percentage derived from a made-up window.
+            cached_input_tokens: None,
+            reasoning_output_tokens: None,
+            model_context_window: None,
         });
 
         Ok(())

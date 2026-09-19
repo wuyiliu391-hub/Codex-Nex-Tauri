@@ -31,6 +31,14 @@ pub fn delete_connector(state: State<'_, AppState>, id: String) -> Result<(), St
     state.save().map_err(|e| e.to_string())
 }
 
+/// `test_connector` — connectivity probe for one stored connector.
+///
+/// This used to answer `{ ok: true, detail: "stub probe" }` unconditionally, so
+/// the UI reported a successful probe for a connector that had never been
+/// contacted. Nothing here implements an SSH/SFTP transport, so the honest
+/// answer is a failure that names the reason. The call site
+/// (`ConnectionsTab.tsx:77-82`) branches on `ok === false` and shows `detail`,
+/// which is exactly this shape.
 #[tauri::command]
 pub fn test_connector(state: State<'_, AppState>, id: String) -> Result<serde_json::Value, String> {
     let connector = {
@@ -42,11 +50,24 @@ pub fn test_connector(state: State<'_, AppState>, id: String) -> Result<serde_js
             .cloned()
             .ok_or_else(|| "connector not found".to_string())?
     };
-    // Placeholder probe — port TestConnector logic from Go for each kind.
+
+    // A connector that is switched off cannot be probed either; say which of the
+    // two situations this is rather than reporting a generic failure.
+    let enabled = connector
+        .config
+        .get("enabled")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(true);
+
     Ok(serde_json::json!({
-        "ok": true,
+        "ok": false,
         "id": connector.id,
         "kind": connector.kind,
-        "detail": "stub probe"
+        "status": "not-wired",
+        "detail": if enabled {
+            "the kernel has no SSH/SFTP transport yet, so this connector cannot be probed"
+        } else {
+            "this connector is disabled"
+        },
     }))
 }

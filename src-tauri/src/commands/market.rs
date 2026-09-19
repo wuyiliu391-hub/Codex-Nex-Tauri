@@ -93,6 +93,44 @@ fn save_installed(state: &State<'_, AppState>, v: &[InstalledRecord]) -> Result<
     write_json(&plugins_root(state).join("installed.json"), v)
 }
 
+// ─── shared plugin accessors ────────────────────────────────────────────────
+//
+// `list_plugins` / `set_plugin_enabled` (commands/kernel_config.rs) used to keep
+// their own plugin list in `AppState.connectors` while this module kept the real
+// installs in `{data_dir}/plugins/installed.json`. The two never saw each other,
+// so the settings Plugins tab listed connector records and toggled those, while
+// the discovery view listed and toggled the real installs. These accessors are
+// the single source of truth both command families now go through.
+
+/// Every installed plugin, in the same JSON shape `plugin_installed` returns.
+pub(crate) fn installed_plugins(state: &State<'_, AppState>) -> Vec<Value> {
+    load_installed(state)
+        .into_iter()
+        // Drop records whose dirs vanished (user deleted by hand).
+        .filter(|r| Path::new(&r.path).is_dir())
+        .map(|r| installed_json(&r))
+        .collect()
+}
+
+/// Flip a plugin's enabled flag in the real install record.
+///
+/// Errors when the id is not installed, rather than fabricating a record: a
+/// plugin that was never installed has nothing to enable, and inventing one
+/// would make it appear in the list with no directory behind it.
+pub(crate) fn set_installed_enabled(
+    state: &State<'_, AppState>,
+    id: &str,
+    enabled: bool,
+) -> Result<(), String> {
+    let mut installed = load_installed(state);
+    let rec = installed
+        .iter_mut()
+        .find(|r| r.id == id)
+        .ok_or_else(|| format!("plugin not installed: {id}"))?;
+    rec.enabled = enabled;
+    save_installed(state, &installed)
+}
+
 fn safe_name(raw: &str) -> String {
     raw.chars()
         .map(|c| {
@@ -781,14 +819,7 @@ fn installed_json(rec: &InstalledRecord) -> Value {
 
 #[tauri::command]
 pub fn plugin_installed(state: State<'_, AppState>) -> Result<Value, String> {
-    let installed = load_installed(&state);
-    // Drop records whose dirs vanished (user deleted by hand).
-    let live: Vec<InstalledRecord> = installed
-        .into_iter()
-        .filter(|r| Path::new(&r.path).is_dir())
-        .collect();
-    let list: Vec<Value> = live.iter().map(installed_json).collect();
-    Ok(json!({ "plugins": list }))
+    Ok(json!({ "plugins": installed_plugins(&state) }))
 }
 
 #[tauri::command]
@@ -811,13 +842,7 @@ pub fn plugin_set_enabled(
     id: String,
     enabled: bool,
 ) -> Result<(), String> {
-    let mut installed = load_installed(&state);
-    let rec = installed
-        .iter_mut()
-        .find(|r| r.id == id)
-        .ok_or_else(|| format!("plugin not installed: {id}"))?;
-    rec.enabled = enabled;
-    save_installed(&state, &installed)
+    set_installed_enabled(&state, &id, enabled)
 }
 
 #[tauri::command]
