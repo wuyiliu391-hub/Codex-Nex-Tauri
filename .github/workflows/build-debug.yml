@@ -1,0 +1,105 @@
+name: build-debug
+
+on:
+  push:
+    branches: ['**']
+  workflow_dispatch:
+    
+jobs:
+  build-debug:
+    name: Windows Debug Build with Full Symbols
+    runs-on: windows-latest
+    timeout-minutes: 30
+    
+    env:
+      CARGO_TERM_COLOR: always
+      TAURI_SKIP_SIDECAR_CHECK: "1"
+      TAURI_CLI_VERSION: "2.11.4"
+      CODEX_APP_SERVER_TAG: "rust-v0.154.0"
+      CODEX_APP_SERVER_NAME: "codex-app-server-x86_64-pc-windows-msvc.exe"
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+          
+      - name: Frontend dependencies and check
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npm run typecheck
+          
+      - name: Install official app-server binary
+        shell: pwsh
+        run: |
+          $tag = $env:CODEX_APP_SERVER_TAG
+          $name = $env:CODEX_APP_SERVER_NAME
+          $dir = Join-Path $env:GITHUB_WORKSPACE "src-tauri/binaries"
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          $url = "https://github.com/openai/codex/releases/download/$tag/$name"
+          Invoke-WebRequest -Uri $url -OutFile (Join-Path $dir $name)
+          
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.98.1"
+          targets: x86_64-pc-windows-msvc
+          
+      - name: Create debug profile in Cargo.toml
+        working-directory: src-tauri
+        shell: pwsh
+        run: |
+          # Append debug-build profile at the end of Cargo.toml
+          $toml_content = Get-Content "Cargo.toml" -Raw
+          $debug_profile = @"
+          
+[profile.debug-build]
+inherits = "dev"
+opt-level = 1
+debug = true
+strip = false
+incremental = true
+"@
+          Set-Content -Path "Cargo.toml" -Value ($toml_content + $debug_profile)
+          
+      - name: Build debug executable
+        working-directory: src-tauri
+        shell: pwsh
+        run: |
+          $env:PATH = "${env:ProgramFiles}\Git\usr\bin;" + $env:PATH
+          cargo build --target x86_64-pc-windows-msvc --profile debug-build --verbose
+          
+      - name: Package debug artifacts
+        working-directory: src-tauri
+        shell: pwsh
+        run: |
+          $output_dir = "..\dist-debug"
+          New-Item -ItemType Directory -Force -Path $output_dir | Out-Null
+          
+          Copy-Item -Path "target\x86_64-pc-windows-msvc\debug\Codex.exe" `
+                    -Destination $output_dir
+                    
+          Copy-Item -Path "target\x86_64-pc-windows-msvc\debug\Codex.pdb" `
+                    -Destination $output_dir
+                    
+          Write-Host "Debug build complete!"
+          
+      - name: Upload debug executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: Codex-Windows-Debug-Build
+          path: src-tauri/dist-debug/Codex.exe
+          retention-days: 7
+          
+      - name: Upload debug symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: Codex-Windows-Debug-Symbols
+          path: src-tauri/dist-debug/Codex.pdb
+          retention-days: 7
