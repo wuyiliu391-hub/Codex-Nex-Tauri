@@ -862,7 +862,10 @@ mod tests {
         assert!(c.request_body(&[ChatMessage::user("x")]).get("temperature").is_none());
         let mut c2 = cfg(WireProtocol::OpenAiChat);
         c2.temperature = Some(0.3);
-        assert_eq!(c2.request_body(&[ChatMessage::user("x")])["temperature"], 0.3);
+        let temp = c2.request_body(&[ChatMessage::user("x")])["temperature"]
+            .as_f64()
+            .expect("temperature present as number");
+        assert!((temp - 0.3).abs() < 1e-5);
     }
 
     #[test]
