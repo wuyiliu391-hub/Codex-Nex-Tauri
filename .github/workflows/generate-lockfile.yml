@@ -1,0 +1,86 @@
+name: generate-lockfile
+
+# One-time bootstrap: produces Cargo.lock, which this repository has never had.
+#
+# Why this runs in CI instead of locally: generating a lockfile requires the
+# real Cargo resolver (network access + full dependency resolution). The
+# maintainer's machine has no Rust toolchain, and a hand-written lockfile would
+# be a fabrication that Cargo would reject anyway.
+#
+# Why it is a separate manual workflow instead of part of ci.yml:
+#   * ci.yml enforces `--locked` once the file exists, so it cannot be the thing
+#     that creates it (chicken-and-egg).
+#   * This is a one-time bootstrap, not something to run on every push.
+#
+# Usage:
+#   1. Actions -> "generate-lockfile" -> Run workflow
+#   2. Download the `Cargo.lock` artifact from the run
+#   3. Commit it at the REPOSITORY ROOT (not inside src-tauri/ — the workspace
+#      root is the repo root, since the root Cargo.toml declares
+#      `members = ["src-tauri"]`)
+#   4. ci.yml will then run cargo with `--locked` automatically
+#
+# After that, dependency versions are pinned and a fresh CI runner resolves the
+# exact same graph every time. See the Cargo FAQ, "Why have Cargo.lock in
+# version control?":
+#   https://doc.rust-lang.org/cargo/faq.html#why-have-cargolock-in-version-control
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: generate-lockfile
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  generate:
+    name: generate Cargo.lock
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.98.1"
+
+      # Run from the repo root so the workspace root is unambiguous. Cargo walks
+      # up to find the [workspace] table, which lives in the root Cargo.toml.
+      - name: cargo generate-lockfile
+        run: cargo generate-lockfile
+
+      - name: verify the lockfile was produced
+        shell: bash
+        run: |
+          if [ ! -f Cargo.lock ]; then
+            echo "::error::cargo generate-lockfile did not create Cargo.lock"
+            exit 1
+          fi
+          lines=$(wc -l < Cargo.lock)
+          pkgs=$(grep -c '^\[\[package\]\]' Cargo.lock)
+          echo "Cargo.lock: ${lines} lines, ${pkgs} packages"
+          # A Tauri app pulls in hundreds of crates; anything tiny means the
+          # resolve did not really happen.
+          if [ "$pkgs" -lt 100 ]; then
+            echo "::error::Cargo.lock lists only ${pkgs} packages; expected hundreds"
+            exit 1
+          fi
+
+      # Proves the lockfile is complete and self-consistent without compiling
+      # anything: `cargo metadata --locked` fails if the lock would need to
+      # change to satisfy Cargo.toml.
+      - name: verify the lockfile is consistent
+        run: cargo metadata --locked --format-version 1 > $null
+
+      - name: upload Cargo.lock
+        uses: actions/upload-artifact@v4
+        with:
+          name: Cargo.lock
+          path: Cargo.lock
+          if-no-files-found: error
+          retention-days: 30

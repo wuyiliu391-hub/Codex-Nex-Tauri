@@ -3,24 +3,28 @@ name: ci
 # Continuous integration, following the official Tauri GitHub Actions guide:
 #   https://v2.tauri.app/distribute/pipelines/github/
 #
-# Why this file looks the way it does — the three decisions that matter:
+# Caching is three layers, each covering something the others cannot:
 #
-#  1. Build with `tauri-apps/tauri-action`, not a hand-rolled `cargo tauri
-#     build`. The official action installs the correct CLI version, runs the
-#     build, and can publish a release — three things this repo previously
-#     reimplemented by hand (a CLI zip download, a stage-dist script, and no
-#     release step at all).
+#   sccache (mozilla-actions/sccache-action)
+#       Caches individual compilation units keyed by source content, so an
+#       unchanged crate never invokes rustc. Stored in the GitHub Actions cache.
+#       Per https://github.com/mozilla/sccache/blob/main/docs/GHA.md this needs
+#       SCCACHE_GHA_ENABLED=on AND the ACTIONS_RESULTS_URL / ACTIONS_RUNTIME_TOKEN
+#       variables exported, otherwise it silently does nothing.
 #
-#  2. Cache with `Swatinem/rust-cache` and `dtolnay/rust-toolchain`, which is
-#     what the official guide uses. sccache is deliberately NOT used here: the
-#     official pipeline does not use it, and adding it means one more moving
-#     part whose configuration (SCCACHE_GHA_ENABLED + RUSTC_WRAPPER) is easy to
-#     get silently wrong. rust-cache covers the common case.
+#   Swatinem/rust-cache
+#       Caches ~/.cargo/registry (dependency downloads + crates.io index) and the
+#       target/ skeleton. sccache never sees `cargo fetch`, so it cannot cover
+#       this.
 #
-#  3. `workspaces: './src-tauri -> target'` is NOT optional. The official docs
-#     call this out for repos where the Tauri app is not at the repo root, and
-#     this repo is exactly that shape (frontend/ + src-tauri/). Pointing it at
-#     `.` would cache the wrong directory and silently do nothing.
+#   tauri-apps/tauri-action
+#       Installs and runs the Tauri CLI itself, so no CLI download script is
+#       maintained here.
+#
+# `workspaces: './src-tauri -> target'` is NOT optional. The official Tauri docs
+# call this out for repos where the app is not at the repo root, and this repo is
+# exactly that shape (frontend/ + src-tauri/). Pointing it at `.` would cache the
+# wrong directory and silently do nothing.
 
 on:
   push:
@@ -35,6 +39,10 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  # sccache: route rustc through it and store objects in the GHA cache.
+  # `on` (not `true`) is the documented value.
+  SCCACHE_GHA_ENABLED: "on"
+  RUSTC_WRAPPER: sccache
 
 jobs:
   # ── checks ────────────────────────────────────────────────────────────────
@@ -76,6 +84,20 @@ jobs:
           toolchain: "1.98.1"
           components: rustfmt, clippy
 
+      # sccache must be set up BEFORE any cargo invocation, and the two GHA
+      # token variables must be exported for the cache backend to work — see
+      # https://github.com/mozilla/sccache/blob/main/docs/GHA.md. Without them
+      # sccache installs fine and then silently caches nothing.
+      - name: configure sccache credentials
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_RESULTS_URL', process.env.ACTIONS_RESULTS_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
+      - name: setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.11
+
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
@@ -84,9 +106,31 @@ jobs:
           workspaces: "./src-tauri -> target"
           cache-on-failure: true
 
+      # Cargo.lock is committed at the REPO ROOT (the workspace root), not in
+      # src-tauri/. Once it exists, every cargo command below runs with
+      # `--locked`, which makes Cargo refuse to silently re-resolve versions —
+      # that is what turns "CI failed for an external reason" into "CI failed
+      # because of a commit".
+      #
+      # Until the file exists this warns instead of failing, so the pipeline is
+      # usable while the one-time bootstrap (workflows/generate-lockfile.yml)
+      # has not been run yet. The warning is deliberately loud: an unlocked
+      # resolve is exactly the flakiness the lockfile is meant to remove.
+      - name: detect Cargo.lock
+        id: lock
+        shell: bash
+        run: |
+          if [ -f Cargo.lock ]; then
+            echo "flags=--locked" >> "$GITHUB_OUTPUT"
+            echo "Cargo.lock present: $(grep -c '^\[\[package\]\]' Cargo.lock) packages pinned"
+          else
+            echo "flags=" >> "$GITHUB_OUTPUT"
+            echo "::warning title=No Cargo.lock::Dependency versions are unpinned. Run the 'generate-lockfile' workflow and commit the result."
+          fi
+
       - name: cargo test (kernel)
         working-directory: src-tauri
-        run: cargo test --lib
+        run: cargo test --lib ${{ steps.lock.outputs.flags }}
 
       # Formatting and lints report but do not gate.
       #
@@ -104,6 +148,14 @@ jobs:
         working-directory: src-tauri
         run: cargo clippy --workspace --all-targets
         continue-on-error: true
+
+      # Prints hit/miss counts so a cache regression is visible in the log
+      # rather than guessed at. The action also runs this in its post step; doing
+      # it explicitly keeps the numbers next to the build that produced them.
+      - name: sccache stats
+        if: always()
+        shell: bash
+        run: ${SCCACHE_PATH} --show-stats
 
   # ── build ─────────────────────────────────────────────────────────────────
   # Verifies the app actually bundles, using the official action. No release is
@@ -139,6 +191,19 @@ jobs:
         with:
           toolchain: "1.98.1"
 
+      # Same sccache wiring as the checks job. Sharing the compiler cache across
+      # jobs is the main win: this job's release-profile build reuses the
+      # dependency objects the checks job already compiled.
+      - name: configure sccache credentials
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_RESULTS_URL', process.env.ACTIONS_RESULTS_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
+      - name: setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.11
+
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
@@ -149,6 +214,19 @@ jobs:
           key: build
           cache-on-failure: true
 
+      # Same lock detection as the checks job; see the comment there.
+      - name: detect Cargo.lock
+        id: lock
+        shell: bash
+        run: |
+          if [ -f Cargo.lock ]; then
+            echo "flags=--locked" >> "$GITHUB_OUTPUT"
+            echo "Cargo.lock present: $(grep -c '^\[\[package\]\]' Cargo.lock) packages pinned"
+          else
+            echo "flags=" >> "$GITHUB_OUTPUT"
+            echo "::warning title=No Cargo.lock::Dependency versions are unpinned. Run the 'generate-lockfile' workflow and commit the result."
+          fi
+
       # The action installs the Tauri CLI itself and runs `tauri build`.
       #
       # The frontend is NOT built here: `tauri.conf.json` sets
@@ -157,6 +235,10 @@ jobs:
       # guide ("install the frontend dependencies and, if not configured as
       # beforeBuildCommand, run the web app's build script") and keeps local
       # and CI builds on the same code path.
+      #
+      # `args` forwards to `tauri build`, which forwards unknown flags to cargo,
+      # so `--locked` reaches the real build. It is omitted while Cargo.lock is
+      # absent (see the step above).
       #
       # `projectPath` is omitted on purpose: its default is `./`, and the
       # official guide defines it as "the path to the root of the tauri
@@ -171,7 +253,7 @@ jobs:
       - id: build
         uses: tauri-apps/tauri-action@v1
         with:
-          args: ""
+          args: ${{ steps.lock.outputs.flags }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
