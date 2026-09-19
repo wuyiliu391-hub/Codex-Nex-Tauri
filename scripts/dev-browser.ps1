@@ -1,47 +1,23 @@
-# Browser dev launcher: ensures the official engine listens on the dev WS
-# port, then starts vite in bridge mode. See docs/BROWSER-DEV.md.
+# Browser dev launcher: starts the Vite dev server in browser-bridge mode.
+#
+# The self-developed kernel is in-process, so there is NO engine to launch and
+# no WebSocket port to wait for. `npm run dev:browser` aliases the Tauri API
+# onto `frontend/app/devbridge/*`, which replays the command surface locally
+# (see docs/BROWSER-DEV.md).
+#
+# This script used to start the official codex-app-server sidecar and wait for
+# port 17457; that whole step is gone with the sidecar.
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
-$listen = if ($env:CODEX_APP_SERVER_WS) {
-  # accept both ws://host:port and bare host:port
-  $u = $env:CODEX_APP_SERVER_WS -replace '^wss?://', ''
-  ($u -split ':')[-1]
-} else { 17457 }
 
-function Test-Port([int]$port) {
-  try {
-    $c = [System.Net.Sockets.TcpClient]::new()
-    $ok = $c.BeginConnect("127.0.0.1", $port, $null, $null).AsyncWaitHandle.WaitOne(300)
-    $c.Close()
-    return $ok
-  } catch { return $false }
-}
-
-if (-not (Test-Port $listen)) {
-  $engine = $env:CODEX_APP_SERVER
-  if (-not $engine) {
-    $engine = Join-Path $root "src-tauri\binaries\codex-app-server-x86_64-pc-windows-msvc.exe"
-  }
-  if (-not (Test-Path $engine)) {
-    throw "engine binary not found: $engine`nSet CODEX_APP_SERVER or drop the official rust-v0.154.0 binary into src-tauri\binaries\ (see README)."
-  }
-  Write-Host "starting engine on port $listen ..." -NoNewline
-  $argSets = @(
-    @("app-server", "--listen", "ws://127.0.0.1:$listen"),  # multi-call codex.exe
-    @("--listen", "ws://127.0.0.1:$listen")                  # standalone app-server
-  )
-  $started = $false
-  foreach ($args in $argSets) {
-    $p = Start-Process -FilePath $engine -ArgumentList $args -PassThru -WindowStyle Hidden
-    Start-Sleep -Milliseconds 900
-    if (-not $p.HasExited) { $started = $true; Write-Host " ok (pid $($p.Id), shape: $($args[0]) app-server)" ; break }
-    Stop-Process -Id $p.Id -ErrorAction SilentlyContinue
-  }
-  if (-not $started) { throw "engine exited immediately for both CLI shapes" }
-  $global:ENGINE_PID = $p.Id
-} else {
-  Write-Host "engine already listening on $listen"
+if ($env:CODEX_APP_SERVER_WS -or $env:CODEX_APP_SERVER) {
+    Write-Host "note: CODEX_APP_SERVER* env vars are ignored — there is no external engine." -ForegroundColor Yellow
 }
 
 Push-Location (Join-Path $root "frontend")
-try { npm run dev:browser } finally { Pop-Location }
+try {
+    Write-Host "starting vite in browser-bridge mode (no engine needed)..." -ForegroundColor Cyan
+    npm run dev:browser
+} finally {
+    Pop-Location
+}

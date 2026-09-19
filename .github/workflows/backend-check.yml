@@ -1,23 +1,90 @@
-name: Backend Check
+name: backend-check
+
+# Fast Rust gate: `cargo check` + the kernel unit tests.
+#
+# Runs on windows-latest on purpose: this is a Windows-first Tauri app, and a
+# Tauri `cargo check` on Linux needs WebKitGTK / libsoup / appindicator system
+# packages that are not installed by default. Checking on the same OS we ship
+# is both simpler and more truthful.
+#
+# `cargo test` covers `src-tauri/src/kernel/**` (30 tests) — session state
+# machine, turn execution, provider contract and the protocol/event contract
+# with the frontend.
 
 on:
   push:
     branches: ['**']
   pull_request:
-    branches: ['main']
+    branches: [main, master]
+  workflow_dispatch:
+
+concurrency:
+  group: backend-check-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  CARGO_TARGET_DIR: ${{ github.workspace }}/target
 
 jobs:
   check:
-    name: Cargo Check
-    runs-on: ubuntu-latest
-    
+    name: cargo check + test
+    runs-on: windows-latest
+    timeout-minutes: 30
+
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
-      
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-      
-      - name: cargo check workspace
+        with:
+          fetch-depth: 1
+
+      # `tauri::generate_context!` reads tauri.conf.json and embeds the
+      # frontend from `frontendDist` (../frontend/dist, gitignored). Without a
+      # built frontend the macro fails, so the dist must exist before any
+      # `cargo check` on the shell crate.
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Frontend — build (needed by generate_context!)
+        working-directory: frontend
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          npm ci --no-audit --no-fund
+          npm run build
+
+      # Pinned to match build-fast / build-release / lint-check.
+      - name: Setup Rust (pinned 1.98.1, MSVC)
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.98.1"
+          targets: x86_64-pc-windows-msvc
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+          shared-key: tauri-win
+          key: backend-check
+          cache-on-failure: true
+
+      - name: cargo check
         working-directory: src-tauri
-        run: cargo check --workspace
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          cargo check --workspace --all-targets
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: cargo test (kernel)
+        working-directory: src-tauri
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          cargo test --lib
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

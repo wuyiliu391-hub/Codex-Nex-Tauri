@@ -1,13 +1,13 @@
 /**
  * Browser-dev mirror of the Rust shell store (src-tauri/src/state.rs).
  *
- * Same file shape as shell-state.json (snake_case sections, 11 fields),
- * persisted in localStorage instead of %APPDATA%\CodexDesktop. Defaults are
- * ported verbatim: theme=light, language=zh-CN, listen URL, and the three
- * Chinese sample scheduled tasks.
+ * Same file shape as shell-state.json (snake_case sections), persisted in
+ * localStorage instead of %APPDATA%\CodexDesktop. Defaults are ported
+ * verbatim: theme=light, language=zh-CN, and the three Chinese sample
+ * scheduled tasks.
  */
 
-const STORAGE_KEY = "codex-…tate";
+const STORAGE_KEY = "codex-desktop-browser-dev:shell-state";
 
 export interface ShellSettings {
   theme: string;
@@ -17,8 +17,6 @@ export interface ShellSettings {
   terminal_shell: string;
   approval_policy: string;
   sandbox: string;
-  app_server_listen: string;
-  app_server_binary: string;
   // The frontend dual-writes camelCase too; keep unknown keys round-tripping.
   [key: string]: unknown;
 }
@@ -46,8 +44,6 @@ function defaultSettings(): ShellSettings {
     terminal_shell: "",
     approval_policy: "",
     sandbox: "",
-    app_server_listen: "ws://127.0.0.1:17457",
-    app_server_binary: "",
   };
 }
 
@@ -109,9 +105,6 @@ export function loadShellState(): ShellStateFile {
       // Same empty-field backfills as AppState::load_or_default.
       if (!cache.settings?.theme) cache.settings.theme = "light";
       if (!cache.settings?.language) cache.settings.language = "zh-CN";
-      if (!cache.settings?.app_server_listen) {
-        cache.settings.app_server_listen = "ws://127.0.0.1:17457";
-      }
       if (!cache.scheduled_tasks?.length) cache.scheduled_tasks = defaultScheduledTasks();
       return cache;
     }

@@ -1,8 +1,15 @@
 # Stage the portable (no-install) build into dist/.
-# Output: Codex-portable/ with the shell exe, the WebView2 loader DLL (when
-# present) and the official engine under binaries/ — nothing else.
-# Installers (NSIS/MSI) are disabled for now: bundle.targets = [] in
-# tauri.conf.json, so cargo tauri build produces only the raw exe.
+#
+# Output: Codex-portable/ containing the shell exe and, when present, the
+# WebView2 loader DLL. Nothing else.
+#
+# There is deliberately NO `binaries/` folder any more: the self-developed
+# kernel is compiled into the shell exe, so the product is a single
+# self-contained file. The old sidecar staging step (and its "engine missing"
+# guard) was removed along with the engine download.
+#
+# Installers (NSIS/MSI) are disabled: `bundle.targets = []` in tauri.conf.json,
+# so `cargo tauri build` produces only the raw exe.
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path $PSScriptRoot -Parent
@@ -14,8 +21,8 @@ if (Test-Path $dist) {
 }
 New-Item -ItemType Directory -Force -Path $dist | Out-Null
 
-# Build output root: CI sets CARGO_TARGET_DIR to workspace/target; local
-# default is src-tauri/target (tauri workspace) or target/.
+# Build output root: CI sets CARGO_TARGET_DIR to workspace/target; the local
+# default is <repo>/target.
 $releaseDirs = @(
   (Join-Path $root "target\release"),
   (Join-Path $root "src-tauri\target\release")
@@ -24,10 +31,9 @@ if ($env:CARGO_TARGET_DIR) {
   $releaseDirs += (Join-Path $env:CARGO_TARGET_DIR "release")
 }
 
-# ── Portable build (no installer needed) ────────────────────────────────────
-# Codex.exe embeds the frontend; next to it go the WebView2 loader DLL (when
-# present) and the official engine under binaries/ — the sidecar resolver
-# (sidecar.rs) checks current_exe()/binaries/ on startup.
+# ── locate the shell exe ────────────────────────────────────────────────────
+# Tauri renames the binary to `productName` from tauri.conf.json ("Codex"),
+# while a plain cargo build emits `codex-tauri.exe`. Accept either.
 $portable = Join-Path $dist "Codex-portable"
 $shellExe = $null
 foreach ($rd in $releaseDirs) {
@@ -39,13 +45,15 @@ foreach ($rd in $releaseDirs) {
 }
 
 if (-not $shellExe) {
-  throw "Release Codex.exe not found under target/*/release. Run cargo tauri build first."
+  throw "Release exe not found under target/*/release. Run 'cargo tauri build' first."
 }
 
 New-Item -ItemType Directory -Force -Path $portable | Out-Null
 Copy-Item $shellExe -Destination (Join-Path $portable (Split-Path $shellExe -Leaf)) -Force
 Write-Host ("staged portable {0}  ({1:N0} bytes)" -f (Split-Path $shellExe -Leaf), (Get-Item $shellExe).Length)
 
+# WebView2Loader.dll only ships alongside the exe on some configurations; when
+# it is absent the system WebView2 runtime is used instead.
 foreach ($rd in $releaseDirs) {
   $dll = Join-Path $rd "WebView2Loader.dll"
   if (Test-Path $dll) {
@@ -55,14 +63,12 @@ foreach ($rd in $releaseDirs) {
   }
 }
 
-$sidecarDir = Join-Path $root "src-tauri\binaries"
-$sidecar = Get-ChildItem -Path $sidecarDir -Filter "codex-app-server-*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-if ($sidecar) {
-  New-Item -ItemType Directory -Force -Path (Join-Path $portable "binaries") | Out-Null
-  Copy-Item $sidecar.FullName -Destination (Join-Path $portable "binaries" $sidecar.Name) -Force
-  Write-Host ("staged portable binaries/{0}  ({1:N0} bytes)" -f $sidecar.Name, $sidecar.Length)
-} else {
-  throw "Sidecar exe not found under src-tauri/binaries — portable Codex.exe would run without the engine."
+# ── guard: no engine binary may reappear ────────────────────────────────────
+# The kernel is in-process. If someone drops an engine exe back into
+# src-tauri/binaries, fail loudly rather than silently shipping 300 MB.
+$stray = Get-ChildItem -Path (Join-Path $root "src-tauri\binaries") -Filter "*.exe" -ErrorAction SilentlyContinue
+if ($stray) {
+  throw "Stray engine binary found: $($stray[0].FullName). The kernel is in-process; remove it."
 }
 
 Write-Host ""

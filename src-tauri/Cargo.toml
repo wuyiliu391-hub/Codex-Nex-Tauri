@@ -1,7 +1,7 @@
 [package]
 name = "codex-tauri"
 version = "0.1.0"
-description = "Codex desktop shell (Tauri) powered by official codex-app-server sidecar"
+description = "Codex desktop shell (Tauri) with a self-developed in-process kernel"
 authors = ["Codex Contributors"]
 edition = "2021"
 rust-version = "1.77"

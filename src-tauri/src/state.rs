@@ -1,15 +1,22 @@
-//! Local desktop shell state (UI-only). Agent/session state lives in codex-app-server.
+//! Local desktop shell state (UI-only): settings, preferences, pets, calendar,
+//! connectors, scheduled tasks and provider credentials.
+//!
+//! Agent/session state does NOT live here — it is owned by the in-process
+//! kernel (`crate::kernel::session::SessionManager`). This file is the L1
+//! "local capabilities" store from `docs/ARCHITECTURE.md`.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-/// Environment variable name that carries a provider's API key to the sidecar.
+/// Environment variable name that would carry a provider's API key to a child
+/// process.
 ///
-/// config.toml only ever stores this *name* (as the provider's `env_key`); the
-/// secret itself lives in the shell store and is injected into the sidecar's
-/// environment at spawn time, so it never lands in a plaintext config file.
+/// Kept for the future HTTP provider: a subprocess-based transport would inject
+/// the key as this env var, so the secret never lands in a plaintext
+/// `config.toml`. The in-process kernel does not spawn anything, so today this
+/// is only used by the shell's provider bookkeeping.
 pub fn provider_env_key(provider_id: &str) -> String {
     let sanitized: String = provider_id
         .chars()
@@ -40,10 +47,6 @@ pub struct Settings {
     pub approval_policy: String,
     #[serde(default)]
     pub sandbox: String,
-    #[serde(default)]
-    pub app_server_listen: String,
-    #[serde(default)]
-    pub app_server_binary: String,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
@@ -192,10 +195,7 @@ impl AppState {
         if inner.settings.language.is_empty() {
             inner.settings.language = "zh-CN".into();
         }
-        if inner.settings.app_server_listen.is_empty() {
-            inner.settings.app_server_listen = "ws://127.0.0.1:17457".into();
-        }
-        // Official sidebar suggestions (docs/visual/p16-scheduled.png).
+        // Sidebar suggestions (docs/uia/shots-t41/).
         if inner.scheduled_tasks.is_empty() {
             inner.scheduled_tasks = default_scheduled_tasks();
         }

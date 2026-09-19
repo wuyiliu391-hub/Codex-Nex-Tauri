@@ -1,179 +1,82 @@
 #!/usr/bin/env pwsh
+# Debug build with full symbols, for crash triage and profiling.
+#
+# The self-developed kernel is compiled into the shell, so there is no engine
+# binary to download and no `[profile.debug-build]` to append: this uses the
+# `dev` profile via `cargo tauri build --debug`, with full symbols forced on by
+# environment variables (the root Cargo.toml sets debug = "limited" for dev).
+#
+# Output: dist-debug/ containing the exe and, when produced, its .pdb.
 
-# Debug Build Script for Codex-Tauri
-# Purpose: Build debug version with full symbols and diagnostic output
+$ErrorActionPreference = "Stop"
 
-Set-ErrorActionPreference "Stop"
+$root = Split-Path $PSScriptRoot -Parent
+Set-Location $root
 
-Write-Host "=== Codex-Tauri Debug Build Script ===" -ForegroundColor Cyan
-Write-Host "Date: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Gray
+Write-Host "=== Codex-Tauri debug build ===" -ForegroundColor Cyan
+Write-Host "root: $root" -ForegroundColor Gray
 Write-Host ""
 
-# Configuration
-$PROJECT_ROOT = Get-Location
-$SRC_TAURI_DIR = Join-Path $PROJECT_ROOT "src-tauri"
-$OUTPUT_DIR = Join-Path $PROJECT_ROOT "dist-debug"
-$ENGINE_BINARY_TAG = "rust-v0.154.0"
-$ENGINE_BINARY_NAME = "codex-app-server-x86_64-pc-windows-msvc.exe"
-
-# Step 1: Ensure source directory exists
-Write-Host "[1/6] Checking source directories..." -NoNewline
-if (-not (Test-Path $SRC_TAURI_DIR)) {
-    Write-Host " FAILED: src-tauri directory not found!" -ForegroundColor Red
-    exit 1
-}
-Write-Host " OK" -ForegroundColor Green
-
-# Step 2: Download engine binary if missing
-Write-Host "[2/6] Ensuring official app-server binary..." -NoNewline
-$BINARIES_DIR = Join-Path $SRC_TAURI_DIR "binaries"
-New-Item -ItemType Directory -Force -Path $BINARIES_DIR | Out-Null
-
-$engine_path = Join-Path $BINARIES_DIR $ENGINE_BINARY_NAME
-if (-not (Test-Path $engine_path)) {
-    Write-Host "`n[Downloading official engine binary]..." -ForegroundColor Yellow
-    $url = "https://github.com/openai/codex/releases/download/$ENGINE_BINARY_TAG/$ENGINE_BINARY_NAME"
-    Invoke-WebRequest -Uri $url -OutFile $engine_path
-    
-    $file_size = (Get-Item $engine_path).Length
-    Write-Host "✓ Downloaded $($file_size / 1MB) MB binary to $BINARIES_DIR" -ForegroundColor Green
-} else {
-    Write-Host " OK (already present)" -ForegroundColor Green
-}
-
-# Step 3: Install frontend dependencies
-Write-Host "[3/6] Checking frontend dependencies..." -NoNewline
-$frontend_dir = Join-Path $PROJECT_ROOT "frontend"
-if (-not (Test-Path (Join-Path $frontend_dir "node_modules"))) {
-    Write-Host "`n[Installing npm packages]..." -ForegroundColor Yellow
-    Push-Location $frontend_dir
-    npm ci --no-audit --no-fund
-    Pop-Location
-    Write-Host "✓ Dependencies installed" -ForegroundColor Green
-} else {
-    Write-Host " OK (already installed)" -ForegroundColor Green
-}
-
-# Step 4: Typecheck frontend
-Write-Host "[4/6] Running TypeScript typecheck..." -NoNewline
-Push-Location $frontend_dir
-$npm_result = npm run typecheck 2>&1
-Pop-Location
-
-if ($LASTEXITCODE -ne 0) {
-    Write-Host " FAILED!" -ForegroundColor Red
-    Write-Host "`nTypeScript errors detected - fix before continuing build:" -ForegroundColor Yellow
-    Write-Host $npm_result
-    exit 2
-}
-Write-Host " OK (all types valid)" -ForegroundColor Green
-
-# Step 5: Clean previous debug builds
-Write-Host "[5/6] Cleaning previous debug artifacts..." -NoNewline
-if (Test-Path (Join-Path $SRC_TAURI_DIR "target\debug")) {
-    Remove-Item -Recurse -Force (Join-Path $SRC_TAURI_DIR "target\debug") -ErrorAction SilentlyContinue
-}
-Write-Host " OK" -ForegroundColor Green
-
-# Step 6: Build debug executable
-Write-Host "[6/6] Building debug executable with full symbols..." -ForegroundColor Cyan
-
-# Create Cargo profile override for debug mode
-$cargo_toml_path = Join-Path $SRC_TAURI_DIR "Cargo.toml"
-$cargo_toml_content = Get-Content $cargo_toml_path -Raw
-
-# Append debug profile at the end of file
-$debug_profile = @"
-
-[profile.debug-build]
-inherits = "dev"
-opt-level = 1
-debug = true
-strip = false
-incremental = true
-
-"@
-
-# Save modified Cargo.toml
-Set-Content -Path $cargo_toml_path -Value ($cargo_toml_content + $debug_profile)
-
-# Execute Tauri debug build
-Push-Location $SRC_TAURI_DIR
-
-Write-Host "`nStarting cargo tauri build in debug mode..." -ForegroundColor Yellow
-
-try {
-    $cargo_args = @(
-        'tauri', 'build',
-        '--target', 'x86_64-pc-windows-msvc',
-        '--no-default-features',
-        '--verbose',
-        '--locked'
-    )
-    
-    & cargo $cargo_args
-        
-    $build_status = $?
-    
-    if (-not $build_status) {
-        throw "Tauri build failed"
+# ── preflight ───────────────────────────────────────────────────────────────
+Write-Host "[1/4] Checking toolchain..." -NoNewline
+foreach ($tool in @("cargo", "cargo-tauri")) {
+    if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) {
+        Write-Host " FAILED" -ForegroundColor Red
+        throw "'$tool' not found on PATH. Install Rust and the Tauri CLI (cargo install tauri-cli)."
     }
-} catch {
-    Write-Host "FAILED! $_" -ForegroundColor Red
+}
+Write-Host " OK" -ForegroundColor Green
+
+# The frontend must exist: tauri.conf.json `frontendDist` points at
+# ../frontend/dist, which is gitignored and absent on a fresh checkout.
+Write-Host "[2/4] Building frontend..." -NoNewline
+Push-Location (Join-Path $root "frontend")
+try {
+    if (-not (Test-Path "node_modules")) {
+        npm ci --no-audit --no-fund
+        if ($LASTEXITCODE -ne 0) { throw "npm ci failed" }
+    }
+    npm run build
+    if ($LASTEXITCODE -ne 0) { throw "frontend build failed" }
+} finally {
     Pop-Location
-    exit 3
+}
+Write-Host " OK" -ForegroundColor Green
+
+# ── build ───────────────────────────────────────────────────────────────────
+Write-Host "[3/4] cargo tauri build --debug..." -ForegroundColor Cyan
+$env:CARGO_PROFILE_DEV_DEBUG = "true"
+$env:CARGO_PROFILE_DEV_STRIP = "false"
+Push-Location (Join-Path $root "src-tauri")
+try {
+    cargo tauri build --debug
+    if ($LASTEXITCODE -ne 0) { throw "cargo tauri build --debug failed" }
+} finally {
+    Pop-Location
 }
 
-Pop-Location
+# ── stage ───────────────────────────────────────────────────────────────────
+# Resolve artifacts by glob: the Tauri CLI renames the binary to `productName`
+# ("Codex"), while a plain cargo build emits `codex-tauri.exe`.
+Write-Host "[4/4] Staging artifacts..." -NoNewline
+$target = if ($env:CARGO_TARGET_DIR) { $env:CARGO_TARGET_DIR } else { Join-Path $root "target" }
+$debugDir = Join-Path $target "debug"
+$bin = Get-ChildItem -Path $debugDir -Filter "*.exe" -File -ErrorAction SilentlyContinue |
+    Sort-Object Length -Descending | Select-Object -First 1
+if (-not $bin) { throw "no exe found under $debugDir" }
 
-# Step 7: Package debug artifacts
-Write-Host "`n[7/8] Packaging debug artifacts..." -ForegroundColor Cyan
+$out = Join-Path $root "dist-debug"
+if (Test-Path $out) { Remove-Item $out -Recurse -Force }
+New-Item -ItemType Directory -Force -Path $out | Out-Null
+Copy-Item $bin.FullName -Destination $out -Force
 
-New-Item -ItemType Directory -Force -Path $OUTPUT_DIR | Out-Null
+$pdb = Join-Path $bin.DirectoryName ($bin.BaseName + ".pdb")
+if (Test-Path $pdb) { Copy-Item $pdb -Destination $out -Force }
+Write-Host " OK" -ForegroundColor Green
 
-Copy-Item -Path (Join-Path $SRC_TAURI_DIR "target\debug\Codex.exe") `
-          -Destination $OUTPUT_DIR `
-          -Force
-
-Copy-Item -Path (Join-Path $SRC_TAURI_DIR "target\debug\Codex.pdb") `
-          -Destination $OUTPUT_DIR `
-          -Force
-
-# Copy engine binary
-Copy-Item -Path $engine_path `
-          -Destination (Join-Path $OUTPUT_DIR "binaries\") `
-          -Force
-
-# Generate build manifest
-$manifest = @{
-    timestamp = Get-Date -Format "ISO8601"
-    version = "Debug Build - $(Get-Date -Format 'yyyy-MM-dd_HH-mm-ss')"
-    commit_hash = (git rev-parse HEAD)
-    features = "debug_symbols=true,strip=false,optimize_level=1"
-    notes = "Contains full PDB symbols for debugging stack traces"
-} | ConvertTo-Json -Depth 5
-
-$manifest_path = Join-Path $OUTPUT_DIR "BUILD_MANIFEST.json"
-$manifest | Set-Content -Path $manifest_path
-
-Write-Host "`n✅ Debug build complete!" -ForegroundColor Green
-Write-Host "Executable location: $(Join-Path $OUTPUT_DIR 'Codex.exe')" -ForegroundColor Cyan
-Write-Host "Symbols location: $(Join-Path $OUTPUT_DIR 'Codex.pdb')" -ForegroundColor Cyan
-Write-Host "Manifest location: $(Join-Path $OUTPUT_DIR 'BUILD_MANIFEST.json')" -ForegroundColor Cyan
-
-# Step 8: Quick verification
-Write-Host "`n[8/8] Verifying debug build..." -ForegroundColor Cyan
-
-$exe_size = (Get-Item (Join-Path $OUTPUT_DIR "Codex.exe")).Length
-$pdb_size = (Get-Item (Join-Path $OUTPUT_DIR "Codex.pdb")).Length
-
-Write-Host "✓ Executable size: $([math]::Round($exe_size / 1MB, 2)) MB" -ForegroundColor Green
-Write-Host "✓ Symbol table size: $([math]::Round($pdb_size / 1MB, 2)) MB (contains debug info)" -ForegroundColor Green
-
-Write-Host "`n🎯 Next steps:" -ForegroundColor Yellow
-Write-Host "1. Run ./dist-debug/Codex.exe from PowerShell to see console logs" -ForegroundColor White
-Write-Host "2. Attach debugger with VS Code or WinDbg for runtime analysis" -ForegroundColor White
-Write-Host "3. Use bug report template in DEBUG_BUILD_GUIDE_AND_ISSUE_TRACKER.md" -ForegroundColor White
-
-Write-Host "`n⚠️  IMPORTANT: This debug build contains sensitive information!" -ForegroundColor Red
-Write-Host "   Do NOT distribute outside development team environment" -ForegroundColor Red
+Write-Host ""
+Get-ChildItem $out | ForEach-Object {
+    Write-Host ("  {0}  {1:N0} bytes" -f $_.Name, $_.Length)
+}
+Write-Host ""
+Write-Host "Debug build: $out" -ForegroundColor Cyan

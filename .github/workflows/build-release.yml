@@ -1,8 +1,14 @@
 name: build-release
 
-# Formal release packaging: shell-only Tauri + official engine sidecar.
-# Same engine strategy as build-fast (openai/codex rust-v0.154.0 binary).
-# in-process builds are a separate opt-in path, not this workflow.
+# Formal release packaging (tag-triggered).
+#
+# Same strategy as build-fast: the self-developed kernel is compiled into the
+# shell, so the release artifact is a single self-contained exe with no
+# sidecar, no downloaded engine and no `binaries/` resource.
+#
+# Release profile: the root Cargo.toml `[profile.release]` (lto=thin,
+# codegen-units=4). Unlike build-fast, we do NOT override it with
+# CARGO_PROFILE_RELEASE_* here, and we do strip symbols for the shipped binary.
 
 on:
   push:
@@ -15,16 +21,12 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  TAURI_SKIP_SIDECAR_CHECK: "1"
   TAURI_CLI_VERSION: "2.11.4"
   CARGO_TARGET_DIR: ${{ github.workspace }}/target
   CARGO_INCREMENTAL: "0"
   TOOLS_DIR: ${{ github.workspace }}/.tools
-  CODEX_APP_SERVER_TAG: "rust-v0.154.0"
-  CODEX_APP_SERVER_NAME: "codex-app-server-x86_64-pc-windows-msvc.exe"
-  CODEX_APP_SERVER_DIR: ${{ github.workspace }}/src-tauri/binaries
-  CARGO_PROFILE_RELEASE_DEBUG: "0"
-  CARGO_PROFILE_DEV_DEBUG: "0"
+  # Release: strip symbols (build-fast keeps them out via DEBUG=0/STRIP=symbols).
+  CARGO_PROFILE_RELEASE_STRIP: "symbols"
   SCCACHE_GHA_ENABLED: "on"
   SCCACHE_GHA_RW_MODE: "READ_WRITE"
   SCCACHE_VERSION: "v0.18.0"
@@ -32,7 +34,7 @@ env:
 
 jobs:
   build-release:
-    name: Windows release (shell + official sidecar)
+    name: Windows release (self-contained)
     runs-on: windows-latest
     timeout-minutes: 60
 
@@ -40,7 +42,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          submodules: recursive
           fetch-depth: 1
 
       - name: Setup Node
@@ -49,6 +50,14 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+
+      - name: Frontend — checks
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          node scripts/check-frontend.mjs
+          node scripts/verify-notification-coverage.mjs
+          node scripts/verify-protocol-usage.mjs
 
       - name: Frontend — install + build
         working-directory: frontend
@@ -76,44 +85,15 @@ jobs:
         with:
           version: ${{ env.SCCACHE_VERSION }}
 
-      - name: Cache official codex-app-server
-        id: cache-engine
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.CODEX_APP_SERVER_DIR }}/${{ env.CODEX_APP_SERVER_NAME }}
-          key: codex-app-server-${{ env.CODEX_APP_SERVER_TAG }}-win-x64
-
-      - name: Download official codex-app-server
-        if: steps.cache-engine.outputs.cache-hit != 'true'
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $tag = $env:CODEX_APP_SERVER_TAG
-          $name = $env:CODEX_APP_SERVER_NAME
-          $dir = $env:CODEX_APP_SERVER_DIR
-          New-Item -ItemType Directory -Force -Path $dir | Out-Null
-          $url = "https://github.com/openai/codex/releases/download/$tag/$name"
-          $out = Join-Path $dir $name
-          Write-Host "GET $url"
-          Invoke-WebRequest -Uri $url -OutFile $out
-          $item = Get-Item $out
-          Write-Host ("downloaded {0} bytes={1}" -f $item.FullName, $item.Length)
-          if ($item.Length -lt 10MB) { throw "engine binary looks too small: $($item.Length)" }
-
-      - name: Shell-only rust-cache
+      - name: Rust cache
         id: rust-cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: . -> target
           shared-key: tauri-win
-          key: sidecar-shell
+          key: kernel-inprocess
           cache-targets: true
-          cache-workspace-crates: false
-          cache-all-crates: false
           cache-on-failure: true
-          cache-bin: true
-          add-job-id-key: false
-          prefix-key: v0-rust
 
       - name: Cache prebuilt cargo-tauri
         id: cache-cli
@@ -143,17 +123,29 @@ jobs:
           Add-Content -Path $env:GITHUB_PATH -Value $env:TOOLS_DIR
           Copy-Item (Join-Path $env:TOOLS_DIR "cargo-tauri.exe") (Join-Path $env:TOOLS_DIR "tauri.exe") -Force
 
-      - name: cargo tauri build (release shell + sidecar)
+      # Release gate: refuse to publish if a sidecar engine has crept back in.
+      - name: Assert no engine binary is bundled
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $conf = Get-Content "src-tauri/tauri.conf.json" -Raw
+          if ($conf -match "codex-app-server") {
+            throw "tauri.conf.json still references codex-app-server; the kernel is in-process."
+          }
+          $stray = Get-ChildItem -Path "src-tauri/binaries" -Filter "*.exe" -ErrorAction SilentlyContinue
+          if ($stray) {
+            throw "found a stray engine binary: $($stray.FullName)"
+          }
+          Write-Host "OK: no engine binary in config or src-tauri/binaries"
+
+      - name: cargo tauri build
         working-directory: src-tauri
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           cargo-tauri --version
           sccache --version
-          $engine = Join-Path $env:CODEX_APP_SERVER_DIR $env:CODEX_APP_SERVER_NAME
-          if (-not (Test-Path $engine)) { throw "engine binary missing: $engine" }
-          # tauri-cli: runner args after `--` (no native --no-default-features).
-          cargo tauri build -- --no-default-features
+          cargo tauri build
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: sccache stats
@@ -162,7 +154,6 @@ jobs:
         run: |
           try { sccache --show-stats } catch { Write-Host "sccache stats unavailable" }
 
-      # Portable shell exe + WebView2 loader + official engine — no installers.
       - name: Stage portable build
         shell: pwsh
         run: |

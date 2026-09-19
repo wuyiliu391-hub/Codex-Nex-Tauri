@@ -362,7 +362,7 @@ const engineCommands: Record<string, (a: Args) => Promise<unknown>> = {
     const params = a["params"];
     return rpcRequest(
       str(a["method"]),
-      params == null ? null : (params as Record<string, unknown>),
+      params == null ? {} : (params as Record<string, unknown>),
     );
   },
 };

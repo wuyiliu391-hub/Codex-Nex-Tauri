@@ -1,67 +1,29 @@
 import { fileURLToPath, URL } from "node:url";
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-// The React app lives in frontend/app. The existing hand-written vanilla
-// modules stay in frontend/src and are imported as static assets (CSS, fonts,
-// pet spritesheets) while the rewrite proceeds batch by batch.
+// The React app lives in frontend/app. The hand-written vanilla modules stay in
+// frontend/src and are imported as static assets (CSS, fonts, pet spritesheets)
+// while the rewrite proceeds batch by batch.
 //
 // publicDir is disabled on purpose: every asset goes through Vite's pipeline so
 // url() references inside the existing stylesheets resolve correctly.
 //
 // Browser dev mode (`npm run dev:browser`, see docs/BROWSER-DEV.md):
-//   * @tauri-apps/api/{core,event} are aliased onto app/devbridge/*, which
-//     replays the shell command surface against a live codex-app-server.
-//   * a WS proxy mounts /appserver → engine. The engine's websocket listener
-//     rejects upgrades that carry an Origin header (transport/websocket.rs),
-//     which every browser sends — the proxy connects server-side without one.
-
-function appServerWsProxy(): Plugin {
-  return {
-    name: "codex-app-server-ws-proxy",
-    configureServer(server) {
-      // Lazy-import ws so the default (tauri) dev path never touches it.
-      void import("ws").then(({ WebSocket, WebSocketServer }) => {
-        const wss = new WebSocketServer({ noServer: true });
-        const target =
-          process.env["CODEX_APP_SERVER_WS"] ?? "ws://127.0.0.1:17457";
-        server.httpServer?.on("upgrade", (req, socket, head) => {
-          if (!req.url?.startsWith("/appserver")) return;
-          wss.handleUpgrade(req, socket, head, (client) => {
-            const upstream = new WebSocket(target);
-            const outbox: unknown[] = [];
-            upstream.on("open", () => {
-              for (const m of outbox.splice(0)) {
-                upstream.send(m as never);
-              }
-            });
-            upstream.on("message", (data, isBinary) => {
-              if (client.readyState === 1) client.send(data, { binary: isBinary });
-            });
-            upstream.on("error", (err) => {
-              console.warn(`[ws-proxy] engine unreachable at ${target}: ${err.message}`);
-              if (client.readyState === 1) client.close(1011, "upstream error");
-            });
-            upstream.on("close", () => client.close());
-            client.on("message", (data, isBinary) => {
-              if (upstream.readyState === 1) upstream.send(data as never, { binary: isBinary });
-              else outbox.push(data);
-            });
-            client.on("close", () => upstream.close());
-          });
-        });
-        console.info(`[ws-proxy] /appserver → ${target}`);
-      });
-    },
-  };
-}
+//   `@tauri-apps/api/{core,event}` are aliased onto `app/devbridge/*`, which
+//   replays the shell command surface in TypeScript.
+//
+//   There is NO WebSocket proxy and no external engine: the kernel is
+//   in-process, so the browser cannot reach it. Browser mode simulates the
+//   command surface instead. The old `appServerWsProxy` (which mounted
+//   /appserver → ws://127.0.0.1:17457) was removed with the sidecar.
 
 export default defineConfig(({ mode }) => {
   const browserBridge = mode === "browser";
   return {
     // root defaults to the directory holding this config (frontend/).
     publicDir: false,
-    plugins: [react(), ...(browserBridge ? [appServerWsProxy()] : [])],
+    plugins: [react()],
     resolve: {
       alias: {
         // Exact-match keys win over the bare "@" prefix alias below.

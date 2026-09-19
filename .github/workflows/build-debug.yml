@@ -1,105 +1,151 @@
 name: build-debug
 
+# Debug build with full symbols, for crash triage and profiling.
+#
+# Uses `cargo tauri build --debug`, which drives the same pipeline as the
+# release build but with the `dev` profile. The root Cargo.toml sets
+# `[profile.dev] debug = "limited"`; the env overrides below raise that to full
+# symbols for this workflow only.
+#
+# Output is `target/debug/Codex.exe` (Tauri renames the binary to
+# `productName` from tauri.conf.json — the Cargo package is `codex-tauri`, so
+# the raw cargo artifact is `codex-tauri.exe`; we let the Tauri CLI do the
+# rename rather than guessing).
+#
+# No sidecar: the self-developed kernel is compiled into the shell.
+
 on:
   push:
     branches: ['**']
   workflow_dispatch:
-    
+
+concurrency:
+  group: build-debug-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  TAURI_CLI_VERSION: "2.11.4"
+  CARGO_TARGET_DIR: ${{ github.workspace }}/target
+  CARGO_INCREMENTAL: "1"
+  TOOLS_DIR: ${{ github.workspace }}/.tools
+  # Full symbols for triage; the dev profile defaults to "limited".
+  CARGO_PROFILE_DEV_DEBUG: "true"
+  CARGO_PROFILE_DEV_STRIP: "false"
+
 jobs:
   build-debug:
-    name: Windows Debug Build with Full Symbols
+    name: Windows debug build with full symbols
     runs-on: windows-latest
-    timeout-minutes: 30
-    
-    env:
-      CARGO_TERM_COLOR: always
-      TAURI_SKIP_SIDECAR_CHECK: "1"
-      TAURI_CLI_VERSION: "2.11.4"
-      CODEX_APP_SERVER_TAG: "rust-v0.154.0"
-      CODEX_APP_SERVER_NAME: "codex-app-server-x86_64-pc-windows-msvc.exe"
-      
+    timeout-minutes: 40
+
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
-        
-      - name: Setup Node.js
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-          
-      - name: Frontend dependencies and check
+
+      # The debug build must compile the frontend: `tauri.conf.json`
+      # `frontendDist` points at ../frontend/dist, which is gitignored and
+      # therefore absent on a fresh checkout.
+      - name: Frontend — install + build
         working-directory: frontend
-        run: |
-          npm ci --no-audit --no-fund
-          npm run typecheck
-          
-      - name: Install official app-server binary
         shell: pwsh
         run: |
-          $tag = $env:CODEX_APP_SERVER_TAG
-          $name = $env:CODEX_APP_SERVER_NAME
-          $dir = Join-Path $env:GITHUB_WORKSPACE "src-tauri/binaries"
-          New-Item -ItemType Directory -Force -Path $dir | Out-Null
-          $url = "https://github.com/openai/codex/releases/download/$tag/$name"
-          Invoke-WebRequest -Uri $url -OutFile (Join-Path $dir $name)
-          
-      - name: Install Rust toolchain
+          $ErrorActionPreference = "Stop"
+          npm ci --no-audit --no-fund
+          npm run build
+
+      - name: Setup Rust (pinned 1.98.1, MSVC)
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "1.98.1"
           targets: x86_64-pc-windows-msvc
-          
-      - name: Create debug profile in Cargo.toml
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+          shared-key: tauri-win-debug
+          key: kernel-inprocess-debug
+          cache-on-failure: true
+
+      - name: Cache prebuilt cargo-tauri
+        id: cache-cli
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TOOLS_DIR }}
+          key: cargo-tauri-${{ runner.os }}-${{ env.TAURI_CLI_VERSION }}
+
+      - name: Download cargo-tauri ${{ env.TAURI_CLI_VERSION }}
+        if: steps.cache-cli.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $ver = $env:TAURI_CLI_VERSION
+          New-Item -ItemType Directory -Force -Path $env:TOOLS_DIR | Out-Null
+          $url = "https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v$ver/cargo-tauri-x86_64-pc-windows-msvc.zip"
+          $zip = Join-Path $env:TOOLS_DIR "cargo-tauri.zip"
+          Invoke-WebRequest -Uri $url -OutFile $zip
+          Expand-Archive -Path $zip -DestinationPath $env:TOOLS_DIR -Force
+          Remove-Item $zip -Force
+          $exe = Join-Path $env:TOOLS_DIR "cargo-tauri.exe"
+          if (-not (Test-Path $exe)) { throw "cargo-tauri.exe not found after extract" }
+
+      - name: Put cargo-tauri on PATH
+        shell: pwsh
+        run: |
+          Add-Content -Path $env:GITHUB_PATH -Value $env:TOOLS_DIR
+          Copy-Item (Join-Path $env:TOOLS_DIR "cargo-tauri.exe") (Join-Path $env:TOOLS_DIR "tauri.exe") -Force
+
+      - name: cargo tauri build --debug
         working-directory: src-tauri
         shell: pwsh
         run: |
-          # Append debug-build profile at the end of Cargo.toml
-          $toml_content = Get-Content "Cargo.toml" -Raw
-          $debug_profile = @"
-          
-[profile.debug-build]
-inherits = "dev"
-opt-level = 1
-debug = true
-strip = false
-incremental = true
-"@
-          Set-Content -Path "Cargo.toml" -Value ($toml_content + $debug_profile)
-          
-      - name: Build debug executable
-        working-directory: src-tauri
-        shell: pwsh
-        run: |
-          $env:PATH = "${env:ProgramFiles}\Git\usr\bin;" + $env:PATH
-          cargo build --target x86_64-pc-windows-msvc --profile debug-build --verbose
-          
+          $ErrorActionPreference = "Stop"
+          cargo-tauri --version
+          cargo tauri build --debug
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      # Resolve the artifacts by glob rather than a guessed name: the Tauri CLI
+      # renames the binary to `productName` ("Codex"), while a plain cargo
+      # build would emit `codex-tauri.exe`. Globbing is correct either way.
       - name: Package debug artifacts
-        working-directory: src-tauri
         shell: pwsh
         run: |
-          $output_dir = "..\dist-debug"
-          New-Item -ItemType Directory -Force -Path $output_dir | Out-Null
-          
-          Copy-Item -Path "target\x86_64-pc-windows-msvc\debug\Codex.exe" `
-                    -Destination $output_dir
-                    
-          Copy-Item -Path "target\x86_64-pc-windows-msvc\debug\Codex.pdb" `
-                    -Destination $output_dir
-                    
-          Write-Host "Debug build complete!"
-          
-      - name: Upload debug executable
+          $ErrorActionPreference = "Stop"
+          $target = $env:CARGO_TARGET_DIR
+          $bin = Get-ChildItem -Path (Join-Path $target "debug") -Filter "*.exe" -File |
+                 Where-Object { $_.Name -notmatch 'build-script|deps' } |
+                 Sort-Object Length -Descending | Select-Object -First 1
+          if (-not $bin) { throw "no exe found under $target/debug" }
+
+          $out = Join-Path $env:GITHUB_WORKSPACE "dist-debug"
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          Copy-Item $bin.FullName -Destination $out -Force
+          Write-Host "staged $($bin.Name) ($([math]::Round($bin.Length/1MB,1)) MB)"
+
+          # A .pdb sits next to the exe when debug info is on.
+          $pdb = Join-Path $bin.DirectoryName ($bin.BaseName + ".pdb")
+          if (Test-Path $pdb) {
+            Copy-Item $pdb -Destination $out -Force
+            Write-Host "staged $($bin.BaseName).pdb"
+          } else {
+            Write-Host "no .pdb beside $($bin.Name) (debug info may be embedded)"
+          }
+          Get-ChildItem $out | ForEach-Object { Write-Host "  $($_.Name) $($_.Length) bytes" }
+
+      - name: Upload debug build
         uses: actions/upload-artifact@v4
         with:
-          name: Codex-Windows-Debug-Build
-          path: src-tauri/dist-debug/Codex.exe
-          retention-days: 7
-          
-      - name: Upload debug symbols
-        uses: actions/upload-artifact@v4
-        with:
-          name: Codex-Windows-Debug-Symbols
-          path: src-tauri/dist-debug/Codex.pdb
+          name: Codex-Windows-Debug
+          path: dist-debug/
+          if-no-files-found: error
           retention-days: 7

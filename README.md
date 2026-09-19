@@ -1,57 +1,121 @@
 # Codex-Tauri
 
-Tauri v2 桌面壳 + **官方 Codex app-server**（唯一引擎形态：预编译 sidecar，`rust-v0.154.0`）。
+Tauri v2 桌面端 + **自研进程内内核**。单一可执行文件，无外部引擎、无子进程、无本地端口。
 
-| 文档 | 说明 |
-|------|------|
-| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | **架构分层（必读）** |
-| [docs/LAYOUT.md](./docs/LAYOUT.md) | 目录布局与清理规则 |
-| [docs/RUST_BACKEND.md](./docs/RUST_BACKEND.md) | 引擎传输 / 握手 / 方法名 |
-| [docs/BROWSER-DEV.md](./docs/BROWSER-DEV.md) | **浏览器调试模式**（不编译 Rust 跑真实引擎） |
-| [docs/REPORT-2026-09-16.md](./docs/REPORT-2026-09-16.md) | **官方桌面端 UIA 动态逆向总报告**（启动/操控/19 设置页/Turn 流） |
-| [docs/official-ui/CDP_NOTES.md](./docs/official-ui/CDP_NOTES.md) | CDP 结论（Store 版不开远程调试，UIA 为唯一动态路径） |
-| [docs/provider-setup.md](./docs/provider-setup.md) | 自定义供应商 |
-| [docs/official-ui/APPSERVER-METHOD-INVENTORY-0.154.0.md](./docs/official-ui/APPSERVER-METHOD-INVENTORY-0.154.0.md) | 官方方法面清单 |
-
-## 分层（摘要）
-
-```text
-React UI  →  Tauri Shell API（产品 IPC）  →  app-server JSON-RPC  →  官方引擎
-                │
-                └─ 本地 store：宠物/日历/设置等桌面能力
+```
+React UI  ──Tauri IPC──►  src-tauri 命令层  ──►  kernel（进程内）
+                                                    │
+  桌面能力（宠物/日历/设置/连接器）──────────────────┘
+  走本地 store（shell-state.json）
 ```
 
-| 模式 | 引擎来源 | 用途 |
-|------|----------|------|
-| **唯一 / CI** | 官方 `codex-app-server-*.exe` sidecar（安装器内置资源） | 日常产品构建 |
-| ~~实验~~ 已退役 | in-process 源码链已移除（feature、workspace 成员、`src/backend` 树），仅存 git 历史 | — |
+## 为什么是自研内核
 
-## 构建（CI）
+早期版本把官方 `codex-app-server.exe`（307 MB）作为 sidecar 子进程启动，经
+WebSocket JSON-RPC 通信。该架构有一类**结构性故障**，无法靠打补丁消除：
 
-- `lint-check`：前端静态检查 + typecheck + rustfmt  
-- `build-fast` / `build-release`：下载官方引擎 → `cargo tauri build -- --no-default-features`（只编壳）
+| 故障 | 原因 |
+|---|---|
+| 冷启动双连接竞态 | 两个并发调用各自建连，输家的连接与在途请求被丢弃 |
+| 死连接挂满 120 秒 | reader 退出后不清空 pending 表，调用方只能等超时 |
+| 审批请求黑洞 | 部分 server request 发出后前端无监听，turn 永久挂死 |
+| 引擎崩溃无感知 | 无存活监控，不重启也不通知 UI |
+| 回环端口无鉴权 | 17457 端口任意本机进程可连 |
+| 子进程成为孤儿 | 从任务管理器强杀宿主时，引擎进程残留 |
 
-引擎二进制（不入库）：
+自研内核改为**进程内**执行，上述六项**在结构上不再存在**：没有二进制要解析，
+没有端口要绑定，没有子进程要托管。
 
-```text
-src-tauri/binaries/codex-app-server-x86_64-pc-windows-msvc.exe
-```
+## 分层
 
-来源：[openai/codex rust-v0.154.0](https://github.com/openai/codex/releases/tag/rust-v0.154.0)
+| 层 | 位置 | 职责 |
+|---|---|---|
+| L4 展示 | `frontend/app/**` | React 组件、状态、事件桥 |
+| L3 产品 API | `src-tauri/src/commands/**` | Tauri 命令；前端**唯一**依赖面 |
+| L2 内核 | `src-tauri/src/kernel/**` | 协议、会话、turn 执行、事件 |
+| L1 本地能力 | `src-tauri/src/state.rs` | 宠物/日历/设置等本地 store |
 
-## 本地前端
+**硬规则**：前端只调用 L3 已注册的命令；内核不伪造成功；未实现的能力返回显式
+的 `not-wired` 结果，而不是空列表或假的 `ok: true`。
+
+## 内核模块
+
+| 文件 | 行数 | 职责 |
+|---|---|---|
+| `kernel/protocol.rs` | 155 | 与前端冻结的契约：方法名/通知名常量 + `codex:{method}` 通道转换 |
+| `kernel/session.rs` | 470 | 内存 thread/turn 状态机；强制每线程同时只有一个 turn |
+| `kernel/provider.rs` | 316 | `ModelProvider` trait + `EchoProvider`（离线确定性后端） |
+| `kernel/events.rs` | 305 | 唯一构造通道名的地方；每个方法都有测试断言存在于前端表中 |
+| `kernel/state.rs` | 637 | turn 执行：分离任务 + `CancellationToken`，中断可靠 |
+
+`kernel/protocol.rs` 的通道转换规则必须与前端
+`frontend/app/bridge/events.ts::tauriEventName` 逐字符一致——这是整个集成里最
+脆弱的一环，两侧不一致会导致 UI 静默收不到任何事件。
+
+## 当前状态
+
+| 能力 | 状态 |
+|---|---|
+| 会话/线程管理（内存） | ✅ 已实现 |
+| turn 执行 + 流式事件 | ✅ 已实现 |
+| 中断 | ✅ 已实现（协作式取消） |
+| 真实模型调用 | ⛔ 待实现（当前为 `EchoProvider`） |
+| 持久化 | ⛔ 待实现（重启即失） |
+| 工具执行 / sandbox | ⛔ 待实现 |
+| 审批流 | ⛔ 待实现（`EchoProvider` 不触发审批） |
+| MCP / 插件 | ⛔ 仅存储配置，不加载 |
+
+`EchoProvider` 是**传输探针**，不是假模型：它如实声明自己
+（`is_placeholder()`），并在每个 turn 结束时发出 `warning` 告知用户"这是回声
+而非模型回复"。它的用途是让传输层在不受网络、密钥、配额干扰的情况下被验证。
+
+## 构建
 
 ```bash
+# 前端
 cd frontend
 npm ci
 npm run typecheck
 npm run build
+
+# 桌面端（需要 Rust 1.98.1 + Tauri CLI）
+cargo tauri build --manifest-path src-tauri/Cargo.toml
 ```
 
-## 硬规则
+输出 `dist/Codex-portable/`（见 `scripts/stage-dist.ps1`）。
 
-- UI 控件必须走真实 Tauri IPC，禁止假回调/占位成功  
-- 保持旧 CSS DOM/class 契约  
-- 不随意修改 Codex 核心 Agent 逻辑  
-- 协议以官方 `app-server generate-ts` 为准  
-- 前端改动后，Agent 只负责改码 + `tsc --noEmit`/`scripts/` 静态检查；**不执行 vite 构建、不开内置浏览器测试**——运行与视觉验证由本人自测（2026-09-18 约定）  
+### 本地检查（无需 Rust）
+
+```bash
+node scripts/check-frontend.mjs              # TS 语法 + TSX 结构 + import 解析
+node scripts/verify-protocol-usage.mjs       # 协议字符串是否都在生成表中
+node scripts/verify-notification-coverage.mjs # 83 个通知是否都有归宿
+node scripts/migration-status.mjs            # vanilla → React 迁移状态
+```
+
+## CI
+
+| Workflow | 作用 |
+|---|---|
+| `lint-check` | 前端静态检查 + typecheck + `cargo fmt --check` |
+| `backend-check` | `cargo check --workspace --all-targets` + `cargo test --lib`（内核 30 个测试） |
+| `build-fast` | 推送即构建，产出便携包 |
+| `build-release` | tag 触发，正式打包 |
+| `build-debug` | 全符号调试构建，用于崩溃分析 |
+
+所有构建都带 **"Assert no engine binary is bundled"** 门禁：若 `tauri.conf.json`
+重新引用 `codex-app-server`，或 `src-tauri/binaries/` 出现 exe，构建会直接失败，
+防止 300 MB 引擎被静默打包回去。
+
+## 目录
+
+| 路径 | 说明 |
+|---|---|
+| `frontend/app/**` | React 应用（组件、状态、事件桥） |
+| `frontend/src/protocol/**` | 协议方法表（前端契约的来源） |
+| `frontend/src/js/**` | 遗留 vanilla 层（i18n、默认值、宠物数据），仍被 React 引用 |
+| `src-tauri/src/kernel/**` | 自研内核 |
+| `src-tauri/src/commands/**` | Tauri 命令层 |
+| `src-tauri/src/codex/adapter.rs` | 供应商协议转换器（Chat/Anthropic/Ollama → Responses） |
+| `docs/` | 架构说明、供应商配置、官方 UI 逆向语料 |
+| `scripts/` | 构建与校验脚本 |
