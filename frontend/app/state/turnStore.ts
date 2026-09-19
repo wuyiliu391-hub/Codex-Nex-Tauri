@@ -89,16 +89,19 @@ export function beginTurn(params: { threadId?: string; turnId?: string }, at: nu
     ...state,
     ...(switching
       ? { items: {}, order: [], tokenUsage: null, warnings: [], pendingRequests: [] }
-      : { 
-          phase: "commentary",
-          active: true,
-          startedAt: at,
-          turnStatus: null,
-          completedAt: null,
-          durationMs: null,
-          error: null,
-          plan: null,
-        }),
+      : {}),
+    // Turn-scoped bookkeeping resets in BOTH branches. It used to live only in
+    // the same-thread branch, so a `turn/started` for another thread left the
+    // store inactive and `TurnStream` rendered no header at all — the turn was
+    // running with no elapsed timer and no fold affordance.
+    phase: "commentary",
+    active: true,
+    startedAt: at,
+    turnStatus: null,
+    completedAt: null,
+    durationMs: null,
+    error: null,
+    plan: null,
     sessionId: threadId ?? state.sessionId,
     turnId: typeof params.turnId === "string" ? params.turnId : null,
     reconnectFrozen: state.reconnectAttempt > 0 || state.reconnectFrozen,

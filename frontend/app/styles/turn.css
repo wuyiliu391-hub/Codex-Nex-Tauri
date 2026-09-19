@@ -9,6 +9,49 @@
 /* Live turn header: no pointer affordance until the turn is finished. */
 .turn-elapsed-head.is-live { cursor: default; }
 
+/* The counting label. Tabular figures keep the digits on a fixed advance, so
+   "9秒" → "10秒" does not nudge the chevron/spinner sideways on the tick. */
+.turn-elapsed-text {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── live elapsed label: highlight that decays on every tick ──────────────
+   While a turn streams, 「已处理 X 秒」 counts up once per second. Each new
+   second the WHOLE row — label, spinner and the divider rule under it — lights
+   up in the accent colour and fades back to its resting colour, so the header
+   reads as *live* without the layout shifting.
+
+   The animation only plays on mount. React remounts the row each tick via
+   `key={liveSec}` (see TurnStream.tsx), which is what restarts it — a plain
+   re-render would leave the highlight stuck at its end state after one second.
+   That is also why the tick value is React state rather than a `Date.now()`
+   read during render: streamed deltas re-render this component constantly, and
+   a key that changed on every delta would restart the fade before it finished.
+
+   Colour: the accent token is the same one the rest of the shell uses for
+   "active", and it falls back to the secondary foreground so a theme without
+   --accent still gets a visible highlight rather than none.
+
+   Motion: `html[data-reduce-motion="true"] *` (tokens.css) already forces
+   `animation: none !important`, so a user who disabled motion gets a static
+   label — no separate media query needed here. */
+.turn-elapsed-head.is-ticking {
+  animation: turn-elapsed-tick 1000ms ease-out 1;
+}
+
+@keyframes turn-elapsed-tick {
+  0% {
+    color: var(--accent, var(--fg-secondary));
+    border-bottom-color: var(--accent, var(--fg-secondary));
+    background-color: color-mix(in srgb, var(--accent, var(--fg-secondary)) 10%, transparent);
+  }
+  100% {
+    color: var(--fg-description);
+    border-bottom-color: var(--border-light, var(--border-subtle));
+    background-color: transparent;
+  }
+}
+
 /* 「正在思考」 spinner — sits inline before the label. */
 .turn-spinner {
   width: 10px;

@@ -277,11 +277,15 @@ export function reduceNotification(env: NotificationEnvelope): void {
     case "item/agentMessage/delta": {
       const id = str(params, "itemId", "item_id") ?? `agent-${receivedAt}`;
       const delta = str(params, "delta", "text") ?? "";
+      const phase = phaseOf(params["phase"]);
       turn.appendItemText(id, "agentMessage", delta, {
-        phase: phaseOf(params["phase"]),
+        phase,
         startedAt: receivedAt,
       });
-      turn.setPhase("commentary");
+      // Mirror the item's own phase rather than forcing `commentary`: the
+      // kernel sends `final_answer` on the closing delta, and overwriting it
+      // here made that state unobservable to any consumer of `turn.phase`.
+      if (phase) turn.setPhase(phase);
       return;
     }
 

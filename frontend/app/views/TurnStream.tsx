@@ -4,8 +4,8 @@
  * Header state machine (all three strings live in the i18n dictionary):
  *   send            → 「正在思考」  spinner row, timer starts at send time,
  *                     no agent content yet, anchored at the tail
- *   first content   → 「已处理 X 秒」 ticking ~4Hz, anchored above the first
- *                     agent-content row of the CURRENT turn
+ *   first content   → 「已处理 X 秒」 ticking once per second, anchored above
+ *                     the first agent-content row of the CURRENT turn
  *   turn/completed  → 「用时 X 秒 ⌄」 static, chevron folds the turn body
  *                     (user bubbles stay visible)
  *
@@ -30,33 +30,60 @@ function t(key: string, fallback = "", vars?: Record<string, string | number>): 
   return String(tRaw(key, fallback, (vars ?? null) as null));
 }
 
-/** Official elapsed strings: 460毫秒 / 1.1秒 / 27秒 / 1分 5秒. */
-function formatElapsed(ms: number | null | undefined): string {
-  if (!ms || ms < 0) return "";
-  if (ms < 1000) return `${ms}毫秒`;
-  const totalSec = ms / 1000;
-  if (totalSec < 60) {
-    const s = totalSec < 10 ? totalSec.toFixed(1) : String(Math.floor(totalSec));
-    return `${s}秒`;
-  }
-  const m = Math.floor(totalSec / 60);
-  const s = Math.floor(totalSec % 60);
+/**
+ * Elapsed-time formatting, integer seconds only.
+ *
+ * The live header counts up from zero, so the first thing a user reads is the
+ * smallest number in the sequence. Sub-second precision ("460毫秒", "1.1秒")
+ * made that first impression a fractional number that changes width as it
+ * ticks; whole seconds keep the label a single stable glyph ("0秒" → "9秒").
+ *
+ *   0s–59s    → "0秒" … "27秒"   (whole seconds, no decimals)
+ *   ≥60s      → "1分 5秒" / "2分"
+ *
+ * A sub-second turn still formats as "0秒" rather than an empty string: the
+ * header only renders while a turn is live, so "" would blank the row.
+ */
+function formatSeconds(totalSec: number): string {
+  const sec = Math.floor(Math.max(0, totalSec));
+  if (sec < 60) return `${sec}秒`;
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
   return s ? `${m}分 ${s}秒` : `${m}分`;
 }
 
+function formatElapsed(ms: number | null | undefined): string {
+  if (ms == null || ms < 0) return "";
+  return formatSeconds(ms / 1000);
+}
+
 /**
- * Re-render ~4Hz while the turn is live so 「已处理 X 秒」 ticks in real time.
- * Returns ms since turn start, or null when no turn is running.
+ * Seconds elapsed since turn start, ticking once per second.
+ *
+ * Returns `null` when no turn is live. The interval matches the display
+ * resolution exactly: a 250ms tick would re-render 4× per second to produce
+ * the same integer, and would make the highlight animation restart mid-fade.
+ *
+ * The value lives in state and is written ONLY by the interval. Deriving it
+ * from `Date.now()` during render would look equivalent but is not: every
+ * streaming delta re-renders this component, each re-render would read a
+ * slightly larger millisecond count, and any tick that crossed a second
+ * boundary would change the header's React `key` — re-mounting the row and
+ * restarting its highlight mid-fade. With a fast provider that happens many
+ * times per second, so the label never gets to fade back and reads as
+ * permanently highlighted. State keeps the key change at exactly 1 Hz.
  */
-function useLiveElapsed(active: boolean, startedAt: number | null): number | null {
-  const [, setTick] = useState(0);
+function useLiveSeconds(active: boolean, startedAt: number | null): number | null {
+  const [sec, setSec] = useState(0);
   useEffect(() => {
     if (!active || startedAt == null) return;
-    const id = window.setInterval(() => setTick((v) => v + 1), 250);
+    const read = () => setSec(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)));
+    read();
+    const id = window.setInterval(read, 1000);
     return () => window.clearInterval(id);
   }, [active, startedAt]);
   if (!active || startedAt == null) return null;
-  return Math.max(0, Date.now() - startedAt);
+  return sec;
 }
 
 type HeaderState = "thinking" | "live" | "done" | null;
@@ -66,7 +93,7 @@ export function TurnStream() {
   const items = useTurnItems();
   const nodes = groupProcessItems(items);
   const [collapsed, setCollapsed] = useState(false);
-  const liveMs = useLiveElapsed(turn.active, turn.startedAt);
+  const liveSec = useLiveSeconds(turn.active, turn.startedAt);
 
   // Anchor the header to the CURRENT turn only: the last user bubble is the
   // turn boundary, so a follow-up turn's header never floats into the middle
@@ -86,8 +113,12 @@ export function TurnStream() {
   }, [turn.active]);
 
   const doneElapsed = formatElapsed(turn.durationMs);
+  // `active` with no `startedAt` cannot happen through the normal lifecycle —
+  // both are written together by `beginTurn`/`beginUserTurn` — but if it ever
+  // did, the header would read 「已处理 」 with no number. Fall back to the
+  // thinking row, which needs no clock.
   const state: HeaderState = turn.active
-    ? firstAgentIdx >= 0
+    ? firstAgentIdx >= 0 && liveSec != null
       ? "live"
       : "thinking"
     : doneElapsed
@@ -97,7 +128,7 @@ export function TurnStream() {
     state === "thinking"
       ? t("process.thinking", "Thinking…")
       : state === "live"
-        ? t("process.elapsed", "Processed {time}", { time: formatElapsed(liveMs ?? 0) })
+        ? t("process.elapsed", "Processed {time}", { time: formatSeconds(liveSec ?? 0) })
         : state === "done"
           ? t("process.usedTime", "Took {time}", { time: doneElapsed })
           : "";
@@ -111,19 +142,33 @@ export function TurnStream() {
 
   // The header row renders OUTSIDE the fold — collapsing used to hide the
   // header along with its own toggle, leaving no way back.
+  //
+  // The live row carries `key={liveSec}` so React remounts it on every tick.
+  // A CSS animation only plays on mount or when its `animation-name` changes,
+  // so a plain re-render would leave the highlight stuck at its end state
+  // after the first second. The key sits on the row, not on the label, because
+  // the highlight spans the whole row (label, spinner and divider rule); the
+  // row is not focusable while live (`aria-disabled`), so remounting it drops
+  // no focus.
   const headerRow = state ? (
-    <div className="message-row turn-elapsed-row" key="turn-header">
+    <div className="message-row turn-elapsed-row" key={state === "live" ? `turn-header-${liveSec}` : "turn-header"}>
       <button
         type="button"
-        className={`turn-elapsed-head${state === "done" ? "" : " is-live"}`}
+        className={`turn-elapsed-head${state === "done" ? "" : " is-live"}${
+          state === "live" ? " is-ticking" : ""
+        }`}
         aria-expanded={state === "done" ? !collapsed : undefined}
         aria-disabled={state === "done" ? undefined : true}
+        // Not focusable until the turn ends: the live row is remounted every
+        // second to restart the highlight, and a keyboard user parked on it
+        // would lose focus on each tick.
+        tabIndex={state === "done" ? undefined : -1}
         onClick={() => {
           if (state === "done") setCollapsed((v) => !v);
         }}
       >
         {state === "thinking" ? <span className="turn-spinner" aria-hidden="true" /> : null}
-        <span>{headerText}</span>
+        <span className="turn-elapsed-text">{headerText}</span>
         {state === "done" ? (
           <svg className={collapsed ? "closed" : undefined} viewBox="0 0 10 6" aria-hidden="true">
             <path d="M1 1l4 4 4-4" />
