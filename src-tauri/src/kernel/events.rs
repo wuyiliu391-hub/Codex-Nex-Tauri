@@ -24,15 +24,31 @@ use super::protocol::{self, event_channel};
 pub struct KernelEvent {
     pub method: &'static str,
     pub params: Value,
+    pub custom_channel: Option<String>,
 }
 
 impl KernelEvent {
     pub fn new(method: &'static str, params: Value) -> Self {
-        Self { method, params }
+        Self {
+            method,
+            params,
+            custom_channel: None,
+        }
+    }
+
+    pub fn with_channel(channel: impl Into<String>, method: &'static str, params: Value) -> Self {
+        Self {
+            method,
+            params,
+            custom_channel: Some(channel.into()),
+        }
     }
 
     /// The Tauri channel this event is delivered on.
     pub fn channel(&self) -> String {
+        if let Some(ref ch) = self.custom_channel {
+            return ch.clone();
+        }
         event_channel(self.method)
     }
 
@@ -43,6 +59,15 @@ impl KernelEvent {
         if let Err(err) = app.emit(&channel, self.params.clone()) {
             tracing::warn!(channel = %channel, error = %err, "kernel event emit failed");
         }
+    }
+
+    pub fn tool_approval_request(
+        approval_type: String,
+        tool_name: String,
+        args: serde_json::Value,
+        approval_id: String,
+    ) -> Self {
+        tool_approval_request(None, approval_type, tool_name, args, approval_id)
     }
 }
 
@@ -252,7 +277,105 @@ pub fn error(thread_id: Option<&str>, message: &str) -> KernelEvent {
     KernelEvent::new(protocol::notifications::ERROR, params)
 }
 
+// ── tool/approval flow constructors ────────────────────────────────────────
+// For self-developed kernel features. These map to protocol methods:
+// - item/commandExecution/requestApproval (channel: codex:approval)
+// - item/fileChange/requestApproval (channel: codex:approval)
+// - item/commandExecution/outputDelta
+// - serverRequest/resolved (note: this is a response notification)
+
+pub fn tool_approval_request(
+    thread_id: Option<&str>,
+    approval_type: String, // "commandExecution", "fileChange", etc.
+    tool_name: String,
+    args: serde_json::Value,
+    approval_id: String,
+) -> KernelEvent {
+    let method = match approval_type.as_str() {
+        "fileChange" => "item/fileChange/requestApproval",
+        _ => "item/commandExecution/requestApproval",
+    };
+
+    let mut inner = serde_json::Map::new();
+    if let Some(tid) = thread_id {
+        inner.insert("threadId".into(), json!(tid));
+    }
+    inner.insert("approvalId".into(), json!(approval_id.clone()));
+    inner.insert("toolName".into(), json!(tool_name));
+    inner.insert("arguments".into(), args.clone());
+
+    if let Some(cmd) = args.get("command").or_else(|| args.get("cmd")).and_then(Value::as_str) {
+        inner.insert("command".into(), json!(cmd));
+    } else if tool_name == "shell_exec" {
+        if let Some(cmd) = args.get("command").and_then(Value::as_str) {
+            inner.insert("command".into(), json!(cmd));
+        }
+    }
+
+    if let Some(cwd) = args.get("cwd").and_then(Value::as_str) {
+        inner.insert("cwd".into(), json!(cwd));
+    }
+
+    if let Some(changes) = args.get("changes") {
+        inner.insert("changes".into(), changes.clone());
+    } else if tool_name == "fs_write" {
+        if let Some(path) = args.get("path").and_then(Value::as_str) {
+            inner.insert("changes".into(), json!([path]));
+            inner.insert("path".into(), json!(path));
+        }
+    }
+
+    inner.insert(
+        "availableDecisions".into(),
+        json!(["accept", "acceptForSession", "decline", "cancel"]),
+    );
+
+    let payload = json!({
+        "id": approval_id,
+        "method": method,
+        "params": Value::Object(inner),
+    });
+
+    KernelEvent::with_channel("codex:approval", method, payload)
+}
+
+pub fn command_execution_output_delta(
+    thread_id: &str,
+    turn_id: &str,
+    item_id: &str,
+    delta: &str,
+) -> KernelEvent {
+    KernelEvent::new(
+        protocol::notifications::ITEM_COMMAND_EXECUTION_OUTPUT_DELTA,
+        json!({
+            "threadId": thread_id,
+            "turnId": turn_id,
+            "itemId": item_id,
+            "delta": delta,
+        }),
+    )
+}
+
+pub fn server_request_resolved(
+    thread_id: &str,
+    approval_id: &str,
+    approved: bool,
+    result: Option<String>,
+) -> KernelEvent {
+    KernelEvent::new(
+        protocol::notifications::SERVER_REQUEST_RESOLVED,
+        json!({
+            "threadId": thread_id,
+            "requestId": approval_id,
+            "approvalId": approval_id,
+            "approved": approved,
+            "result": result,
+        }),
+    )
+}
+
 #[cfg(test)]
+
 mod tests {
     use super::*;
 
@@ -353,5 +476,23 @@ mod tests {
         let ev = token_usage_updated("t", "u", 1, 1, 2, Some(0), Some(0), Some(0));
         assert_eq!(ev.params["usage"]["cachedInputTokens"], 0);
         assert_eq!(ev.params["usage"]["modelContextWindow"], 0);
+    }
+
+    #[test]
+    fn tool_approval_request_matches_frontend_contract() {
+        let ev = tool_approval_request(
+            Some("t1"),
+            "commandExecution".into(),
+            "shell_exec".into(),
+            json!({ "command": "cargo test" }),
+            "appr-1".into(),
+        );
+        assert_eq!(ev.channel(), "codex:approval");
+        assert_eq!(ev.params["id"], "appr-1");
+        assert_eq!(ev.params["method"], "item/commandExecution/requestApproval");
+        assert_eq!(ev.params["params"]["approvalId"], "appr-1");
+        assert_eq!(ev.params["params"]["toolName"], "shell_exec");
+        assert_eq!(ev.params["params"]["command"], "cargo test");
+        assert!(ev.params["params"]["availableDecisions"].is_array());
     }
 }

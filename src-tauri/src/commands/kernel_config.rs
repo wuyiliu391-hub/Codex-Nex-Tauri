@@ -694,34 +694,106 @@ pub fn set_plugin_enabled(
 
 /// `respond_server_request` — reply to an approval or user-input request.
 ///
-/// The echo provider never requests approval, so there is nothing to answer.
-/// Returns an explicit "no pending request" result rather than a silent success,
-/// so a UI that shows an approval card learns the card is stale.
+/// Dispatches the decision to the kernel's tool execution approval manager,
+/// resolving any blocked turn waiting for this approval id.
 ///
 /// The call sites (`ApprovalCard.tsx:55`, `ApprovalHost.tsx:39`,
 /// `UserInputCard.tsx:99,114`) send `{ requestId, result }`. `Request<'_>` is
 /// used rather than `Value` because a hand-parsed argument is keyed by its
 /// parameter name — see `commands::body_value`.
 #[tauri::command]
-pub fn respond_server_request(request: tauri::ipc::Request<'_>) -> Value {
+pub async fn respond_server_request(
+    kernel: State<'_, Arc<KernelState>>,
+    request: tauri::ipc::Request<'_>,
+) -> Result<Value, String> {
     let payload = super::body_value(&request);
     let id = payload
-        .get("id")
-        .or_else(|| payload.get("requestId"))
+        .get("requestId")
+        .or_else(|| payload.get("id"))
+        .or_else(|| payload.get("request_id"))
         .and_then(|v| v.as_str().map(str::to_string).or_else(|| Some(v.to_string())))
-        .unwrap_or_else(|| "<none>".into());
-    json!({
-        "ok": false,
-        "status": NOT_WIRED,
-        "requestId": id,
-        "detail": "the kernel has no pending server request with that id",
-    })
+        .unwrap_or_default();
+
+    if id.is_empty() {
+        return Ok(json!({
+            "ok": false,
+            "status": "error",
+            "detail": "missing requestId",
+        }));
+    }
+
+    let (approved, result_str) = parse_approval_decision(&payload);
+
+    let resolved = kernel.resolve_approval(&id, approved, result_str).await?;
+
+    if resolved {
+        Ok(json!({
+            "ok": true,
+            "requestId": id,
+            "approved": approved,
+        }))
+    } else {
+        Ok(json!({
+            "ok": false,
+            "status": "not-found",
+            "requestId": id,
+            "detail": "the kernel has no pending server request with that id",
+        }))
+    }
 }
 
-/// `resolve_approval` — alias kept for the approval cards; same honesty.
+/// `resolve_approval` — alias kept for the approval cards.
 #[tauri::command]
-pub fn resolve_approval(request: tauri::ipc::Request<'_>) -> Value {
-    respond_server_request(request)
+pub async fn resolve_approval(
+    kernel: State<'_, Arc<KernelState>>,
+    request: tauri::ipc::Request<'_>,
+) -> Result<Value, String> {
+    respond_server_request(kernel, request).await
+}
+
+fn parse_approval_decision(payload: &Value) -> (bool, Option<String>) {
+    if let Some(res) = payload.get("result") {
+        if let Some(b) = res.as_bool() {
+            return (b, Some(b.to_string()));
+        }
+        if let Some(s) = res.as_str() {
+            let approved = !matches!(s, "decline" | "cancel" | "deny" | "reject");
+            return (approved, Some(s.to_string()));
+        }
+        if let Some(obj) = res.as_object() {
+            if let Some(decision) = obj.get("decision").and_then(Value::as_str) {
+                let approved = !matches!(decision, "decline" | "cancel" | "deny" | "reject");
+                return (approved, Some(decision.to_string()));
+            }
+            if obj.contains_key("answers") {
+                return (true, Some(res.to_string()));
+            }
+        }
+        return (true, Some(res.to_string()));
+    }
+
+    if let Some(b) = payload.get("approved").and_then(Value::as_bool) {
+        let kind = payload.get("kind").and_then(Value::as_str).unwrap_or("");
+        let session_scope = payload
+            .get("sessionScope")
+            .or_else(|| payload.get("session_scope"))
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let decision = if b {
+            if session_scope {
+                "acceptForSession"
+            } else {
+                "accept"
+            }
+        } else if kind == "cancel" {
+            "cancel"
+        } else {
+            "decline"
+        };
+        return (b, Some(decision.to_string()));
+    }
+
+    (false, None)
 }
 
 /// `rpc_raw` — pass-through to the engine's JSON-RPC surface.
@@ -797,12 +869,27 @@ pub fn git_status(request: tauri::ipc::Request<'_>) -> Value {
     not_wired("git_status", "the kernel does not inspect git state yet")
 }
 
-/// `list_agent_tools` — no tool registry yet.
+/// `list_agent_tools` — list tools from the kernel's tool registry.
 #[tauri::command]
-pub fn list_agent_tools() -> Value {
+pub fn list_agent_tools(kernel: State<'_, Arc<KernelState>>) -> Value {
+    let tools: Vec<Value> = kernel
+        .tools
+        .registry()
+        .list_tools()
+        .into_iter()
+        .map(|t| {
+            json!({
+                "id": t.id,
+                "name": t.name,
+                "description": t.description,
+                "parameters": t.parameters,
+                "permission": format!("{:?}", t.permission),
+            })
+        })
+        .collect();
+
     json!({
-        "tools": [],
-        "status": NOT_WIRED,
-        "detail": "the kernel has no tool registry yet",
+        "tools": tools,
+        "ok": true,
     })
 }

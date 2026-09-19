@@ -25,6 +25,7 @@ use super::events::{self, KernelEvent};
 use super::provider::{ChatMessage, EchoProvider, ModelProvider, ProviderChunk};
 use super::protocol::{item_types, status};
 use super::session::{SessionError, SessionManager, TurnInput, TurnStatus};
+use super::tools::{StdToolExecutor, ToolExecutor};
 
 /// How often the kernel emits a `commentary` delta before switching the agent
 /// block to `final_answer`. Mirrors the two-phase behaviour the frontend
@@ -49,6 +50,7 @@ struct UsageTotals {
 /// Everything the kernel owns at runtime.
 pub struct KernelState {
     pub sessions: Arc<SessionManager>,
+    pub tools: Arc<StdToolExecutor>,
     /// The active model backend.
     ///
     /// Behind an `RwLock` so the provider can be swapped at runtime: saving a
@@ -81,17 +83,44 @@ impl Default for KernelState {
 
 impl KernelState {
     pub fn new() -> Self {
-        Self::with_provider(Arc::new(EchoProvider::new()))
+        Self::with_provider_and_tools(
+            Arc::new(EchoProvider::new()),
+            Arc::new(StdToolExecutor::default()),
+        )
     }
 
     pub fn with_provider(provider: Arc<dyn ModelProvider>) -> Self {
+        Self::with_provider_and_tools(
+            provider,
+            Arc::new(StdToolExecutor::default()),
+        )
+    }
+
+    pub fn with_provider_and_tools(
+        provider: Arc<dyn ModelProvider>,
+        tools: Arc<StdToolExecutor>,
+    ) -> Self {
         Self {
             sessions: Arc::new(SessionManager::new()),
+            tools,
             provider: RwLock::new(provider),
             running: AsyncMutex::new(HashMap::new()),
             provider_gate: AsyncMutex::new(()),
             counters: RwLock::new(Counters::default()),
         }
+    }
+
+    pub fn tools(&self) -> &Arc<StdToolExecutor> {
+        &self.tools
+    }
+
+    pub async fn resolve_approval(
+        &self,
+        approval_id: &str,
+        approved: bool,
+        result: Option<String>,
+    ) -> Result<bool, String> {
+        self.tools.resolve_approval(approval_id, approved, result).await
     }
 
     /// Swap the active provider. Takes effect on the next turn.

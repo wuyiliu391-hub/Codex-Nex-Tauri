@@ -61,6 +61,9 @@ pub mod notifications {
 
     // token accounting
     pub const THREAD_TOKEN_USAGE_UPDATED: &str = "thread/tokenUsage/updated";
+    // tool/approval flow
+    pub const ITEM_COMMAND_EXECUTION_OUTPUT_DELTA: &str = "item/commandExecution/outputDelta";
+    pub const SERVER_REQUEST_RESOLVED: &str = "serverRequest/resolved";
 
     // warnings surfaced in the turn stream
     pub const WARNING: &str = "warning";
