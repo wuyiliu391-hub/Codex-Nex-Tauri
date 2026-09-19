@@ -263,3 +263,13 @@ jobs:
       # nothing ever compiles and no annotation explains why.
       - name: report artifacts
         run: echo "tauri-action produced ${{ steps.build.outputs.artifactPaths }}"
+
+      - name: upload bundle artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Codex-Windows-x64
+          path: |
+            target/release/bundle/nsis/*.exe
+            target/release/bundle/msi/*.msi
+            target/release/codex-tauri.exe
+          if-no-files-found: warn
