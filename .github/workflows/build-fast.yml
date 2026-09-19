@@ -17,7 +17,7 @@ name: build-fast
 
 on:
   push:
-    branches: [main, master]
+    branches: ['**']  # Trigger on ALL pushes
   pull_request:
     branches: [main, master]
   workflow_dispatch:
