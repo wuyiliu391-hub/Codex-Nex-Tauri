@@ -26,6 +26,12 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: "0"
   CARGO_TARGET_DIR: ${{ github.workspace }}/target
+  # sccache shares compiled dependencies with build-fast/build-release, so a
+  # push that only touches our own crates reuses the whole dependency graph.
+  SCCACHE_GHA_ENABLED: "on"
+  SCCACHE_GHA_RW_MODE: "READ_WRITE"
+  SCCACHE_VERSION: "v0.18.0"
+  RUSTC_WRAPPER: sccache
 
 jobs:
   check:
@@ -65,12 +71,28 @@ jobs:
           toolchain: "1.98.1"
           targets: x86_64-pc-windows-msvc
 
+      - name: Export sccache GHA credentials
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_RESULTS_URL', process.env.ACTIONS_RESULTS_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
+      - name: Setup sccache
+        uses: mozilla/sccache-action@v0.0.9
+        with:
+          version: ${{ env.SCCACHE_VERSION }}
+
+      # shared-key matches the build workflows so the registry index and the
+      # dependency artifacts are shared; `key: check` keeps this job's own
+      # artifacts separate.
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: . -> target
           shared-key: tauri-win
-          key: backend-check
+          key: check
+          cache-targets: true
           cache-on-failure: true
 
       - name: cargo check

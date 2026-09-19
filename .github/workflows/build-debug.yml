@@ -28,10 +28,16 @@ env:
   TAURI_CLI_VERSION: "2.11.4"
   CARGO_TARGET_DIR: ${{ github.workspace }}/target
   CARGO_INCREMENTAL: "1"
-  TOOLS_DIR: ${{ github.workspace }}/.tools
   # Full symbols for triage; the dev profile defaults to "limited".
   CARGO_PROFILE_DEV_DEBUG: "true"
   CARGO_PROFILE_DEV_STRIP: "false"
+  # sccache: a debug profile recompiles dependencies that the release profile
+  # also needs, so sharing the compiler cache across workflows is the single
+  # biggest win for this job.
+  SCCACHE_GHA_ENABLED: "on"
+  SCCACHE_GHA_RW_MODE: "READ_WRITE"
+  SCCACHE_VERSION: "v0.18.0"
+  RUSTC_WRAPPER: sccache
 
 jobs:
   build-debug:
@@ -69,41 +75,35 @@ jobs:
           toolchain: "1.98.1"
           targets: x86_64-pc-windows-msvc
 
+      - name: Export sccache GHA credentials
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_RESULTS_URL', process.env.ACTIONS_RESULTS_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
+      - name: Setup sccache
+        uses: mozilla/sccache-action@v0.0.9
+        with:
+          version: ${{ env.SCCACHE_VERSION }}
+
+      # shared-key matches build-fast/build-release so the debug job reuses the
+      # same ~/.cargo/registry and target/ skeleton. `key` differs because the
+      # profile differs (dev vs release) — sharing those artifacts would poison
+      # the cache with the wrong opt-level/debug settings.
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: . -> target
-          shared-key: tauri-win-debug
-          key: kernel-inprocess-debug
+          shared-key: tauri-win
+          key: debug
+          cache-targets: true
           cache-on-failure: true
 
-      - name: Cache prebuilt cargo-tauri
-        id: cache-cli
-        uses: actions/cache@v4
+      - name: Setup Tauri CLI
+        uses: ./.github/actions/setup-tauri-cli
         with:
-          path: ${{ env.TOOLS_DIR }}
-          key: cargo-tauri-${{ runner.os }}-${{ env.TAURI_CLI_VERSION }}
-
-      - name: Download cargo-tauri ${{ env.TAURI_CLI_VERSION }}
-        if: steps.cache-cli.outputs.cache-hit != 'true'
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $ver = $env:TAURI_CLI_VERSION
-          New-Item -ItemType Directory -Force -Path $env:TOOLS_DIR | Out-Null
-          $url = "https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v$ver/cargo-tauri-x86_64-pc-windows-msvc.zip"
-          $zip = Join-Path $env:TOOLS_DIR "cargo-tauri.zip"
-          Invoke-WebRequest -Uri $url -OutFile $zip
-          Expand-Archive -Path $zip -DestinationPath $env:TOOLS_DIR -Force
-          Remove-Item $zip -Force
-          $exe = Join-Path $env:TOOLS_DIR "cargo-tauri.exe"
-          if (-not (Test-Path $exe)) { throw "cargo-tauri.exe not found after extract" }
-
-      - name: Put cargo-tauri on PATH
-        shell: pwsh
-        run: |
-          Add-Content -Path $env:GITHUB_PATH -Value $env:TOOLS_DIR
-          Copy-Item (Join-Path $env:TOOLS_DIR "cargo-tauri.exe") (Join-Path $env:TOOLS_DIR "tauri.exe") -Force
+          version: ${{ env.TAURI_CLI_VERSION }}
 
       - name: cargo tauri build --debug
         working-directory: src-tauri

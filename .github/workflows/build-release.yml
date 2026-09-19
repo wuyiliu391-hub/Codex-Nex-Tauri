@@ -24,7 +24,6 @@ env:
   TAURI_CLI_VERSION: "2.11.4"
   CARGO_TARGET_DIR: ${{ github.workspace }}/target
   CARGO_INCREMENTAL: "0"
-  TOOLS_DIR: ${{ github.workspace }}/.tools
   # Release: strip symbols (build-fast keeps them out via DEBUG=0/STRIP=symbols).
   CARGO_PROFILE_RELEASE_STRIP: "symbols"
   SCCACHE_GHA_ENABLED: "on"
@@ -85,43 +84,23 @@ jobs:
         with:
           version: ${{ env.SCCACHE_VERSION }}
 
+      # `key: release` is distinct from build-fast's `key: fast` because the two
+      # jobs compile with different release profiles (see build-fast.yml). A
+      # shared target/ would make them evict each other's artifacts.
       - name: Rust cache
         id: rust-cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: . -> target
           shared-key: tauri-win
-          key: kernel-inprocess
+          key: release
           cache-targets: true
           cache-on-failure: true
 
-      - name: Cache prebuilt cargo-tauri
-        id: cache-cli
-        uses: actions/cache@v4
+      - name: Setup Tauri CLI
+        uses: ./.github/actions/setup-tauri-cli
         with:
-          path: ${{ env.TOOLS_DIR }}
-          key: cargo-tauri-${{ runner.os }}-${{ env.TAURI_CLI_VERSION }}
-
-      - name: Download cargo-tauri ${{ env.TAURI_CLI_VERSION }}
-        if: steps.cache-cli.outputs.cache-hit != 'true'
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $ver = $env:TAURI_CLI_VERSION
-          New-Item -ItemType Directory -Force -Path $env:TOOLS_DIR | Out-Null
-          $url = "https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v$ver/cargo-tauri-x86_64-pc-windows-msvc.zip"
-          $zip = Join-Path $env:TOOLS_DIR "cargo-tauri.zip"
-          Invoke-WebRequest -Uri $url -OutFile $zip
-          Expand-Archive -Path $zip -DestinationPath $env:TOOLS_DIR -Force
-          Remove-Item $zip -Force
-          $exe = Join-Path $env:TOOLS_DIR "cargo-tauri.exe"
-          if (-not (Test-Path $exe)) { throw "cargo-tauri.exe not found after extract" }
-
-      - name: Put cargo-tauri on PATH
-        shell: pwsh
-        run: |
-          Add-Content -Path $env:GITHUB_PATH -Value $env:TOOLS_DIR
-          Copy-Item (Join-Path $env:TOOLS_DIR "cargo-tauri.exe") (Join-Path $env:TOOLS_DIR "tauri.exe") -Force
+          version: ${{ env.TAURI_CLI_VERSION }}
 
       # Release gate: refuse to publish if a sidecar engine has crept back in.
       - name: Assert no engine binary is bundled

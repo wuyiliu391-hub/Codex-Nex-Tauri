@@ -15,50 +15,65 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-# Pinned exact: floating "2" resolved tauri-runtime-wry 2.10.1 against newer
-# tauri-runtime/wry and broke the build (E0046 missing
+# ── Tauri shell ─────────────────────────────────────────────────────────────
+# Pinned exact: a floating "2" once resolved tauri-runtime-wry 2.10.1 against
+# newer tauri-runtime/wry and broke the build (E0046 missing
 # eval_script_with_callback, E0277 new-window handler Send-ness).
-# 2.11.5/2.11.4 is the coherent, high-download set (2026-06/07).
-# Bump deliberately, never float, until a Cargo.lock covers src-tauri.
 tauri = { version = "=2.11.5", features = ["tray-icon", "protocol-asset"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-shell = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-store = "2"
+
+# ── serialization ───────────────────────────────────────────────────────────
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "process", "io-util", "net"] }
-# Cancellation for self-developed kernel turns (`kernel::state`). A turn runs on
-# a detached task, so it needs a deterministic way to stop; `CancellationToken`
-# is the tested primitive for that and avoids a hand-rolled atomic/notify race.
+
+# ── async runtime ───────────────────────────────────────────────────────────
+tokio = { version = "1", features = [
+    "rt-multi-thread",
+    "macros",
+    "sync",
+    "time",
+    "process",
+    "io-util",
+    "net",
+] }
+# Cancellation for kernel turns (`kernel::state`). A turn runs on a detached
+# task and needs a deterministic way to stop; `CancellationToken` is the tested
+# primitive for that and avoids a hand-rolled atomic/notify race.
 tokio-util = { version = "0.7", default-features = false }
 # `kernel::provider::ModelProvider` is used as `dyn ModelProvider`, so its async
 # method needs `async_trait` — native async-fn-in-trait is not object-safe.
 async-trait = "0.1"
-tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
-futures-util = "0.3"
+
+# ── utilities ───────────────────────────────────────────────────────────────
 uuid = { version = "1", features = ["v4", "serde"] }
 thiserror = "1"
 anyhow = "1"
 base64 = "0.22"
+chrono = { version = "0.4", features = ["serde"] }
+dirs = "5"
+cron = "0.12"
+
+# ── logging ─────────────────────────────────────────────────────────────────
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-dirs = "5"
-chrono = { version = "0.4", features = ["serde"] }
-notify-rust = "4"
-cron = "0.12"
-walkdir = "2"
-regex = "1"
-# The provider probe ("运行检查") must talk HTTP straight to the configured
-# gateway. Routing it through the engine is useless: app-server's `model/list`
-# ignores `providerId` and returns a static catalog. Version matches the
-# workspace declaration so it resolves to the already-locked 0.12.
+
+# ── HTTP ────────────────────────────────────────────────────────────────────
+# Used by `commands::kernel_config::probe_provider` and, in future, the HTTP
+# model provider. The kernel itself is offline today (EchoProvider).
 reqwest = { version = "0.12", features = ["json"] }
 
 [features]
 default = []
 
+# Opt into the workspace lint set. Without this line the root
+# `[workspace.lints.clippy]` table is inert — a member only inherits lints when
+# it says `workspace = true` here.
+[lints]
+workspace = true
+
 # NOTE: Cargo only honors [profile.*] at the workspace root. Do not add
 # [profile.release] here - it is ignored (CI log: "profiles for the non root
-# package will be ignored"). The effective release profile lives in the root
-# Cargo.toml; build-fast further overrides it via CARGO_PROFILE_RELEASE_* env.
+# package will be ignored"). The effective profiles live in the root Cargo.toml.

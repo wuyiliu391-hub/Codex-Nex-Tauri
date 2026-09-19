@@ -31,7 +31,6 @@ env:
   TAURI_CLI_VERSION: "2.11.4"
   CARGO_TARGET_DIR: ${{ github.workspace }}/target
   CARGO_INCREMENTAL: "0"
-  TOOLS_DIR: ${{ github.workspace }}/.tools
   # Fast release profile via env (default profile, target/release/).
   CARGO_PROFILE_RELEASE_OPT_LEVEL: "2"
   CARGO_PROFILE_RELEASE_LTO: "false"
@@ -103,43 +102,27 @@ jobs:
         with:
           version: ${{ env.SCCACHE_VERSION }}
 
+      # shared-key groups the registry index across all Rust jobs so a fresh
+      # checkout still finds the crates it needs. `key: fast` is distinct from
+      # build-release's key on purpose: this job overrides the release profile
+      # (opt-level=2, LTO off, codegen-units=256) while build-release uses the
+      # root [profile.release] (LTO thin, codegen-units=4). Sharing one target/
+      # between two different profiles makes them evict each other and
+      # recompile from scratch on every run.
       - name: Rust cache
         id: rust-cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: . -> target
           shared-key: tauri-win
-          key: kernel-inprocess
+          key: fast
           cache-targets: true
           cache-on-failure: true
 
-      - name: Cache prebuilt cargo-tauri
-        id: cache-cli
-        uses: actions/cache@v4
+      - name: Setup Tauri CLI
+        uses: ./.github/actions/setup-tauri-cli
         with:
-          path: ${{ env.TOOLS_DIR }}
-          key: cargo-tauri-${{ runner.os }}-${{ env.TAURI_CLI_VERSION }}
-
-      - name: Download cargo-tauri ${{ env.TAURI_CLI_VERSION }}
-        if: steps.cache-cli.outputs.cache-hit != 'true'
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $ver = $env:TAURI_CLI_VERSION
-          New-Item -ItemType Directory -Force -Path $env:TOOLS_DIR | Out-Null
-          $url = "https://github.com/tauri-apps/tauri/releases/download/tauri-cli-v$ver/cargo-tauri-x86_64-pc-windows-msvc.zip"
-          $zip = Join-Path $env:TOOLS_DIR "cargo-tauri.zip"
-          Invoke-WebRequest -Uri $url -OutFile $zip
-          Expand-Archive -Path $zip -DestinationPath $env:TOOLS_DIR -Force
-          Remove-Item $zip -Force
-          $exe = Join-Path $env:TOOLS_DIR "cargo-tauri.exe"
-          if (-not (Test-Path $exe)) { throw "cargo-tauri.exe not found after extract" }
-
-      - name: Put cargo-tauri on PATH
-        shell: pwsh
-        run: |
-          Add-Content -Path $env:GITHUB_PATH -Value $env:TOOLS_DIR
-          Copy-Item (Join-Path $env:TOOLS_DIR "cargo-tauri.exe") (Join-Path $env:TOOLS_DIR "tauri.exe") -Force
+          version: ${{ env.TAURI_CLI_VERSION }}
 
       # Guard against the old sidecar pipeline creeping back in: if any of
       # these reappear the build fails loudly instead of silently shipping a
