@@ -257,5 +257,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # The colon inside the echoed string must not be followed by a space, or
+      # YAML reads `run:`'s value as a nested mapping and rejects the whole file
+      # — which fails the workflow at parse time with **zero jobs created**, so
+      # nothing ever compiles and no annotation explains why.
       - name: report artifacts
-        run: echo "tauri-action produced: ${{ steps.build.outputs.artifactPaths }}"
+        run: echo "tauri-action produced ${{ steps.build.outputs.artifactPaths }}"
