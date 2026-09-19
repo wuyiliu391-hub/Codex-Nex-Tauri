@@ -720,6 +720,36 @@ button.brand-title-wrap:hover {
   background: color-mix(in srgb, #ef4444 10%, transparent);
 }
 
+/* Task context menu (right-click) */
+.task-context-menu {
+  position: fixed;
+  z-index: 200;
+  min-width: 160px;
+  padding: 6px;
+  border-radius: var(--radius-md);
+  background: var(--bg-canvas);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14), 0 0 0 1px color-mix(in srgb, var(--fg-primary) 6%, transparent);
+  border: 1px solid var(--border-default);
+  cursor: pointer;
+  font-size: var(--text-sm-ui, 13px);
+}
+
+.task-context-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--fg-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.task-context-item:hover {
+  background: var(--bg-hover);
+}
+
 /* Workspace toggle button (top-right of main card, matching official-home.png) */
 .workspace-toggle-btn {
   position: absolute;

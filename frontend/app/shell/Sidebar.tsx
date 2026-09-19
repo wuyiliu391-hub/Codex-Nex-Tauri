@@ -24,6 +24,7 @@ import { Dropdown } from "./Dropdown";
 import { useRoute, navigate } from "./useRoute";
 import { dispatchAction, type ShellContext } from "./actions";
 import { useI18n } from "./useI18n";
+import { useContextMenu } from "./ContextMenu";
 
 const NAV_ITEMS = [
   { view: "home", key: "nav.newTask", fallback: "New task" },
@@ -92,6 +93,7 @@ export function Sidebar({ ctx, collapsed }: SidebarProps) {
   useI18n();
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const contextMenu = useContextMenu();
 
   // Recent sessions for the active project (or all when none is selected).
   const selectedProjectId = activeProjectId ?? projects[0]?.id ?? "";
@@ -110,6 +112,7 @@ export function Sidebar({ ctx, collapsed }: SidebarProps) {
         resetTurn();
         setActiveSession(null);
       }
+      // Re-fetch data from backend
       await refreshAppState();
     } catch (err) {
       console.error("[sidebar] delete_session failed", err);
@@ -271,6 +274,7 @@ export function Sidebar({ ctx, collapsed }: SidebarProps) {
                 setActiveSession(session.id);
                 navigate("home");
               }}
+              onContextMenu={(e) => contextMenu.show(e, session.id)}
             >
               <span className="ico">
                 <svg viewBox="0 0 18 18" aria-hidden="true">
@@ -329,6 +333,18 @@ export function Sidebar({ ctx, collapsed }: SidebarProps) {
           </svg>
         </button>
       </div>
+
+      {/* Context Menu */}
+      {contextMenu.state.visible && (
+        <div
+          className="task-context-menu"
+          style={{ top: contextMenu.state.y, left: contextMenu.state.x }}
+          onClick={contextMenu.handleDeleteSession}
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          <div className="task-context-item">删除会话</div>
+        </div>
+      )}
     </aside>
   );
 }

@@ -516,10 +516,3 @@ export function sessionsForProject(projectId: string): SessionSummary[] {
     .filter((s) => !s.archived && s.projectId === projectId)
     .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
 }
-
-/** Path used as `new_session` cwd — the selected project, not a hardcoded first. */
-export function activeProjectPath(): string {
-  const id = state.activeProjectId;
-  const project = state.projects.find((p) => p.id === id);
-  return project?.path ?? id ?? "";
-}

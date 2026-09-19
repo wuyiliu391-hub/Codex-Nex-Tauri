@@ -60,31 +60,47 @@ export function resetTurn(): void {
  * Turn-level bookkeeping resets; the conversation itself must survive. This
  * event arrives for *every* turn of a thread, including follow-up turns and
  * the mock player, and the store also holds the loaded history plus the
- * optimistic user bubble (`beginUserTurn`). Clearing items here is what made
- * a just-sent message vanish seconds after submit and dropped the whole
- * on-screen context. Items are only discarded when the server starts a turn
- * for a *different* thread than the one bound to the store.
+ * optimistic user bubble (`beginUserTurn`). 
+ *
+ * CRITICAL FIX: Never clear items on turn start within the same thread.
+ * Optimistic user bubbles and historical items must survive across turns.
+ * Only reset turn-scoped fields (phase, timing, plan, etc.). Items are only 
+ * discarded when the server starts a turn for a *different* thread than the 
+ * one bound to the store.
  */
 export function beginTurn(params: { threadId?: string; turnId?: string }, at: number): void {
   const threadId = typeof params.threadId === "string" ? params.threadId : null;
-  const switching =
-    threadId !== null && state.sessionId !== null && threadId !== state.sessionId;
+  
+  // CRITICAL FIX: Detect actual thread switch (non-null comparison)
+  const switching = (
+    threadId !== null && 
+    state.sessionId !== null && 
+    threadId !== state.sessionId
+  );
+  
+  if (switching) {
+    console.warn(
+      "[turnStore] Switching from thread", state.sessionId, "to", threadId,
+      "clearing items"
+    );
+  }
+  
   commit({
     ...state,
     ...(switching
       ? { items: {}, order: [], tokenUsage: null, warnings: [], pendingRequests: [] }
-      : null),
+      : { 
+          phase: "commentary",
+          active: true,
+          startedAt: at,
+          turnStatus: null,
+          completedAt: null,
+          durationMs: null,
+          error: null,
+          plan: null,
+        }),
     sessionId: threadId ?? state.sessionId,
     turnId: typeof params.turnId === "string" ? params.turnId : null,
-    active: true,
-    phase: "commentary",
-    startedAt: at,
-    turnStatus: null,
-    completedAt: null,
-    durationMs: null,
-    error: null,
-    plan: null,
-    // A frozen reconnect residue is an official quirk we must preserve.
     reconnectFrozen: state.reconnectAttempt > 0 || state.reconnectFrozen,
     reconnectAttempt: 0,
   });
