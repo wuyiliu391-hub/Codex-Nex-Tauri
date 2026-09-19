@@ -48,6 +48,7 @@ pub use provider::{EchoProvider, ModelProvider, ProviderChunk};
 pub use provider_config::{build as build_provider, ProviderInputs, Resolved};
 pub use session::{SessionManager, Thread, Turn, TurnStatus};
 pub use state::KernelState;
+#[allow(unused_imports)]
 pub use tools::{
     ApprovalResolution, PendingApproval, PermissionLevel, SandboxEnv, StdToolExecutor, Tool,
     ToolBuilder, ToolExecutor, ToolRegistry,

@@ -21,6 +21,7 @@ use super::http_provider::{HttpProvider, HttpProviderConfig, WireProtocol};
 use super::provider::{EchoProvider, ModelProvider};
 
 /// Outcome of resolving the configured provider.
+#[derive(Clone)]
 pub enum Resolved {
     /// A real HTTP provider is ready.
     Http(Arc<dyn ModelProvider>),
@@ -29,9 +30,9 @@ pub enum Resolved {
 }
 
 impl Resolved {
-    pub fn provider(self) -> Arc<dyn ModelProvider> {
+    pub fn provider(&self) -> Arc<dyn ModelProvider> {
         match self {
-            Resolved::Http(p) => p,
+            Resolved::Http(p) => Arc::clone(p),
             Resolved::Echo { reason } => {
                 tracing::warn!(reason = %reason, "using echo provider");
                 Arc::new(EchoProvider::new())

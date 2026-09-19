@@ -215,7 +215,7 @@ impl KernelState {
         &self,
         thread_id: String,
         turn_id: String,
-        text: String,
+        _text: String,
         cancel: CancellationToken,
         emit: &E,
     ) where

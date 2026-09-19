@@ -474,8 +474,9 @@ impl StdToolExecutor {
                 serde_json::json!({ "success": true })
             }
             "shell_exec" => {
-                let cmd = args["command"]
-                    .or_else(|| args["cmd"])
+                let cmd = args
+                    .get("command")
+                    .or_else(|| args.get("cmd"))
                     .and_then(|v| v.as_str())
                     .ok_or("missing command")?;
                 let (stdout, stderr) = builtin_shell_exec(&sandbox, cmd)?;
