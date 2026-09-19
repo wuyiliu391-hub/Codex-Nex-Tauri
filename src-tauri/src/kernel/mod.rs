@@ -15,10 +15,12 @@
 //!   commands::kernel   (Tauri command layer — the only frontend dependency)
 //!     │
 //!     ▼
-//!   kernel::session    (thread + turn state machine, in-memory)
+//!   kernel::state      (turn execution, cancellation, counters)
 //!     │
 //!     ▼
-//!   kernel::provider   (model backends: echo today, HTTP/SSE later)
+//!   kernel::provider   (model backends)
+//!     ├── EchoProvider  offline transport probe
+//!     └── HttpProvider  real model calls (OpenAI / Anthropic / Ollama)
 //! ```
 //!
 //! Design rules:
@@ -27,17 +29,21 @@
 //!    listener and the orphaned-child problems cannot occur by construction.
 //!  * Every notification we emit is validated against `protocol::notifications`
 //!    so the frontend reducer always recognises it.
-//!  * Nothing is faked. The echo provider is explicitly named and explicitly
-//!    marked as a placeholder in its own docs — it is a transport probe, not a
-//!    pretend model.
+//!  * Nothing is faked. A provider that does not call a model says so via
+//!    `ModelProvider::is_placeholder`, and the kernel surfaces that to the UI.
 
 pub mod events;
+pub mod http_provider;
 pub mod protocol;
 pub mod provider;
+pub mod provider_config;
 pub mod session;
+pub mod sse;
 pub mod state;
 
 pub use events::KernelEvent;
+pub use http_provider::{HttpProvider, HttpProviderConfig, WireProtocol};
 pub use provider::{EchoProvider, ModelProvider, ProviderChunk};
+pub use provider_config::{build as build_provider, ProviderInputs, Resolved};
 pub use session::{SessionManager, Thread, Turn, TurnStatus};
 pub use state::KernelState;

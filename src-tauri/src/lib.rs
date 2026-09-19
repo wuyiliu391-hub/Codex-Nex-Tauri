@@ -68,16 +68,39 @@ pub fn run() {
             // connect, 120 s dead-socket hang, unauthenticated loopback
             // listener, orphaned child on crash) is structurally absent.
             //
-            // The provider starts as `EchoProvider`: a deterministic offline
-            // backend that validates the transport end-to-end. It discloses
-            // itself in the stream (`provider_is_placeholder`), so a
-            // non-model answer is never presented as a real completion.
-            let kernel = std::sync::Arc::new(kernel::KernelState::new());
+            // The provider is built from the shell store: if the user has
+            // configured a provider and model, real HTTP calls are made;
+            // otherwise the kernel falls back to `EchoProvider`, which
+            // discloses itself in the stream so a non-model answer is never
+            // presented as a real completion.
+            let inputs = {
+                let store = app
+                    .try_state::<state::AppState>()
+                    .ok_or("AppState missing at kernel startup")?;
+                let inner = store.inner.lock().map_err(|e| e.to_string())?;
+                kernel::ProviderInputs {
+                    active_provider_id: inner.settings.active_provider_id.clone(),
+                    active_model: inner.settings.active_model.clone(),
+                    endpoints: inner.provider_endpoints.clone(),
+                    protocols: inner.provider_protocols.clone(),
+                    secrets: inner.provider_secrets.clone(),
+                }
+            };
+            let resolved = kernel::build_provider(&inputs);
+            let using_echo = resolved.is_echo();
+            let kernel = std::sync::Arc::new(kernel::KernelState::with_provider(
+                resolved.provider(),
+            ));
             tracing::info!(
                 provider = kernel.provider_name(),
                 placeholder = kernel.provider_is_placeholder(),
                 "self-developed kernel started"
             );
+            if using_echo {
+                tracing::warn!(
+                    "no usable provider configured; turns will be answered by the echo provider"
+                );
+            }
             app.manage(kernel);
 
             Ok(())

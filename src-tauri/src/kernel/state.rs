@@ -34,7 +34,13 @@ const FINAL_ANSWER_ITEM_MARKER: &str = "final_answer";
 /// Everything the kernel owns at runtime.
 pub struct KernelState {
     pub sessions: Arc<SessionManager>,
-    provider: Arc<dyn ModelProvider>,
+    /// The active model backend.
+    ///
+    /// Behind an `RwLock` so the provider can be swapped at runtime: saving a
+    /// provider in the UI must take effect without restarting the app. The lock
+    /// is only held to clone the `Arc`, never across an `.await` on the stream,
+    /// so a running turn keeps using the provider it started with.
+    provider: RwLock<Arc<dyn ModelProvider>>,
     /// Cancellation handle per turn id, so `turn/interrupt` can stop a stream.
     running: AsyncMutex<HashMap<String, CancellationToken>>,
     /// Serialises provider calls. One model call at a time keeps local
@@ -66,21 +72,47 @@ impl KernelState {
     pub fn with_provider(provider: Arc<dyn ModelProvider>) -> Self {
         Self {
             sessions: Arc::new(SessionManager::new()),
-            provider,
+            provider: RwLock::new(provider),
             running: AsyncMutex::new(HashMap::new()),
             provider_gate: AsyncMutex::new(()),
             counters: RwLock::new(Counters::default()),
         }
     }
 
+    /// Swap the active provider. Takes effect on the next turn.
+    ///
+    /// A turn already in flight keeps the provider it started with: `run_turn`
+    /// clones the `Arc` once, so replacing the slot cannot pull the model out
+    /// from under a running stream.
+    pub fn set_provider(&self, provider: Arc<dyn ModelProvider>) {
+        match self.provider.write() {
+            Ok(mut slot) => *slot = provider,
+            Err(poisoned) => {
+                // A poisoned lock means a previous writer panicked. Recovering
+                // is better than refusing to change providers forever.
+                tracing::warn!("provider lock was poisoned; recovering");
+                *poisoned.into_inner() = provider;
+            }
+        }
+    }
+
+    /// The provider in use right now.
+    fn current_provider(&self) -> Arc<dyn ModelProvider> {
+        match self.provider.read() {
+            Ok(slot) => Arc::clone(&slot),
+            Err(poisoned) => Arc::clone(&poisoned.into_inner()),
+        }
+    }
+
+    /// Name of the active provider, for the status command and logs.
     pub fn provider_name(&self) -> &'static str {
-        self.provider.name()
+        self.current_provider().name()
     }
 
     /// True when the active provider does not call a real model. Surfaced to the
     /// UI so a placeholder answer is never presented as a real completion.
     pub fn provider_is_placeholder(&self) -> bool {
-        self.provider.is_placeholder()
+        self.current_provider().is_placeholder()
     }
 
     pub fn counters(&self) -> Counters {
@@ -189,6 +221,12 @@ impl KernelState {
         //    gate across the stream so two turns cannot interleave output.
         let _gate = self.provider_gate.lock().await;
 
+        // Snapshot the provider for the whole turn. Swapping providers mid-turn
+        // (the user saving settings while an answer streams) must not change
+        // which backend this turn is talking to, and `is_placeholder` below has
+        // to describe the provider that actually produced the text.
+        let provider = self.current_provider();
+
         let thread_id_cb = thread_id.clone();
         let turn_id_cb = turn_id.clone();
         let item_cb = agent_item_id.clone();
@@ -239,7 +277,7 @@ impl KernelState {
                     cancelled = true;
                     Ok(())
                 }
-                r = self.provider.stream(&history, &mut on_chunk) => r,
+                r = provider.stream(&history, &mut on_chunk) => r,
             };
 
             if let Err(err) = result {
@@ -312,8 +350,9 @@ impl KernelState {
         }
 
         // 7) a placeholder provider must say so — never present a non-model
-        //    answer as a real completion.
-        if self.provider.is_placeholder() {
+        //    answer as a real completion. Checked against the snapshot, so the
+        //    disclosure always describes the provider that produced the text.
+        if provider.is_placeholder() {
             emit(events::warning(
                 &thread_id,
                 "This reply came from the built-in echo provider, not a model. \
