@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.codex.desktop",
   "build": {
-    "beforeDevCommand": "",
+    "beforeDevCommand": "npm --prefix ../frontend run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "",
+    "beforeBuildCommand": "npm --prefix ../frontend run build",
     "frontendDist": "../frontend/dist"
   },
   "app": {

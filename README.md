@@ -84,38 +84,55 @@ cargo tauri build --manifest-path src-tauri/Cargo.toml
 
 ## CI
 
-单个 workflow（`.github/workflows/ci.yml`），两个 job：
+单个 workflow（`.github/workflows/ci.yml`），遵循 [Tauri 官方 GitHub Actions 指南](https://v2.tauri.app/distribute/pipelines/github/)，
+全部使用官方/社区成熟 action，无手写脚本。
 
-| Job | 运行环境 | 内容 |
-|---|---|---|
-| `frontend` | ubuntu-latest | `npm ci` → `typecheck` → `build`，产出 `dist` 工件 |
-| `rust` | windows-latest | `cargo fmt` / `clippy`（仅报告）→ `cargo test --lib`（**门禁**） |
+| Job | 内容 |
+|---|---|
+| `checks` | 前端 `typecheck` + `build`；`cargo test --lib`（**门禁**）；`fmt`/`clippy`（仅报告） |
+| `build` | `tauri-apps/tauri-action@v1` 执行完整打包（仅构建，不发布） |
 
-### 缓存：两层，缺一不可
+### 使用的 action
 
-| 层 | 工具 | 缓存对象 | 效果 |
-|---|---|---|---|
-| 1 | `mozilla-actions/sccache-action@v0.0.11` | 单个编译单元（按源文件内容哈希） | 源码未变 → **跳过编译** |
-| 2 | `Swatinem/rust-cache@v2` | `~/.cargo/registry` + `target/` | 依赖 → **跳过下载** |
+| action | 用途 |
+|---|---|
+| `tauri-apps/tauri-action@v1` | **官方** action：安装 Tauri CLI、执行 `tauri build`、产出打包产物 |
+| `dtolnay/rust-toolchain@master` | Rust 工具链（官方指南推荐），钉死 `1.98.1` |
+| `Swatinem/rust-cache@v2` | 缓存 `~/.cargo/registry` + `target/`（官方指南推荐） |
+| `actions/setup-node@v4` | Node 22 + npm 缓存 |
+| `actions/checkout@v4` | 检出代码 |
 
-**为什么需要两层**：sccache 让未变的 crate 跳过*编译*，rust-cache 让依赖跳过*下载*。
-sccache 永远看不到 `cargo fetch`，rust-cache 不缓存编译结果——两者互补而非替代。
+### 两个关键配置（容易踩坑）
 
-sccache 需要两个环境变量才生效（缺一不可）：
+**1. `rust-cache` 的 `workspaces` 必须指向 `src-tauri`**
 
 ```yaml
-SCCACHE_GHA_ENABLED: "true"   # 用 GitHub Actions 缓存作存储后端
-RUSTC_WRAPPER: sccache        # 让 rustc 走 sccache
+workspaces: "./src-tauri -> target"
 ```
+
+本项目不是 Tauri 应用在仓库根的结构（而是 `frontend/` + `src-tauri/`）。
+官方文档明确要求这种布局必须指定路径——写成 `.` 会缓存错误的目录且**静默失效**。
+
+**2. 前端构建交给 `beforeBuildCommand`**
+
+`src-tauri/tauri.conf.json` 中：
+
+```json
+"beforeBuildCommand": "npm --prefix ../frontend run build"
+```
+
+原先是空字符串，导致 `tauri build` **不会构建前端**，而 `generate_context!` 又需要
+`frontend/dist` 存在——构建必然失败。现在由 Tauri CLI 统一负责，本地与 CI 走同一条路径。
 
 ### 已知限制
 
-- **`Cargo.lock` 未入库**：依赖版本无法锁定。两层缓存都无法解决这个问题——一次
-  全新的依赖解析可能选到不同版本，从而使两层缓存同时失效。这是"上次失败、下次
-  重新拉依赖"的根本原因。
+- **`Cargo.lock` 未入库**：依赖版本无法锁定。缓存无法解决这个问题——一次全新的依赖
+  解析可能选到不同版本，从而使缓存失效。这是"上次失败、下次重新拉依赖"的根本原因。
 - **`fmt` / `clippy` 不阻断构建**：本仓库从未跑过 `cargo fmt`（作者本机无 Rust
-  工具链），直接设为门禁会让 CI 永久变红。它们仍会输出到日志，便于有工具链的
-  贡献者修正后再提升为门禁。**真正的破坏由 `cargo test --lib` 拦截**（内核 30 个测试）。
+  工具链），直接设为门禁会让 CI 永久变红。它们仍输出到日志，便于有工具链的贡献者
+  修正后再提升为门禁。**真正的破坏由 `cargo test --lib` 拦截**（内核 30 个测试）。
+- **仅 Windows**：官方模板支持 matrix（macOS/Linux），本产品是 Windows 优先，暂不添加
+  未经验证的平台条目。
 
 ## 目录
 

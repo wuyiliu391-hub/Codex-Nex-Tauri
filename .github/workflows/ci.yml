@@ -1,28 +1,26 @@
 name: ci
 
-# Continuous integration for the Tauri shell + self-developed in-process kernel.
+# Continuous integration, following the official Tauri GitHub Actions guide:
+#   https://v2.tauri.app/distribute/pipelines/github/
 #
-# Caching strategy — two layers, because they cache different things and one
-# cannot replace the other:
+# Why this file looks the way it does — the three decisions that matter:
 #
-#   1. sccache (mozilla-actions/sccache-action)
-#        Caches individual compilation units, keyed by source content. On a hit
-#        rustc is never invoked for that crate. Shared across branches and
-#        across every job in this workflow via the GitHub Actions cache backend.
-#        Requires SCCACHE_GHA_ENABLED + RUSTC_WRAPPER (set in `env` below).
+#  1. Build with `tauri-apps/tauri-action`, not a hand-rolled `cargo tauri
+#     build`. The official action installs the correct CLI version, runs the
+#     build, and can publish a release — three things this repo previously
+#     reimplemented by hand (a CLI zip download, a stage-dist script, and no
+#     release step at all).
 #
-#   2. Swatinem/rust-cache
-#        Caches ~/.cargo/registry (dependency downloads + the crates.io index)
-#        and the target/ skeleton. sccache cannot do this: it never sees
-#        `cargo fetch`.
+#  2. Cache with `Swatinem/rust-cache` and `dtolnay/rust-toolchain`, which is
+#     what the official guide uses. sccache is deliberately NOT used here: the
+#     official pipeline does not use it, and adding it means one more moving
+#     part whose configuration (SCCACHE_GHA_ENABLED + RUSTC_WRAPPER) is easy to
+#     get silently wrong. rust-cache covers the common case.
 #
-# Why both: sccache makes an unchanged crate skip *compilation*, rust-cache
-# makes it skip *downloading*. A cold runner needs both to be fast.
-#
-# NOTE: neither layer can make dependency *resolution* reproducible. That needs
-# a committed Cargo.lock, which this repo does not have yet — see the note in
-# README. Until then a fresh resolve can pick different versions and invalidate
-# both caches.
+#  3. `workspaces: './src-tauri -> target'` is NOT optional. The official docs
+#     call this out for repos where the Tauri app is not at the repo root, and
+#     this repo is exactly that shape (frontend/ + src-tauri/). Pointing it at
+#     `.` would cache the wrong directory and silently do nothing.
 
 on:
   push:
@@ -37,128 +35,145 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  # Keep artifacts in one place so rust-cache and the build steps agree.
-  CARGO_TARGET_DIR: ${{ github.workspace }}/target
-  # sccache: use the GitHub Actions cache as the storage backend, and route
-  # rustc through the wrapper. Without both, the action installs sccache but
-  # nothing uses it.
-  SCCACHE_GHA_ENABLED: "true"
-  RUSTC_WRAPPER: sccache
 
 jobs:
-  # ── frontend ──────────────────────────────────────────────────────────────
-  # Runs on its own because it needs no Rust toolchain: if the UI is broken
-  # this fails in ~1 minute instead of waiting for a cold cargo build.
-  frontend:
-    name: frontend (typecheck + build)
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+  # ── checks ────────────────────────────────────────────────────────────────
+  # Frontend typecheck + kernel unit tests. These run before the (slow) Tauri
+  # build so a broken commit fails in ~2 minutes instead of ~20.
+  checks:
+    name: checks
+    runs-on: windows-latest
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: setup node
+        uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install
+      - name: install frontend dependencies
         working-directory: frontend
         run: npm ci --no-audit --no-fund
 
-      - name: Typecheck
+      - name: typecheck frontend
         working-directory: frontend
         run: npm run typecheck
 
-      # Also produces frontend/dist, which the Rust job needs: tauri.conf.json
-      # sets frontendDist to ../frontend/dist and `tauri::generate_context!`
-      # embeds it at compile time.
-      - name: Build
+      # `tauri::generate_context!` embeds `frontendDist` at compile time, so
+      # frontend/dist must exist before any cargo command. The Tauri build job
+      # below rebuilds it via tauri-action, but the test step here needs it too.
+      - name: build frontend
         working-directory: frontend
         run: npm run build
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: frontend-dist
-          path: frontend/dist
-          retention-days: 1
-
-  # ── rust ──────────────────────────────────────────────────────────────────
-  rust:
-    name: rust (fmt + clippy + test)
-    runs-on: windows-latest
-    needs: frontend
-    timeout-minutes: 40
-
-    steps:
-      - uses: actions/checkout@v4
-
-      # Pinned so a rustc/clippy release cannot change results mid-review.
-      - uses: dtolnay/rust-toolchain@master
+      - name: install Rust
+        uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "1.98.1"
           components: rustfmt, clippy
 
-      # Layer 1: compilation cache. Must come before any cargo invocation.
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.11
-
-      # Layer 2: registry + target cache.
-      - name: Setup rust-cache
+      - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: . -> target
-          # One shared-key per OS+profile family. All jobs here use the same
-          # release/dev profile, so they can share; if a job ever overrides
-          # CARGO_PROFILE_*, it must get its own key or the two will evict
-          # each other's target/ artifacts.
-          shared-key: tauri-win
-          key: ci
-          cache-targets: true
+          # Matches this repo's layout (frontend/ + src-tauri/), per the
+          # official guide. `workspaces: .` would be wrong here.
+          workspaces: "./src-tauri -> target"
           cache-on-failure: true
-
-      # `tauri::generate_context!` reads tauri.conf.json and embeds the
-      # frontend from frontendDist, so dist/ must exist before any cargo
-      # command that expands the macro. Reusing the frontend job's artifact
-      # avoids a second npm install + vite build.
-      - name: Fetch frontend dist
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-dist
-          path: frontend/dist
-
-      # Formatting and lints report but do not gate the build.
-      #
-      # Why not gate: this repository has never been run through `cargo fmt`,
-      # and the local toolchain that would do it is not available to the
-      # author. Turning these into hard failures today would make CI
-      # permanently red on formatting that nobody has been able to run.
-      #
-      # They are still worth running: the log shows exactly which lines need
-      # normalising, so the first contributor with a working toolchain can fix
-      # them and then promote these to blocking steps.
-      #
-      # Real breakage IS gated: `cargo test --lib` below fails the build.
-      - name: cargo fmt --check
-        working-directory: src-tauri
-        run: cargo fmt --all -- --check
-        continue-on-error: true
-
-      # The kernel's `unwrap_used` / `expect_used` lints (root Cargo.toml) fire
-      # heavily on test code, which is the wrong place to fail a build.
-      - name: cargo clippy
-        working-directory: src-tauri
-        run: cargo clippy --workspace --all-targets
-        continue-on-error: true
 
       - name: cargo test (kernel)
         working-directory: src-tauri
         run: cargo test --lib
 
-      # Prints hit/miss counts so a regression in cache effectiveness is
-      # visible in the log rather than guessed at.
-      - name: sccache stats
-        if: always()
-        shell: bash
-        run: ${SCCACHE_PATH} --show-stats
+      # Formatting and lints report but do not gate.
+      #
+      # This repo has never been run through `cargo fmt` and the author has no
+      # local Rust toolchain, so there are ~19 over-long lines that rustfmt
+      # would reflow. Gating on them would make CI permanently red, which is
+      # worse than reporting. They still print, so the first contributor with a
+      # toolchain can fix and promote them.
+      - name: cargo fmt (report only)
+        working-directory: src-tauri
+        run: cargo fmt --all -- --check
+        continue-on-error: true
+
+      - name: cargo clippy (report only)
+        working-directory: src-tauri
+        run: cargo clippy --workspace --all-targets
+        continue-on-error: true
+
+  # ── build ─────────────────────────────────────────────────────────────────
+  # Verifies the app actually bundles, using the official action. No release is
+  # created: `tagName`/`releaseName`/`releaseId` are omitted on purpose, which
+  # the action documents as the "build only" mode.
+  #
+  # Windows only for now. Adding macOS/Linux means adding a `matrix` as in the
+  # official example — deliberately deferred, because the product is
+  # Windows-first (see the kernel's Windows-specific notes) and an untested
+  # platform entry is worse than none.
+  build:
+    name: build (windows)
+    needs: checks
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: install frontend dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+
+      - name: install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.98.1"
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+          # Distinct from the checks job: the checks job runs a dev-profile
+          # `cargo test`, this one a release-profile `cargo tauri build`.
+          # Sharing one key would make the two evict each other's artifacts.
+          key: build
+          cache-on-failure: true
+
+      # The action installs the Tauri CLI itself and runs `tauri build`.
+      #
+      # The frontend is NOT built here: `tauri.conf.json` sets
+      # `beforeBuildCommand` to `npm --prefix ../frontend run build`, so the
+      # Tauri CLI builds it as part of `tauri build`. This mirrors the official
+      # guide ("install the frontend dependencies and, if not configured as
+      # beforeBuildCommand, run the web app's build script") and keeps local
+      # and CI builds on the same code path.
+      #
+      # `projectPath` is omitted on purpose: its default is `./`, and the
+      # official guide defines it as "the path to the root of the tauri
+      # project" — i.e. the directory *containing* `src-tauri/`. Here that is
+      # the repo root. (The official example passes a nested path because its
+      # fixture lives under `.github/fixtures/`, not because projectPath points
+      # at `src-tauri` itself — `projectPath: src-tauri` would make the action
+      # look for `src-tauri/src-tauri/`.)
+      #
+      # No tagName/releaseName/releaseId: the action documents that omitting
+      # them means "build only, upload nothing".
+      - id: build
+        uses: tauri-apps/tauri-action@v1
+        with:
+          args: ""
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: report artifacts
+        run: echo "tauri-action produced: ${{ steps.build.outputs.artifactPaths }}"
