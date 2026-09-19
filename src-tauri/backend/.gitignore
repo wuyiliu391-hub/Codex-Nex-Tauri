@@ -1,0 +1,11 @@
+# Build outputs
+/target/
+**/target/
+
+# Test artifacts
+*.pdb
+test.db
+
+# IDE
+.vscode/
+.idea/
