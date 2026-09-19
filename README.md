@@ -84,11 +84,38 @@ cargo tauri build --manifest-path src-tauri/Cargo.toml
 
 ## CI
 
-CI 配置已清空，等待接入新的部署方案。
+单个 workflow（`.github/workflows/ci.yml`），两个 job：
 
-原先的 5 个 workflow（`lint-check` / `backend-check` / `build-fast` /
-`build-release` / `build-debug`）和自建的 `setup-tauri-cli` 复合 action 已移除：
-它们手写维护了缓存装配、Tauri CLI 下载与引擎打包门禁，维护成本高于收益。
+| Job | 运行环境 | 内容 |
+|---|---|---|
+| `frontend` | ubuntu-latest | `npm ci` → `typecheck` → `build`，产出 `dist` 工件 |
+| `rust` | windows-latest | `cargo fmt` / `clippy`（仅报告）→ `cargo test --lib`（**门禁**） |
+
+### 缓存：两层，缺一不可
+
+| 层 | 工具 | 缓存对象 | 效果 |
+|---|---|---|---|
+| 1 | `mozilla-actions/sccache-action@v0.0.11` | 单个编译单元（按源文件内容哈希） | 源码未变 → **跳过编译** |
+| 2 | `Swatinem/rust-cache@v2` | `~/.cargo/registry` + `target/` | 依赖 → **跳过下载** |
+
+**为什么需要两层**：sccache 让未变的 crate 跳过*编译*，rust-cache 让依赖跳过*下载*。
+sccache 永远看不到 `cargo fetch`，rust-cache 不缓存编译结果——两者互补而非替代。
+
+sccache 需要两个环境变量才生效（缺一不可）：
+
+```yaml
+SCCACHE_GHA_ENABLED: "true"   # 用 GitHub Actions 缓存作存储后端
+RUSTC_WRAPPER: sccache        # 让 rustc 走 sccache
+```
+
+### 已知限制
+
+- **`Cargo.lock` 未入库**：依赖版本无法锁定。两层缓存都无法解决这个问题——一次
+  全新的依赖解析可能选到不同版本，从而使两层缓存同时失效。这是"上次失败、下次
+  重新拉依赖"的根本原因。
+- **`fmt` / `clippy` 不阻断构建**：本仓库从未跑过 `cargo fmt`（作者本机无 Rust
+  工具链），直接设为门禁会让 CI 永久变红。它们仍会输出到日志，便于有工具链的
+  贡献者修正后再提升为门禁。**真正的破坏由 `cargo test --lib` 拦截**（内核 30 个测试）。
 
 ## 目录
 
