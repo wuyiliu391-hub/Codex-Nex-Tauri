@@ -1,4 +1,3 @@
-use crate::codex::EngineHandle;
 use crate::state::AppState;
 use tauri::State;
 
@@ -14,32 +13,32 @@ pub struct DependencyStatus {
     pub detail: String,
 }
 
+/// `check_dependencies` — environment probe for the settings UI.
+///
+/// The `codex-app-server` entry is gone on purpose: the kernel is in-process,
+/// so there is no external binary to resolve or connect to. Reporting a
+/// missing sidecar here would now be misleading. What remains are the things
+/// that genuinely can be absent: the WebView runtime (supplied by Tauri) and
+/// the optional `ripgrep` used by future file search.
 #[tauri::command]
-pub fn check_dependencies(
-    app: tauri::AppHandle,
-    engine: State<'_, EngineHandle>,
-) -> Result<Vec<DependencyStatus>, String> {
+pub fn check_dependencies(app: tauri::AppHandle) -> Result<Vec<DependencyStatus>, String> {
     let mut out = Vec::new();
 
-    // WebView2 is provided by Tauri runtime; report shell ok.
+    // WebView2 is provided by the Tauri runtime; if this code runs, it exists.
     out.push(DependencyStatus {
         name: "tauri-shell".into(),
         ok: true,
         detail: "running".into(),
     });
 
-    let connected = engine.is_running();
+    // The kernel is compiled into this binary: it cannot be missing.
     out.push(DependencyStatus {
-        name: "codex-app-server".into(),
-        ok: connected,
-        detail: if connected {
-            "connected".into()
-        } else {
-            "not connected (install sidecar binary)".into()
-        },
+        name: "kernel".into(),
+        ok: true,
+        detail: "in-process (no external engine binary)".into(),
     });
 
-    // ripgrep optional
+    // ripgrep is optional and only used by future file search.
     let rg = if cfg!(windows) { "rg.exe" } else { "rg" };
     let rg_ok = std::process::Command::new(rg)
         .arg("--version")

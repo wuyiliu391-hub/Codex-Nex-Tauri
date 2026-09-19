@@ -1,5 +1,6 @@
 mod codex;
 mod commands;
+mod kernel;
 mod menu;
 mod state;
 
@@ -59,12 +60,25 @@ pub fn run() {
 
             app.manage(state);
 
-            // Start official codex-app-server sidecar (WebSocket).
-            let engine = codex::EngineHandle::start(app.handle())?;
-            app.manage(engine);
-
-            // Fan-out: sidecar notifications -> frontend events.
-            codex::events::spawn_event_bridge(app.handle().clone());
+            // ── self-developed kernel ────────────────────────────────────
+            // Replaces the official codex-app-server sidecar. The kernel runs
+            // in-process, so there is no binary to resolve, no WebSocket to
+            // dial, no port to bind and no child process to supervise. The
+            // whole class of failures the sidecar shell had (cold-start double
+            // connect, 120 s dead-socket hang, unauthenticated loopback
+            // listener, orphaned child on crash) is structurally absent.
+            //
+            // The provider starts as `EchoProvider`: a deterministic offline
+            // backend that validates the transport end-to-end. It discloses
+            // itself in the stream (`provider_is_placeholder`), so a
+            // non-model answer is never presented as a real completion.
+            let kernel = std::sync::Arc::new(kernel::KernelState::new());
+            tracing::info!(
+                provider = kernel.provider_name(),
+                placeholder = kernel.provider_is_placeholder(),
+                "self-developed kernel started"
+            );
+            app.manage(kernel);
 
             Ok(())
         })
@@ -104,29 +118,42 @@ pub fn run() {
             commands::scheduled::run_scheduled_task,
             commands::scheduled::list_pull_requests,
             commands::scheduled::save_pull_requests,
-            // engine forwarders
-            commands::engine::engine_status,
-            commands::engine::new_session,
-            commands::engine::list_sessions,
-            commands::engine::get_session,
-            commands::engine::delete_session,
-            commands::engine::archive_session,
-            commands::engine::unarchive_session,
-            commands::engine::send_message,
-            commands::engine::interrupt_session,
-            commands::engine::resolve_approval,
-            commands::engine::respond_server_request,
-            commands::engine::list_providers,
-            commands::engine::save_provider,
-            commands::engine::probe_provider,
-            commands::engine::list_mcp_servers,
-            commands::engine::save_mcp_server,
-            commands::engine::test_mcp_connection,
-            commands::engine::set_mcp_server_enabled,
-            commands::engine::list_skills,
-            commands::engine::reload_skills,
-            commands::engine::list_plugins,
-            commands::engine::set_plugin_enabled,
+            // kernel-backed engine surface
+            commands::kernel::engine_status,
+            commands::kernel::new_session,
+            commands::kernel::list_sessions,
+            commands::kernel::get_session,
+            commands::kernel::delete_session,
+            commands::kernel::archive_session,
+            commands::kernel::unarchive_session,
+            commands::kernel::send_message,
+            commands::kernel::interrupt_session,
+            commands::kernel::get_runtime_events,
+            commands::kernel::kernel_selftest,
+            // kernel config surface (providers / MCP / plugins / shell).
+            // These used to forward to the sidecar over WebSocket; they now
+            // operate on the shell store and report unimplemented capabilities
+            // explicitly instead of fabricating success.
+            commands::kernel_config::resolve_approval,
+            commands::kernel_config::respond_server_request,
+            commands::kernel_config::list_providers,
+            commands::kernel_config::save_provider,
+            commands::kernel_config::probe_provider,
+            commands::kernel_config::list_mcp_servers,
+            commands::kernel_config::save_mcp_server,
+            commands::kernel_config::test_mcp_connection,
+            commands::kernel_config::set_mcp_server_enabled,
+            commands::kernel_config::list_skills,
+            commands::kernel_config::reload_skills,
+            commands::kernel_config::list_plugins,
+            commands::kernel_config::set_plugin_enabled,
+            commands::kernel_config::open_shell,
+            commands::kernel_config::write_shell,
+            commands::kernel_config::read_shell,
+            commands::kernel_config::close_shell,
+            commands::kernel_config::git_status,
+            commands::kernel_config::list_agent_tools,
+            commands::kernel_config::rpc_raw,
             commands::market::plugin_marketplaces,
             commands::market::plugin_marketplace_add,
             commands::market::plugin_marketplace_remove,
@@ -137,21 +164,13 @@ pub fn run() {
             commands::market::plugin_uninstall,
             commands::market::plugin_set_enabled,
             commands::market::plugin_skills,
-            commands::engine::open_shell,
-            commands::engine::write_shell,
-            commands::engine::read_shell,
-            commands::engine::close_shell,
-            commands::engine::git_status,
-            commands::engine::get_runtime_events,
-            commands::engine::list_agent_tools,
-            commands::engine::rpc_raw,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                // Gracefully stop sidecar before closing.
-                if let Some(engine) = window.app_handle().try_state::<codex::EngineHandle>() {
-                    engine.shutdown();
-                }
+                // The kernel is in-process, so there is no child process to
+                // stop: dropping the AppHandle tears it down with the app.
+                // (The old sidecar shell had to shut the exe down here, and
+                // orphaned it whenever the app was killed from Task Manager.)
                 api.prevent_close();
                 let _ = window.destroy();
             }
