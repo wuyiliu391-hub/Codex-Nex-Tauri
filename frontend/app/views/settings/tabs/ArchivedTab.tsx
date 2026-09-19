@@ -20,8 +20,32 @@ function label(key: string, fallback = ""): string {
 interface ArchivedSession {
   id: string;
   title: string;
+  /** Already formatted for display; empty when the backend sent no timestamp. */
   updatedAt?: string;
   project?: string;
+}
+
+/**
+ * Normalise a session timestamp to a display string.
+ *
+ * The desktop kernel reports Unix **milliseconds** (`session.rs` uses `u64`
+ * epoch ms), while the browser-dev stub and older payloads used an ISO string.
+ * Accepting only a string left the date column permanently blank in the desktop
+ * app. Numbers are formatted with the active locale; unparseable input yields
+ * `undefined` so the row simply omits the date instead of printing "Invalid
+ * Date".
+ */
+function asTimestamp(raw: unknown): string | undefined {
+  if (typeof raw === "string") {
+    if (!raw) return undefined;
+    const parsed = Date.parse(raw);
+    if (Number.isNaN(parsed)) return raw;
+    return new Date(parsed).toLocaleString();
+  }
+  if (typeof raw === "number" && Number.isFinite(raw) && raw > 0) {
+    return new Date(raw).toLocaleString();
+  }
+  return undefined;
 }
 
 function asSessions(raw: unknown): ArchivedSession[] {
@@ -39,8 +63,15 @@ function asSessions(raw: unknown): ArchivedSession[] {
     out.push({
       id,
       title: typeof s["title"] === "string" ? s["title"] : typeof s["name"] === "string" ? s["name"] : "",
-      updatedAt: typeof s["updatedAt"] === "string" ? s["updatedAt"] : undefined,
-      project: typeof s["project"] === "string" ? s["project"] : undefined,
+      updatedAt: asTimestamp(s["updatedAt"]),
+      // `list_sessions` reports the project as `cwd`; `project` is kept for
+      // older payloads.
+      project:
+        typeof s["project"] === "string"
+          ? s["project"]
+          : typeof s["cwd"] === "string" && s["cwd"]
+            ? s["cwd"]
+            : undefined,
     });
   }
   return out;

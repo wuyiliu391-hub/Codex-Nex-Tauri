@@ -116,7 +116,10 @@ pub fn new_session(
     Ok(json!({
         "id": thread.id,
         "title": title,
+        "name": title,
+        "preview": title,
         "cwd": thread.cwd,
+        "projectId": thread.cwd,
         "archived": thread.archived,
         "createdAt": thread.created_at,
         "updatedAt": thread.updated_at,
@@ -125,9 +128,18 @@ pub fn new_session(
 
 /// `list_sessions` — threads for the sidebar. The frontend reads `.data`.
 ///
-/// `cwd` is a **compatibility contract** with `normaliseSessions`
-/// (`appStore.ts:180-186`), which reads `cwd` and derives `projectId` from it.
-/// Omitting it made `deriveProjects` return nothing for every thread.
+/// Field names are a **compatibility contract** with `normaliseSessions`
+/// (`appStore.ts:169-193`), which reads `id`, `name`, `cwd`, `projectId`,
+/// `archived`, `updatedAt` and `preview`. Two of them were missing:
+///
+///  * `name` — only `title` was sent, so `session.title` and `session.preview`
+///    were both `""` and `Sidebar.tsx:285` fell through to its 「New task」
+///    default. Every row in the sidebar read "New task".
+///  * `preview` — the same fallback chain uses it as the second choice.
+///
+/// `updatedAt` is Unix milliseconds (a number), matching `session.rs` and
+/// `appStore.ts:188`. `ArchivedTab.tsx:42` used to accept only a string and so
+/// never rendered its date column; it now parses both.
 #[tauri::command]
 pub fn list_sessions(
     state: State<'_, Arc<KernelState>>,
@@ -137,10 +149,14 @@ pub fn list_sessions(
     let data: Vec<Value> = threads
         .into_iter()
         .map(|t| {
+            let title = t.display_title();
             json!({
                 "id": t.id,
-                "title": t.display_title(),
+                "title": title,
+                "name": title,
+                "preview": title,
                 "cwd": t.cwd,
+                "projectId": t.cwd,
                 "archived": t.archived,
                 "createdAt": t.created_at,
                 "updatedAt": t.updated_at,
@@ -153,10 +169,10 @@ pub fn list_sessions(
 
 /// `get_session` — one thread's metadata plus its transcript.
 ///
-/// `turnStore.ts:342` reads `preview` / `title` / `name` and then `messages`.
-/// We supply `title` (metadata) and `messages` (the flattened transcript) so
-/// the history loader has both. `cwd` is included for the same reason as in
-/// `list_sessions`.
+/// `turnStore.ts:341-344` reads `preview` / `title` / `name` and then
+/// `messages`. All three name fields carry the same value so whichever the
+/// loader prefers, it finds a title. `cwd` is included for the same reason as
+/// in `list_sessions`.
 #[tauri::command]
 pub fn get_session(
     state: State<'_, Arc<KernelState>>,
@@ -164,11 +180,14 @@ pub fn get_session(
 ) -> Result<Value, String> {
     let thread = state.sessions.get_thread(&session_id).map_err(err)?;
     let messages = state.sessions.transcript(&session_id).map_err(err)?;
+    let title = thread.display_title();
     Ok(json!({
         "id": thread.id,
-        "title": thread.display_title(),
-        "preview": thread.display_title(),
+        "title": title,
+        "name": title,
+        "preview": title,
         "cwd": thread.cwd,
+        "projectId": thread.cwd,
         "archived": thread.archived,
         "createdAt": thread.created_at,
         "updatedAt": thread.updated_at,
@@ -217,6 +236,17 @@ pub fn unarchive_session(
 /// `text` and `input` so older callers and tests keep working, but `message` is
 /// the shape that matters today.
 ///
+/// `send_message` — start a turn on a thread.
+///
+/// Payload shape is a **compatibility contract** taken from the call site
+/// (`Composer.tsx:753-761`), which sends `{ sessionId, message, attachments? }`.
+///
+/// The parameter is `Request<'_>`, not `serde_json::Value`. Tauri keys a
+/// hand-parsed argument by its **parameter name**, so a `payload: Value`
+/// parameter required a top-level `"payload"` key that this call site does not
+/// send — the command rejected with `missing required key payload` before the
+/// parsing below ever ran. See `commands::body_value`.
+///
 /// Returns as soon as the turn is scheduled; all output arrives as `codex:*`
 /// events. Returning early is what keeps the composer responsive while the
 /// answer streams in.
@@ -224,8 +254,10 @@ pub fn unarchive_session(
 pub fn send_message(
     app: AppHandle,
     state: State<'_, Arc<KernelState>>,
-    payload: Value,
+    request: tauri::ipc::Request<'_>,
 ) -> Result<Value, String> {
+    let payload = super::body_value(&request);
+
     let session_id = payload
         .get("sessionId")
         .or_else(|| payload.get("session_id"))

@@ -145,12 +145,18 @@ pub fn list_providers(
 ///
 /// After storing, the kernel's active provider is rebuilt so the change takes
 /// effect on the next turn without restarting the app.
+///
+/// The argument is `Request<'_>` rather than `serde_json::Value`: Tauri keys a
+/// hand-parsed argument by its **parameter name**, so `payload: Value` demanded
+/// a top-level `"payload"` key the call site never sends. See
+/// `commands::body_value`.
 #[tauri::command]
 pub fn save_provider(
     state: State<'_, AppState>,
     kernel: State<'_, Arc<KernelState>>,
-    payload: Value,
+    request: tauri::ipc::Request<'_>,
 ) -> Result<Value, String> {
+    let payload = super::body_value(&request);
     // Accept `{ provider: {...} }` (the frontend) or a flat object.
     let p = payload.get("provider").unwrap_or(&payload);
 
@@ -244,8 +250,20 @@ pub fn save_provider(
 /// (`AccountTab.tsx:117-137`), which reads `ok`, `error`, `hint`, `modelCount`,
 /// `models[]` and `modelFound`. A network failure is reported as a failure,
 /// never as `ok: true`.
+///
+/// `Request<'_>` rather than `Value`: a hand-parsed argument is keyed by its
+/// parameter name, so `payload: Value` required a `"payload"` key the call site
+/// does not send. See `commands::body_value`.
+///
+/// Returns `Result` rather than a bare `Value` because this command is `async`
+/// and takes a lifetime-carrying argument — the `#[tauri::command]` macro
+/// static-asserts that combination returns a `Result`
+/// (`tauri-macros` `command/wrapper.rs`, the `AsyncCommandMustReturnResult`
+/// check). A probe that cannot even be constructed is still reported as
+/// `ok: false` in the body, so the UI's error path is unchanged.
 #[tauri::command]
-pub async fn probe_provider(payload: Value) -> Value {
+pub async fn probe_provider(request: tauri::ipc::Request<'_>) -> Result<Value, String> {
+    let payload = super::body_value(&request);
     // The frontend sends flat fields: providerId / baseUrl / protocol / apiKey / model.
     let id = payload
         .get("providerId")
@@ -265,18 +283,18 @@ pub async fn probe_provider(payload: Value) -> Value {
         .to_string();
 
     if base.is_empty() {
-        return json!({
+        return Ok(json!({
             "ok": false,
             "error": "Base URL is empty",
             "hint": "Enter the gateway root, for example https://api.openai.com/v1",
-        });
+        }));
     }
     if !base.starts_with("http://") && !base.starts_with("https://") {
-        return json!({
+        return Ok(json!({
             "ok": false,
             "error": "Base URL must start with http:// or https://",
             "hint": format!("Got '{base}'"),
-        });
+        }));
     }
 
     let protocol = kernel::WireProtocol::parse(
@@ -324,7 +342,7 @@ pub async fn probe_provider(payload: Value) -> Value {
     {
         Ok(c) => c,
         Err(e) => {
-            return json!({ "ok": false, "error": format!("HTTP client init failed: {e}") })
+            return Ok(json!({ "ok": false, "error": format!("HTTP client init failed: {e}") }))
         }
     };
 
@@ -364,7 +382,7 @@ pub async fn probe_provider(payload: Value) -> Value {
                     "Endpoint reachable and the model is advertised.".to_string()
                 };
 
-                json!({
+                Ok(json!({
                     "ok": true,
                     "id": id,
                     "status": status.as_u16(),
@@ -373,18 +391,18 @@ pub async fn probe_provider(payload: Value) -> Value {
                     "models": models,
                     "modelFound": model_found,
                     "hint": hint,
-                })
+                }))
             } else if status.as_u16() == 401 || status.as_u16() == 403 {
-                json!({
+                Ok(json!({
                     "ok": false,
                     "id": id,
                     "status": status.as_u16(),
                     "url": url,
                     "error": format!("Endpoint reachable but the credential was rejected (HTTP {})", status.as_u16()),
                     "hint": "The URL is correct; the API key is wrong, expired, or not sent. Check the key field.",
-                })
+                }))
             } else {
-                json!({
+                Ok(json!({
                     "ok": false,
                     "id": id,
                     "status": status.as_u16(),
@@ -395,7 +413,7 @@ pub async fn probe_provider(payload: Value) -> Value {
                         body.chars().take(300).collect::<String>().trim()
                     ),
                     "hint": "The endpoint responded but not with a model list. Verify the base URL points at the API root.",
-                })
+                }))
             }
         }
         Err(e) => {
@@ -412,7 +430,7 @@ pub async fn probe_provider(payload: Value) -> Value {
             } else {
                 (format!("Request failed: {e}"), "")
             };
-            json!({ "ok": false, "id": id, "url": url, "error": error, "hint": hint })
+            Ok(json!({ "ok": false, "id": id, "url": url, "error": error, "hint": hint }))
         }
     }
 }
@@ -509,8 +527,16 @@ pub fn list_mcp_servers(state: State<'_, AppState>) -> Result<Value, String> {
 /// Reading only a top-level `name` made adding a server impossible: the command
 /// returned `missing name` and the row never appeared. Flat fields are still
 /// accepted so tests and future callers keep working.
+///
+/// `Request<'_>` rather than `Value`: a hand-parsed argument is keyed by its
+/// parameter name, so `payload: Value` required a `"payload"` key the call site
+/// does not send. See `commands::body_value`.
 #[tauri::command]
-pub fn save_mcp_server(state: State<'_, AppState>, payload: Value) -> Result<Value, String> {
+pub fn save_mcp_server(
+    state: State<'_, AppState>,
+    request: tauri::ipc::Request<'_>,
+) -> Result<Value, String> {
+    let payload = super::body_value(&request);
     // Accept `{ server: {...} }` (the frontend) or a flat object.
     let server = payload.get("server").unwrap_or(&payload);
 
@@ -585,8 +611,13 @@ pub fn set_mcp_server_enabled(
 /// The name is read from the nested `server` object the UI sends
 /// (`PluginsTab.tsx:121-128`). Calling `as_str()` on that object always failed,
 /// so every probe reported `<unknown>` instead of the server the user clicked.
+///
+/// `Request<'_>` rather than `Value`: a hand-parsed argument is keyed by its
+/// parameter name, so `payload: Value` required a `"payload"` key the call site
+/// does not send. See `commands::body_value`.
 #[tauri::command]
-pub fn test_mcp_connection(payload: Value) -> Value {
+pub fn test_mcp_connection(request: tauri::ipc::Request<'_>) -> Value {
+    let payload = super::body_value(&request);
     let name = payload
         .get("server")
         .and_then(|s| s.get("name").or_else(|| s.get("id")))
@@ -666,8 +697,14 @@ pub fn set_plugin_enabled(
 /// The echo provider never requests approval, so there is nothing to answer.
 /// Returns an explicit "no pending request" result rather than a silent success,
 /// so a UI that shows an approval card learns the card is stale.
+///
+/// The call sites (`ApprovalCard.tsx:55`, `ApprovalHost.tsx:39`,
+/// `UserInputCard.tsx:99,114`) send `{ requestId, result }`. `Request<'_>` is
+/// used rather than `Value` because a hand-parsed argument is keyed by its
+/// parameter name — see `commands::body_value`.
 #[tauri::command]
-pub fn respond_server_request(payload: Value) -> Value {
+pub fn respond_server_request(request: tauri::ipc::Request<'_>) -> Value {
+    let payload = super::body_value(&request);
     let id = payload
         .get("id")
         .or_else(|| payload.get("requestId"))
@@ -683,8 +720,8 @@ pub fn respond_server_request(payload: Value) -> Value {
 
 /// `resolve_approval` — alias kept for the approval cards; same honesty.
 #[tauri::command]
-pub fn resolve_approval(payload: Value) -> Value {
-    respond_server_request(payload)
+pub fn resolve_approval(request: tauri::ipc::Request<'_>) -> Value {
+    respond_server_request(request)
 }
 
 /// `rpc_raw` — pass-through to the engine's JSON-RPC surface.
@@ -692,8 +729,13 @@ pub fn resolve_approval(payload: Value) -> Value {
 /// There is no engine to pass through to. Reporting this explicitly is
 /// important: the old shell exposed an unauthenticated pass-through to any
 /// app-server method, which was a security hole as well as a debugging aid.
+///
+/// `Request<'_>` rather than `Value`: a hand-parsed argument is keyed by its
+/// parameter name, so `payload: Value` required a `"payload"` key the call sites
+/// do not send. See `commands::body_value`.
 #[tauri::command]
-pub fn rpc_raw(payload: Value) -> Value {
+pub fn rpc_raw(request: tauri::ipc::Request<'_>) -> Value {
+    let payload = super::body_value(&request);
     let method = payload
         .get("method")
         .and_then(Value::as_str)
@@ -709,31 +751,38 @@ pub fn rpc_raw(payload: Value) -> Value {
 /// `open_shell` / `write_shell` / `read_shell` / `close_shell` and
 /// `git_status` / `list_agent_tools` used to drive the engine's PTY. The kernel
 /// has no shell executor yet, so all of them report the missing capability.
+///
+/// They take `Request<'_>` and ignore it. That is deliberate: a command whose
+/// parameter is named `payload` cannot be invoked at all (Tauri keys a
+/// hand-parsed argument by its parameter name), and these are unreachable from
+/// the frontend today — so declaring no parsed argument keeps them callable for
+/// whoever wires the shell up, instead of silently rejecting. See
+/// `commands::body_value`.
 fn shell_not_wired(command: &str) -> Value {
     not_wired(command, "the kernel does not execute shell commands yet")
 }
 
 #[tauri::command]
-pub fn open_shell(payload: Value) -> Value {
-    let _ = payload;
+pub fn open_shell(request: tauri::ipc::Request<'_>) -> Value {
+    let _ = request;
     shell_not_wired("open_shell")
 }
 
 #[tauri::command]
-pub fn write_shell(payload: Value) -> Value {
-    let _ = payload;
+pub fn write_shell(request: tauri::ipc::Request<'_>) -> Value {
+    let _ = request;
     shell_not_wired("write_shell")
 }
 
 #[tauri::command]
-pub fn read_shell(payload: Value) -> Value {
-    let _ = payload;
+pub fn read_shell(request: tauri::ipc::Request<'_>) -> Value {
+    let _ = request;
     shell_not_wired("read_shell")
 }
 
 #[tauri::command]
-pub fn close_shell(payload: Value) -> Value {
-    let _ = payload;
+pub fn close_shell(request: tauri::ipc::Request<'_>) -> Value {
+    let _ = request;
     shell_not_wired("close_shell")
 }
 
@@ -743,8 +792,8 @@ pub fn close_shell(payload: Value) -> Value {
 /// absent; that is exactly the "fake success" the project forbids, so this
 /// returns an explicit not-wired result instead.
 #[tauri::command]
-pub fn git_status(payload: Value) -> Value {
-    let _ = payload;
+pub fn git_status(request: tauri::ipc::Request<'_>) -> Value {
+    let _ = request;
     not_wired("git_status", "the kernel does not inspect git state yet")
 }
 
