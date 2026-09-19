@@ -99,7 +99,7 @@ thread/tokenUsage/updated → codex:thread-tokenUsage-updated
 **两侧不一致 = UI 静默收不到任何事件**，且不报错。因此：
 - 内核只有 `events.rs` 允许构造通道名
 - `protocol.rs` 的测试断言了三个代表性转换
-- `verify-protocol-usage.mjs` 在 CI 中校验所有协议字符串
+- `kernel/events.rs` 的测试逐项断言了全部 15 个发出方法
 
 ### 3.2 通知方法必须存在于前端表
 

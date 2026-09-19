@@ -2,9 +2,9 @@
  * Notification reducer — maps every server notification to store actions.
  *
  * Coverage rule: every entry in NOTIFICATION_METHODS must be handled here.
- * `verify-notification-coverage.mjs` asserts that, so adding a method upstream
- * and regenerating fails the check until a handler exists. Unhandled methods
- * are recorded as warnings rather than dropped silently.
+ * Methods this reducer has no state for are listed in AMBIENT_METHODS below;
+ * anything else is recorded as a visible warning rather than dropped silently,
+ * so a new method upstream is noticed instead of disappearing.
  *
  * Everything below reacts to the server. Nothing is simulated locally.
  */

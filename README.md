@@ -78,34 +78,17 @@ npm ci
 npm run typecheck
 npm run build
 
-# 桌面端（需要 Rust 1.98.1 + Tauri CLI）
+# 桌面端（需要 Rust + Tauri CLI）
 cargo tauri build --manifest-path src-tauri/Cargo.toml
-```
-
-输出 `dist/Codex-portable/`（见 `scripts/stage-dist.ps1`）。
-
-### 本地检查（无需 Rust）
-
-```bash
-node scripts/check-frontend.mjs              # TS 语法 + TSX 结构 + import 解析
-node scripts/verify-protocol-usage.mjs       # 协议字符串是否都在生成表中
-node scripts/verify-notification-coverage.mjs # 83 个通知是否都有归宿
-node scripts/migration-status.mjs            # vanilla → React 迁移状态
 ```
 
 ## CI
 
-| Workflow | 作用 |
-|---|---|
-| `lint-check` | 前端静态检查 + typecheck + `cargo fmt --check` |
-| `backend-check` | `cargo check --workspace --all-targets` + `cargo test --lib`（内核 30 个测试） |
-| `build-fast` | 推送即构建，产出便携包 |
-| `build-release` | tag 触发，正式打包 |
-| `build-debug` | 全符号调试构建，用于崩溃分析 |
+CI 配置已清空，等待接入新的部署方案。
 
-所有构建都带 **"Assert no engine binary is bundled"** 门禁：若 `tauri.conf.json`
-重新引用 `codex-app-server`，或 `src-tauri/binaries/` 出现 exe，构建会直接失败，
-防止 300 MB 引擎被静默打包回去。
+原先的 5 个 workflow（`lint-check` / `backend-check` / `build-fast` /
+`build-release` / `build-debug`）和自建的 `setup-tauri-cli` 复合 action 已移除：
+它们手写维护了缓存装配、Tauri CLI 下载与引擎打包门禁，维护成本高于收益。
 
 ## 目录
 
@@ -118,4 +101,4 @@ node scripts/migration-status.mjs            # vanilla → React 迁移状态
 | `src-tauri/src/commands/**` | Tauri 命令层 |
 | `src-tauri/src/codex/adapter.rs` | 供应商协议转换器（Chat/Anthropic/Ollama → Responses） |
 | `docs/` | 架构说明、供应商配置、官方 UI 逆向语料 |
-| `scripts/` | 构建与校验脚本 |
+| `scripts/` | UIA 逆向工具（`uia-*.ps1` / `capture-*.ps1`），与构建无关 |

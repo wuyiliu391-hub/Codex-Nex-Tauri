@@ -1,9 +1,0 @@
-schema_version: 1
-module_path: rust_backend
-title: Codex Tauri 桌面应用后端
-scope:
-    - src-tauri/
-source_files: []
-depends_on: []
-related_to:
-    - path: scripts

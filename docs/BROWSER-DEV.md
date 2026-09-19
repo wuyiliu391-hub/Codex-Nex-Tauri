@@ -18,7 +18,8 @@
 ## 使用
 
 ```powershell
-.\scripts\dev-browser.ps1          # 等价于 cd frontend; npm run dev:browser
+cd frontend
+npm run dev:browser
 ```
 
 打开 http://localhost:1420 。
@@ -56,7 +57,6 @@
 | `frontend/app/devbridge/shellState.ts` | shell-state.json 的 localStorage 镜像 |
 | `frontend/app/devbridge/eventBus.ts` | Tauri 事件语义的极简实现 |
 | `frontend/vite.config.ts` | `--mode browser`：alias 映射 |
-| `scripts/dev-browser.ps1` | 启动 vite bridge 模式 |
 
 ## 限制
 
