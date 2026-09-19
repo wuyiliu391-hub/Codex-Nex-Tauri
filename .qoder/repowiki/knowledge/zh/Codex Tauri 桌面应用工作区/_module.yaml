@@ -1,0 +1,10 @@
+schema_version: 1
+module_path: ""
+title: Codex Tauri 桌面应用工作区
+scope:
+    - README.md
+    - .gitignore
+    - Cargo.toml
+source_files: []
+depends_on: []
+related_to: []

@@ -1,0 +1,10 @@
+schema_version: 1
+module_path: scripts
+title: 构建、测试与 UI 自动化脚本集
+scope:
+    - scripts/
+source_files: []
+depends_on: []
+related_to:
+    - path: frontend_app
+    - path: rust_backend
